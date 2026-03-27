@@ -365,7 +365,7 @@ export function LaunchWindow() {
 											/>
 										</>
 									))}
-								{!webcamExpanded && (
+								{(!webcamExpanded || cameraDevices.length === 0) && (
 									<select
 										value={webcamDeviceId || selectedCameraId}
 										onChange={(e) => {

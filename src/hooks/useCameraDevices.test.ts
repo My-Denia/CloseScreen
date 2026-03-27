@@ -71,6 +71,19 @@ describe("useCameraDevices", () => {
 		expect(mockGetUserMedia).not.toHaveBeenCalled();
 	});
 
+	it("should set error state when enumeration fails", async () => {
+		mockEnumerateDevices.mockRejectedValueOnce(new Error("Permission denied"));
+
+		const { result } = renderHook(() => useCameraDevices(true));
+
+		await waitFor(() => {
+			expect(result.current.error).toBe("Permission denied");
+		});
+
+		expect(result.current.devices).toHaveLength(0);
+		expect(result.current.isLoading).toBe(false);
+	});
+
 	it("should fall back to first available device when selected device is unplugged", async () => {
 		const { result } = renderHook(() => useCameraDevices(true));
 
