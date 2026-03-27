@@ -112,10 +112,10 @@ export function LaunchWindow() {
 
 	const selectedMicLabel =
 		micDevices.find((d) => d.deviceId === (microphoneDeviceId || selectedMicId))?.label ||
-		"Default Microphone";
+		t("audio.defaultMicrophone");
 	const selectedCameraLabel =
 		cameraDevices.find((d) => d.deviceId === (webcamDeviceId || selectedCameraId))?.label ||
-		"Default Camera";
+		t("webcam.defaultCamera");
 
 	const { level } = useAudioLevelMeter({
 		enabled: showMicControls,
@@ -340,7 +340,7 @@ export function LaunchWindow() {
 										/>
 									</>
 								) : (
-									<span className="text-white/40 text-[10px] italic">Searching...</span>
+									<span className="text-white/40 text-[10px] italic">{t("webcam.searching")}</span>
 								)}
 							</div>
 						</div>

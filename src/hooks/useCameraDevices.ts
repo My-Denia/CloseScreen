@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 export interface CameraDevice {
 	deviceId: string;
@@ -11,6 +11,8 @@ export function useCameraDevices(enabled: boolean = false) {
 	const [selectedDeviceId, setSelectedDeviceId] = useState<string>("");
 	const [isLoading, setIsLoading] = useState(false);
 	const [error, setError] = useState<string | null>(null);
+	const selectedDeviceIdRef = useRef(selectedDeviceId);
+	selectedDeviceIdRef.current = selectedDeviceId;
 
 	useEffect(() => {
 		let mounted = true;
@@ -44,8 +46,10 @@ export function useCameraDevices(enabled: boolean = false) {
 
 				if (mounted) {
 					setDevices(videoInputs);
-					if (!selectedDeviceId && videoInputs.length > 0) {
-						setSelectedDeviceId(videoInputs[0].deviceId);
+					const currentId = selectedDeviceIdRef.current;
+					const stillAvailable = videoInputs.some((d) => d.deviceId === currentId);
+					if (!currentId || !stillAvailable) {
+						setSelectedDeviceId(videoInputs[0]?.deviceId ?? "");
 					}
 					setIsLoading(false);
 				}
@@ -64,7 +68,7 @@ export function useCameraDevices(enabled: boolean = false) {
 			mounted = false;
 			navigator.mediaDevices.removeEventListener("devicechange", loadDevices);
 		};
-	}, [enabled, selectedDeviceId]);
+	}, [enabled]);
 
 	return { devices, selectedDeviceId, setSelectedDeviceId, isLoading, error };
 }
