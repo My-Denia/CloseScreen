@@ -29,6 +29,9 @@ describe("useCameraDevices", () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
 		mockEnumerateDevices.mockResolvedValue(mockDevices);
+		mockGetUserMedia.mockResolvedValue({
+			getTracks: () => [{ stop: vi.fn() }],
+		});
 	});
 
 	afterEach(() => {
@@ -54,22 +57,18 @@ describe("useCameraDevices", () => {
 		});
 	});
 
-	it("should request permission if labels are empty and populate devices after", async () => {
-		mockEnumerateDevices
-			.mockResolvedValueOnce([
-				{ kind: "videoinput", deviceId: "cam1", label: "", groupId: "group1" },
-			])
-			.mockResolvedValueOnce(mockDevices);
+	it("should use device ID as fallback label when label is missing", async () => {
+		mockEnumerateDevices.mockResolvedValueOnce([
+			{ kind: "videoinput", deviceId: "cam1abc123456", label: "", groupId: "group1" },
+		]);
 
 		const { result } = renderHook(() => useCameraDevices(true));
 
 		await waitFor(() => {
-			expect(mockGetUserMedia).toHaveBeenCalledWith({ video: true });
+			expect(result.current.devices[0]?.label).toBe("Camera cam1abc1");
 		});
 
-		await waitFor(() => {
-			expect(result.current.devices[0]?.label).toBe("Camera 1");
-		});
+		expect(mockGetUserMedia).not.toHaveBeenCalled();
 	});
 
 	it("should fall back to first available device when selected device is unplugged", async () => {
@@ -80,11 +79,10 @@ describe("useCameraDevices", () => {
 		});
 
 		// Simulate cam1 being unplugged — only cam2 remains
-		// loadDevices calls enumerateDevices twice, mock both to return only cam2
 		const cam2Only = [
 			{ kind: "videoinput", deviceId: "cam2", label: "Camera 2", groupId: "group1" },
 		];
-		mockEnumerateDevices.mockResolvedValueOnce(cam2Only).mockResolvedValueOnce(cam2Only);
+		mockEnumerateDevices.mockResolvedValueOnce(cam2Only);
 
 		// Trigger devicechange event via the registered handler
 		const devicechangeHandler = (

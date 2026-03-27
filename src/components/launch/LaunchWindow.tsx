@@ -120,9 +120,14 @@ export function LaunchWindow() {
 	const selectedMicLabel =
 		micDevices.find((d) => d.deviceId === (microphoneDeviceId || selectedMicId))?.label ||
 		t("audio.defaultMicrophone");
-	const selectedCameraLabel =
-		cameraDevices.find((d) => d.deviceId === (webcamDeviceId || selectedCameraId))?.label ||
-		t("webcam.defaultCamera");
+	const selectedCameraLabel = isCameraDevicesLoading
+		? t("webcam.searching")
+		: cameraDevicesError
+			? t("webcam.unavailable")
+			: cameraDevices.length === 0
+				? t("webcam.noneFound")
+				: cameraDevices.find((d) => d.deviceId === (webcamDeviceId || selectedCameraId))?.label ||
+					t("webcam.defaultCamera");
 
 	const { level } = useAudioLevelMeter({
 		enabled: showMicControls,
@@ -444,7 +449,7 @@ export function LaunchWindow() {
 					className={`flex items-center gap-0.5 rounded-full p-2 transition-colors duration-150 ${styles.electronNoDrag} ${
 						recording ? "animate-record-pulse bg-red-500/10" : "bg-white/5 hover:bg-white/[0.08]"
 					}`}
-					onClick={hasSelectedSource ? toggleRecording : openSourceSelector}
+					onClick={toggleRecording}
 					disabled={!hasSelectedSource && !recording}
 					style={{ flex: "0 0 auto" }}
 				>

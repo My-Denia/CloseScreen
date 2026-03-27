@@ -15,6 +15,7 @@ export function useCameraDevices(enabled: boolean = false) {
 	selectedDeviceIdRef.current = selectedDeviceId;
 
 	useEffect(() => {
+		if (!enabled) return;
 		let mounted = true;
 
 		const loadDevices = async () => {
@@ -22,19 +23,8 @@ export function useCameraDevices(enabled: boolean = false) {
 				setIsLoading(true);
 				setError(null);
 
-				// Re-request permission if labels are missing
-				const allDevicesBefore = await navigator.mediaDevices.enumerateDevices();
-				const needsPermission = allDevicesBefore.some((d) => d.kind === "videoinput" && !d.label);
-
-				if (needsPermission && enabled) {
-					try {
-						const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-						stream.getTracks().forEach((track) => track.stop());
-					} catch (e) {
-						console.warn("Failed to get camera permission for labels:", e);
-					}
-				}
-
+				// Enumerate without requesting a second stream — the recorder handles
+				// the real acquisition; unlabeled devices fall back to their device ID.
 				const allDevices = await navigator.mediaDevices.enumerateDevices();
 				const videoInputs = allDevices
 					.filter((device) => device.kind === "videoinput")
