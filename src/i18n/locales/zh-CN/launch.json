@@ -17,7 +17,9 @@
 		"enableWebcam": "启用摄像头",
 		"disableWebcam": "禁用摄像头",
 		"defaultCamera": "默认摄像头",
-		"searching": "正在搜索..."
+		"searching": "正在搜索...",
+		"noneFound": "未找到摄像头",
+		"unavailable": "摄像头不可用"
 	},
 	"sourceSelector": {
 		"loading": "正在加载源...",

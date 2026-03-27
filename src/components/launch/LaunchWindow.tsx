@@ -97,7 +97,12 @@ export function LaunchWindow() {
 	const showWebcamControls = webcamEnabled && !recording;
 
 	const [isMicHovered, setIsMicHovered] = useState(false);
+	const [isMicFocused, setIsMicFocused] = useState(false);
+	const micExpanded = isMicHovered || isMicFocused;
+
 	const [isWebcamHovered, setIsWebcamHovered] = useState(false);
+	const [isWebcamFocused, setIsWebcamFocused] = useState(false);
+	const webcamExpanded = isWebcamHovered || isWebcamFocused;
 
 	const {
 		devices: micDevices,
@@ -108,6 +113,8 @@ export function LaunchWindow() {
 		devices: cameraDevices,
 		selectedDeviceId: selectedCameraId,
 		setSelectedDeviceId: setSelectedCameraId,
+		isLoading: isCameraDevicesLoading,
+		error: cameraDevicesError,
 	} = useCameraDevices(webcamEnabled);
 
 	const selectedMicLabel =
@@ -257,46 +264,43 @@ export function LaunchWindow() {
 					{/* Mic selector */}
 					{showMicControls && (
 						<div
-							className={`flex items-center gap-2 px-3 py-1.5 h-[36px] bg-gradient-to-br from-[rgba(28,28,36,0.97)] to-[rgba(18,18,26,0.96)] backdrop-blur-[24px] border border-white/10 rounded-xl shadow-2xl transition-all duration-300 overflow-hidden ${!isMicHovered ? "opacity-60 grayscale-[0.5]" : "opacity-100"}`}
+							className={`flex items-center gap-2 px-3 py-1.5 h-[36px] bg-gradient-to-br from-[rgba(28,28,36,0.97)] to-[rgba(18,18,26,0.96)] backdrop-blur-[24px] border border-white/10 rounded-xl shadow-2xl transition-all duration-300 overflow-hidden ${!micExpanded ? "opacity-60 grayscale-[0.5]" : "opacity-100"}`}
 							onMouseEnter={() => setIsMicHovered(true)}
 							onMouseLeave={() => setIsMicHovered(false)}
-							style={{ width: isMicHovered ? "240px" : "140px", transition: "width 300ms ease" }}
+							onFocus={() => setIsMicFocused(true)}
+							onBlur={() => setIsMicFocused(false)}
+							style={{ width: micExpanded ? "240px" : "140px", transition: "width 300ms ease" }}
 						>
 							<div className="relative flex-1 min-w-0">
-								{!isMicHovered ? (
+								{!micExpanded && (
 									<div className="text-white/60 text-[10px] font-medium truncate">
 										{selectedMicLabel}
 									</div>
-								) : (
-									<>
-										<select
-											value={microphoneDeviceId || selectedMicId}
-											onChange={(e) => {
-												setSelectedMicId(e.target.value);
-												setMicrophoneDeviceId(e.target.value);
-											}}
-											className="w-full appearance-none bg-white/5 text-white text-[11px] rounded-lg pl-2 pr-6 py-1 border border-white/10 outline-none hover:bg-white/10 transition-colors cursor-pointer"
-										>
-											{micDevices.map((device) => (
-												<option
-													key={device.deviceId}
-													value={device.deviceId}
-													className="bg-[#1c1c24]"
-												>
-													{device.label}
-												</option>
-											))}
-										</select>
-										<ChevronDown
-											size={12}
-											className="absolute right-1.5 top-1/2 -translate-y-1/2 text-white/40 pointer-events-none"
-										/>
-									</>
+								)}
+								<select
+									value={microphoneDeviceId || selectedMicId}
+									onChange={(e) => {
+										setSelectedMicId(e.target.value);
+										setMicrophoneDeviceId(e.target.value);
+									}}
+									className={`w-full appearance-none bg-white/5 text-white text-[11px] rounded-lg pl-2 pr-6 py-1 border border-white/10 outline-none hover:bg-white/10 transition-colors cursor-pointer ${!micExpanded ? "sr-only" : ""}`}
+								>
+									{micDevices.map((device) => (
+										<option key={device.deviceId} value={device.deviceId} className="bg-[#1c1c24]">
+											{device.label}
+										</option>
+									))}
+								</select>
+								{micExpanded && (
+									<ChevronDown
+										size={12}
+										className="absolute right-1.5 top-1/2 -translate-y-1/2 text-white/40 pointer-events-none"
+									/>
 								)}
 							</div>
 							<AudioLevelMeter
 								level={level}
-								className={`${isMicHovered ? "w-16" : "w-8"} h-2 transition-all duration-300`}
+								className={`${micExpanded ? "w-16" : "w-8"} h-2 transition-all duration-300`}
 							/>
 						</div>
 					)}
@@ -304,43 +308,73 @@ export function LaunchWindow() {
 					{/* Webcam selector */}
 					{showWebcamControls && (
 						<div
-							className={`flex items-center gap-2 px-3 py-1.5 h-[36px] bg-gradient-to-br from-[rgba(28,28,36,0.97)] to-[rgba(18,18,26,0.96)] backdrop-blur-[24px] border border-white/10 rounded-xl shadow-2xl transition-all duration-300 overflow-hidden ${!isWebcamHovered ? "opacity-60 grayscale-[0.5]" : "opacity-100"}`}
+							className={`flex items-center gap-2 px-3 py-1.5 h-[36px] bg-gradient-to-br from-[rgba(28,28,36,0.97)] to-[rgba(18,18,26,0.96)] backdrop-blur-[24px] border border-white/10 rounded-xl shadow-2xl transition-all duration-300 overflow-hidden ${!webcamExpanded ? "opacity-60 grayscale-[0.5]" : "opacity-100"}`}
 							onMouseEnter={() => setIsWebcamHovered(true)}
 							onMouseLeave={() => setIsWebcamHovered(false)}
-							style={{ width: isWebcamHovered ? "240px" : "140px", transition: "width 300ms ease" }}
+							onFocus={() => setIsWebcamFocused(true)}
+							onBlur={() => setIsWebcamFocused(false)}
+							style={{ width: webcamExpanded ? "240px" : "140px", transition: "width 300ms ease" }}
 						>
 							<div className="relative flex-1 min-w-0">
-								{!isWebcamHovered ? (
+								{!webcamExpanded && (
 									<div className="text-white/60 text-[10px] font-medium truncate">
 										{selectedCameraLabel}
 									</div>
-								) : cameraDevices.length > 0 ? (
-									<>
-										<select
-											value={webcamDeviceId || selectedCameraId}
-											onChange={(e) => {
-												setSelectedCameraId(e.target.value);
-												setWebcamDeviceId(e.target.value);
-											}}
-											className="w-full appearance-none bg-white/5 text-white text-[11px] rounded-lg pl-2 pr-6 py-1 border border-white/10 outline-none hover:bg-white/10 transition-colors cursor-pointer"
-										>
-											{cameraDevices.map((device) => (
-												<option
-													key={device.deviceId}
-													value={device.deviceId}
-													className="bg-[#1c1c24]"
-												>
-													{device.label}
-												</option>
-											))}
-										</select>
-										<ChevronDown
-											size={12}
-											className="absolute right-1.5 top-1/2 -translate-y-1/2 text-white/40 pointer-events-none"
-										/>
-									</>
-								) : (
-									<span className="text-white/40 text-[10px] italic">{t("webcam.searching")}</span>
+								)}
+								{webcamExpanded &&
+									(isCameraDevicesLoading ? (
+										<span className="text-white/40 text-[10px] italic">
+											{t("webcam.searching")}
+										</span>
+									) : cameraDevicesError ? (
+										<span className="text-white/40 text-[10px] italic">
+											{t("webcam.unavailable")}
+										</span>
+									) : cameraDevices.length === 0 ? (
+										<span className="text-white/40 text-[10px] italic">
+											{t("webcam.noneFound")}
+										</span>
+									) : (
+										<>
+											<select
+												value={webcamDeviceId || selectedCameraId}
+												onChange={(e) => {
+													setSelectedCameraId(e.target.value);
+													setWebcamDeviceId(e.target.value);
+												}}
+												className="w-full appearance-none bg-white/5 text-white text-[11px] rounded-lg pl-2 pr-6 py-1 border border-white/10 outline-none hover:bg-white/10 transition-colors cursor-pointer"
+											>
+												{cameraDevices.map((device) => (
+													<option
+														key={device.deviceId}
+														value={device.deviceId}
+														className="bg-[#1c1c24]"
+													>
+														{device.label}
+													</option>
+												))}
+											</select>
+											<ChevronDown
+												size={12}
+												className="absolute right-1.5 top-1/2 -translate-y-1/2 text-white/40 pointer-events-none"
+											/>
+										</>
+									))}
+								{!webcamExpanded && (
+									<select
+										value={webcamDeviceId || selectedCameraId}
+										onChange={(e) => {
+											setSelectedCameraId(e.target.value);
+											setWebcamDeviceId(e.target.value);
+										}}
+										className="sr-only"
+									>
+										{cameraDevices.map((device) => (
+											<option key={device.deviceId} value={device.deviceId}>
+												{device.label}
+											</option>
+										))}
+									</select>
 								)}
 							</div>
 						</div>
