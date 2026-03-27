@@ -229,12 +229,10 @@ export function LaunchWindow() {
 	};
 
 	return (
-		<div
-			className={`w-full h-full flex items-end justify-center bg-transparent relative ${styles.electronDrag}`}
-		>
+		<div className={`w-screen h-screen bg-transparent ${styles.electronDrag}`}>
 			{/* Language switcher — top-left, beside traffic lights */}
 			<div
-				className={`absolute top-2 flex items-center gap-1 px-2 py-1 rounded-md text-white/50 hover:text-white/90 hover:bg-white/10 transition-all duration-150 ${isMac ? "left-[72px]" : "left-2"} ${styles.electronNoDrag}`}
+				className={`fixed top-2 flex items-center gap-1 px-2 py-1 rounded-md text-white/50 hover:text-white/90 hover:bg-white/10 transition-all duration-150 ${isMac ? "left-[72px]" : "left-2"} ${styles.electronNoDrag}`}
 			>
 				<Languages size={14} />
 				<select
@@ -251,10 +249,10 @@ export function LaunchWindow() {
 				</select>
 			</div>
 
-			{/* Device selectors — float above the HUD bar, anchored to the window */}
+			{/* Device selectors — fixed above HUD bar, viewport-relative, never clipped */}
 			{(showMicControls || showWebcamControls) && (
 				<div
-					className={`absolute bottom-[60px] left-1/2 -translate-x-1/2 flex items-center gap-2 animate-mic-panel-in ${styles.electronNoDrag}`}
+					className={`fixed bottom-[60px] left-1/2 -translate-x-1/2 flex items-center gap-2 animate-mic-panel-in ${styles.electronNoDrag}`}
 				>
 					{/* Mic selector */}
 					{showMicControls && (
@@ -350,9 +348,9 @@ export function LaunchWindow() {
 				</div>
 			)}
 
-			{/* HUD bar — always at bottom center, never moves */}
+			{/* HUD bar — fixed at bottom center, viewport-relative, never moves */}
 			<div
-				className={`mb-4 flex items-center gap-1.5 px-2 py-1.5 rounded-full shadow-hud-bar bg-gradient-to-br from-[rgba(28,28,36,0.97)] to-[rgba(18,18,26,0.96)] backdrop-blur-[16px] backdrop-saturate-[140%] border border-[rgba(80,80,120,0.25)]`}
+				className={`fixed bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-1.5 px-2 py-1.5 rounded-full shadow-hud-bar bg-gradient-to-br from-[rgba(28,28,36,0.97)] to-[rgba(18,18,26,0.96)] backdrop-blur-[16px] backdrop-saturate-[140%] border border-[rgba(80,80,120,0.25)]`}
 			>
 				{/* Drag handle */}
 				<div className={`flex items-center px-1 ${styles.electronDrag}`}>
