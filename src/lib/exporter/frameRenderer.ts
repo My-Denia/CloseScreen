@@ -18,10 +18,13 @@ import type {
 } from "@/components/video-editor/types";
 import { ZOOM_DEPTH_SCALES } from "@/components/video-editor/types";
 import {
+	AUTO_FOLLOW_DEADZONE,
+	AUTO_FOLLOW_SMOOTHING_FACTOR,
 	DEFAULT_FOCUS,
 	ZOOM_SCALE_DEADZONE,
 	ZOOM_TRANSLATION_DEADZONE_PX,
 } from "@/components/video-editor/videoPlayback/constants";
+import { smoothCursorFocus } from "@/components/video-editor/videoPlayback/cursorFollowUtils";
 import { clampFocusToStage as clampFocusToStageUtil } from "@/components/video-editor/videoPlayback/focusUtils";
 import { findDominantRegion } from "@/components/video-editor/videoPlayback/zoomRegionUtils";
 import {
@@ -66,6 +69,7 @@ interface FrameRenderConfig {
 	speedRegions?: SpeedRegion[];
 	previewWidth?: number;
 	previewHeight?: number;
+	cursorTelemetry?: import("@/components/video-editor/types").CursorTelemetryPoint[];
 }
 
 interface AnimationState {
@@ -107,6 +111,9 @@ export class FrameRenderer {
 	private layoutCache: LayoutCache | null = null;
 	private currentVideoTime = 0;
 	private motionBlurState: MotionBlurState = createMotionBlurState();
+	private smoothedAutoFocus: { cx: number; cy: number } | null = null;
+	private prevAnimationTimeMs: number | null = null;
+	private prevTargetProgress = 0;
 
 	constructor(config: FrameRenderConfig) {
 		this.config = config;
@@ -511,7 +518,7 @@ export class FrameRenderer {
 		const { region, strength, blendedScale, transition } = findDominantRegion(
 			this.config.zoomRegions,
 			timeMs,
-			{ connectZooms: true },
+			{ connectZooms: true, cursorTelemetry: this.config.cursorTelemetry },
 		);
 
 		const defaultFocus = DEFAULT_FOCUS;
@@ -526,6 +533,42 @@ export class FrameRenderer {
 			targetScaleFactor = zoomScale;
 			targetFocus = regionFocus;
 			targetProgress = strength;
+
+			// Apply deadzone + time-based smoothing for auto-follow mode
+			if (region.focusMode === "auto" && !transition) {
+				const raw = targetFocus;
+				const dtMs = this.prevAnimationTimeMs != null ? timeMs - this.prevAnimationTimeMs : 0;
+				const framesElapsed = dtMs > 0 ? dtMs / (1000 / 60) : 1;
+				const factor = 1 - Math.pow(1 - AUTO_FOLLOW_SMOOTHING_FACTOR, Math.max(1, framesElapsed));
+				const isZoomingIn = targetProgress < 0.999 && targetProgress >= this.prevTargetProgress;
+				if (targetProgress >= 0.999) {
+					// Full zoom: apply deadzone + smoothing for stable follow
+					const prev = this.smoothedAutoFocus ?? raw;
+					const dx = Math.abs(raw.cx - prev.cx);
+					const dy = Math.abs(raw.cy - prev.cy);
+					if (dx > AUTO_FOLLOW_DEADZONE || dy > AUTO_FOLLOW_DEADZONE) {
+						const smoothed = smoothCursorFocus(raw, prev, factor);
+						this.smoothedAutoFocus = smoothed;
+						targetFocus = smoothed;
+					} else {
+						this.smoothedAutoFocus = prev;
+						targetFocus = prev;
+					}
+				} else if (isZoomingIn) {
+					// Zoom-in: track cursor directly so zoom always aims at current cursor
+					// position; keep ref in sync to avoid snap when full-zoom begins
+					this.smoothedAutoFocus = raw;
+				} else {
+					// Zoom-out: keep smoothing for continuity — avoids snap at zoom-out start
+					const prev = this.smoothedAutoFocus ?? raw;
+					const smoothed = smoothCursorFocus(raw, prev, factor);
+					this.smoothedAutoFocus = smoothed;
+					targetFocus = smoothed;
+				}
+			} else if (region.focusMode !== "auto") {
+				this.smoothedAutoFocus = null;
+			}
+			this.prevTargetProgress = targetProgress;
 
 			if (transition) {
 				const startTransform = computeZoomTransform({
@@ -601,6 +644,8 @@ export class FrameRenderer {
 		state.x = appliedX;
 		state.y = appliedY;
 		state.appliedScale = appliedScale;
+
+		this.prevAnimationTimeMs = timeMs;
 
 		return Math.max(
 			Math.abs(appliedScale - prevScale),
