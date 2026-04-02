@@ -37,6 +37,7 @@ import {
 	type Size,
 	type StyledRenderRect,
 } from "@/lib/compositeLayout";
+import { drawCanvasClipPath } from "@/lib/webcamMaskShapes";
 import { renderAnnotations } from "./annotationRenderer";
 import {
 	getLinearGradientPoints,
@@ -61,6 +62,7 @@ interface FrameRenderConfig {
 	videoHeight: number;
 	webcamSize?: Size | null;
 	webcamLayoutPreset?: WebcamLayoutPreset;
+	webcamMaskShape?: import("@/components/video-editor/types").WebcamMaskShape;
 	webcamPosition?: { cx: number; cy: number } | null;
 	annotationRegions?: AnnotationRegion[];
 	speedRegions?: SpeedRegion[];
@@ -441,6 +443,7 @@ export class FrameRenderer {
 			webcamSize: webcamFrame ? this.config.webcamSize : null,
 			layoutPreset: this.config.webcamLayoutPreset,
 			webcamPosition: this.config.webcamPosition,
+			webcamMaskShape: this.config.webcamMaskShape,
 		});
 		if (!compositeLayout) return;
 
@@ -668,16 +671,17 @@ export class FrameRenderer {
 		const webcamRect = this.layoutCache?.webcamRect ?? null;
 		if (webcamFrame && webcamRect) {
 			const preset = getWebcamLayoutPresetDefinition(this.config.webcamLayoutPreset);
+			const shape = webcamRect.maskShape ?? this.config.webcamMaskShape ?? "rectangle";
 			ctx.save();
-			ctx.beginPath();
-			ctx.roundRect(
+			drawCanvasClipPath(
+				ctx,
 				webcamRect.x,
 				webcamRect.y,
 				webcamRect.width,
 				webcamRect.height,
+				shape,
 				webcamRect.borderRadius,
 			);
-			ctx.closePath();
 			if (preset.shadow) {
 				ctx.shadowColor = preset.shadow.color;
 				ctx.shadowBlur = preset.shadow.blur;
