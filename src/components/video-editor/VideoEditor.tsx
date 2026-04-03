@@ -940,7 +940,12 @@ export default function VideoEditor() {
 				!e.altKey
 			) {
 				const target = e.target;
-				if (target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement) {
+				if (
+					target instanceof HTMLInputElement ||
+					target instanceof HTMLTextAreaElement ||
+					target instanceof HTMLSelectElement ||
+					(target instanceof HTMLElement && target.isContentEditable)
+				) {
 					return;
 				}
 				e.preventDefault();
