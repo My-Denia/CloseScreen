@@ -49,6 +49,8 @@ export const FIXED_SHORTCUTS: FixedShortcut[] = [
 	},
 	{ label: "Pan Timeline", display: "Shift + Ctrl + Scroll", bindings: [] },
 	{ label: "Zoom Timeline", display: "Ctrl + Scroll", bindings: [] },
+	{ label: "Frame Back", display: "←", bindings: [{ key: "arrowleft" }] },
+	{ label: "Frame Forward", display: "→", bindings: [{ key: "arrowright" }] },
 ];
 
 export type ShortcutConflict =
