@@ -58,14 +58,15 @@ test("exports a GIF from a loaded video", async () => {
 			);
 		});
 
-		await hudWindow.evaluate((videoPath: string) => {
-			window.electronAPI.setCurrentVideoPath(videoPath);
-			try {
+		try {
+			await hudWindow.evaluate((videoPath: string) => {
+				window.electronAPI.setCurrentVideoPath(videoPath);
 				window.electronAPI.switchToEditor();
-			} catch {
-				// Expected: HUD window closes during this call, killing the context.
-			}
-		}, TEST_VIDEO);
+			}, TEST_VIDEO);
+		} catch {
+			// Expected: switchToEditor() closes the HUD window, which terminates
+			// the Playwright page context before evaluate() can resolve.
+		}
 
 		// ── 3. Switch to the editor window. This closes the HUD and opens
 		//       a new BrowserWindow with ?windowType=editor.
