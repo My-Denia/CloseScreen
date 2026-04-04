@@ -474,10 +474,14 @@ export default function VideoEditor() {
 	}, [saveProject]);
 
 	const handleNewRecordingConfirm = useCallback(async () => {
-		setShowNewRecordingDialog(false);
-		await window.electronAPI.clearCurrentVideoPath();
-		await window.electronAPI.setCurrentRecordingSession(null);
-		await window.electronAPI.switchToHud();
+		try {
+			await window.electronAPI.clearCurrentVideoPath();
+			await window.electronAPI.switchToHud();
+			setShowNewRecordingDialog(false);
+		} catch (err) {
+			console.error("Failed to start new recording:", err);
+			setError("Failed to start new recording: " + String(err));
+		}
 	}, []);
 
 	const handleLoadProject = useCallback(async () => {
@@ -1415,10 +1419,8 @@ export default function VideoEditor() {
 					style={{ WebkitAppRegion: "no-drag" } as React.CSSProperties}
 				>
 					<DialogHeader>
-						<DialogTitle>New Recording</DialogTitle>
-						<DialogDescription>
-							Start a new recording? Your current recording will be discarded.
-						</DialogDescription>
+						<DialogTitle>{t("newRecording.title")}</DialogTitle>
+						<DialogDescription>{t("newRecording.description")}</DialogDescription>
 					</DialogHeader>
 					<DialogFooter>
 						<button
@@ -1426,14 +1428,14 @@ export default function VideoEditor() {
 							onClick={() => setShowNewRecordingDialog(false)}
 							className="px-4 py-2 rounded-md bg-white/10 text-white hover:bg-white/20 text-sm font-medium transition-colors"
 						>
-							Cancel
+							{t("newRecording.cancel")}
 						</button>
 						<button
 							type="button"
 							onClick={handleNewRecordingConfirm}
 							className="px-4 py-2 rounded-md bg-red-500/80 text-white hover:bg-red-500 text-sm font-medium transition-colors"
 						>
-							Confirm
+							{t("newRecording.confirm")}
 						</button>
 					</DialogFooter>
 				</DialogContent>
@@ -1470,7 +1472,7 @@ export default function VideoEditor() {
 						className="flex items-center gap-1 px-2 py-1 rounded-md text-white/50 hover:text-white/90 hover:bg-white/10 transition-all duration-150 text-[11px] font-medium"
 					>
 						<Video size={14} />
-						New Recording
+						{t("newRecording.title")}
 					</button>
 					<button
 						type="button"

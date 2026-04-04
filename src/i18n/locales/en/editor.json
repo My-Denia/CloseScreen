@@ -1,4 +1,10 @@
 {
+	"newRecording": {
+		"title": "New Recording",
+		"description": "Start a new recording? Your current recording will be discarded.",
+		"cancel": "Cancel",
+		"confirm": "Confirm"
+	},
 	"errors": {
 		"noVideoLoaded": "No video loaded",
 		"videoNotReady": "Video not ready",
