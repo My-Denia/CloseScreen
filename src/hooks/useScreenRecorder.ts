@@ -103,6 +103,7 @@ export function useScreenRecorder(): UseScreenRecorderReturn {
 	const allowAutoFinalize = useRef(false);
 	const discardRecordingId = useRef<number | null>(null);
 	const restarting = useRef(false);
+	const webcamReady = useRef(false);
 
 	const selectMimeType = () => {
 		const preferred = [
@@ -182,6 +183,7 @@ export function useScreenRecorder(): UseScreenRecorderReturn {
 
 		let cancelled = false;
 		let acquiredStream: MediaStream | null = null;
+		webcamReady.current = false;
 
 		const acquire = async () => {
 			try {
@@ -217,11 +219,21 @@ export function useScreenRecorder(): UseScreenRecorderReturn {
 					};
 				});
 				webcamStream.current = stream;
+				webcamReady.current = true;
 			} catch (cameraError) {
 				if (!cancelled) {
 					console.warn("Failed to get webcam access:", cameraError);
 					setWebcamEnabledState(false);
-					toast.error(t("recording.cameraBlocked"));
+					const isDeviceError =
+						cameraError instanceof DOMException &&
+						[
+							"NotFoundError",
+							"DevicesNotFoundError",
+							"OverconstrainedError",
+							"NotReadableError",
+						].includes(cameraError.name);
+					toast.error(t(isDeviceError ? "recording.cameraNotFound" : "recording.cameraBlocked"));
+					webcamReady.current = true;
 				}
 			}
 		};
@@ -230,6 +242,7 @@ export function useScreenRecorder(): UseScreenRecorderReturn {
 
 		return () => {
 			cancelled = true;
+			webcamReady.current = false;
 			if (acquiredStream) {
 				acquiredStream.getTracks().forEach((track) => track.stop());
 				webcamStream.current = null;
@@ -464,9 +477,26 @@ export function useScreenRecorder(): UseScreenRecorderReturn {
 				}
 			}
 
-			if (webcamEnabled && !webcamStream.current) {
-				setWebcamEnabledState(false);
-				toast.error(t("recording.cameraDenied"));
+			if (webcamEnabled) {
+				if (!webcamReady.current) {
+					await new Promise<void>((resolve) => {
+						const interval = setInterval(() => {
+							if (webcamReady.current) {
+								clearInterval(interval);
+								resolve();
+							}
+						}, 50);
+						setTimeout(() => {
+							clearInterval(interval);
+							resolve();
+						}, 5000);
+					});
+				}
+				if (!webcamStream.current) {
+					// The useEffect already showed the appropriate error toast
+					// (cameraNotFound or cameraBlocked), so just disable the state.
+					setWebcamEnabledState(false);
+				}
 			}
 
 			stream.current = new MediaStream();
