@@ -573,7 +573,6 @@ export function useScreenRecorder(): UseScreenRecorderReturn {
 
 		restarting.current = true;
 		discardRecordingId.current = activeRecordingId;
-		allowAutoFinalize.current = false;
 
 		const stopPromises = [
 			new Promise<void>((resolve) => {
