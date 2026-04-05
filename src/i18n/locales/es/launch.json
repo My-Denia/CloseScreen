@@ -3,6 +3,8 @@
 		"hideHUD": "Ocultar HUD",
 		"closeApp": "Cerrar aplicación",
 		"restartRecording": "Reiniciar grabación",
+		"pauseRecording": "Pausar grabación",
+		"resumeRecording": "Reanudar grabación",
 		"openVideoFile": "Abrir archivo de video",
 		"openProject": "Abrir proyecto"
 	},

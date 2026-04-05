@@ -112,9 +112,7 @@ export function useScreenRecorder(): UseScreenRecorderReturn {
 
 	const getRecordingDurationMs = useCallback(() => {
 		const segmentDuration =
-			screenRecorder.current?.recorder.state === "recording" && segmentStartedAt.current
-				? Date.now() - segmentStartedAt.current
-				: 0;
+			segmentStartedAt.current === null ? 0 : Date.now() - segmentStartedAt.current;
 		return accumulatedDurationMs.current + segmentDuration;
 	}, []);
 
