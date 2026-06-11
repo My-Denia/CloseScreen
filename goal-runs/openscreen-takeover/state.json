@@ -43,7 +43,7 @@
 	},
 	"blockedAudit": {
 		"date": "2026-06-11",
-		"localState": "main matches origin/main at 261e33d; AGENTS.md remains untracked",
+		"localState": "main is pushed to origin/main; AGENTS.md remains untracked; artifact-producing build run used head 261e33d",
 		"remoteState": "fork Issues disabled; Actions run 27367183706 succeeded with Windows and Linux artifacts; upstream open issue count 29",
 		"remainingGates": ["owner-enabled Issues plus owner-approved issue migration execution"],
 		"decision": "Owner-approved push, workflow run, VS Build Tools install, and native rerun are complete. AC4 execute remains paused pending sanitized dry-run sample confirmation and fork Issues enablement."

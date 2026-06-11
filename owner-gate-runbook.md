@@ -3,13 +3,13 @@
 Date: 2026-06-11
 Workspace: `C:\Files\openscreen`
 Fork: `My-Denia/openscreen`
-Runbook updated from local HEAD: `261e33d fix: set linux package maintainer`
+Runbook updated after successful build run `27367183706`; artifact-producing head: `261e33d136ef636621eabea588a3c0bc44d183ef`
 
 This runbook captures the remaining owner-gated steps for the openscreen takeover baseline. Do not run the write commands until the repository owner explicitly approves that gate.
 
 ## Current Gate State
 
-- Local branch `main` is pushed to `origin/main` at `261e33d136ef636621eabea588a3c0bc44d183ef`.
+- Local branch `main` is pushed to `origin/main`; the artifact-producing build run used head `261e33d136ef636621eabea588a3c0bc44d183ef`.
 - Fork Issues are disabled: `gh repo view My-Denia/openscreen --json hasIssuesEnabled` returned `false`.
 - GitHub Actions run `27367183706` completed successfully and uploaded `windows-installer` plus `linux-installer`.
 - Upstream currently has 29 open issues.

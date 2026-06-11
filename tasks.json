@@ -131,7 +131,7 @@
 			"name": "Repeated owner-gate blocked audit",
 			"status": "resumed-owner-approved-ci-native-complete",
 			"evidence": [
-				"HEAD 261e33d136ef636621eabea588a3c0bc44d183ef pushed to origin/main",
+				"artifact-producing head 261e33d136ef636621eabea588a3c0bc44d183ef pushed to origin/main and built successfully",
 				"gh repo view My-Denia/openscreen --json hasIssuesEnabled => false",
 				"gh run view 27367183706 => conclusion success",
 				"gh issue list --repo siddharthvaddem/openscreen --state open --limit 100 => 29",
