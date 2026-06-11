@@ -74,4 +74,6 @@
 - 2026-06-11: Additional static checks passed: workflow YAML parse, `git diff --check`, `git diff --name-only -- electron/native/wgc-capture` produced no output, and `tasks.json`/`package.json` parsed.
 - 2026-06-11: Added scope item completed locally: deleted `scripts/migrate-upstream-issues.mjs` after migration completion and removed local `upstream` remote; `git remote -v` now shows `origin` only.
 - 2026-06-11: Final local validation after the migration-script deletion still passed: `npm run build-vite` exit 0 and `npm test` exit 0 with 31 files / 225 tests.
-- 2026-06-11: AC5 still requires owner-approved branch push/PR because this pass edits `.github/workflows/*`.
+- 2026-06-11: Pushed branch `chore/demac-personalization` and opened PR `https://github.com/pjyqifei02/openscreen/pull/30`.
+- 2026-06-11: Trimmed `build.yml` Actions run `https://github.com/pjyqifei02/openscreen/actions/runs/27371559635` succeeded on head `146cbbabb6503dcbedafa140df40c2fc61916329`; artifacts uploaded: `windows-installer` size 386907134 and `linux-installer` size 851792127.
+- 2026-06-11: PR #30 CI check rollup is green: Lint, Type Check, Test, and Build all passed.

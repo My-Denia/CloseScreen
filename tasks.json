@@ -199,7 +199,7 @@
 		{
 			"id": 15,
 			"name": "De-mac and GitHub Releases-only workflow pass",
-			"status": "local-validation-complete-ac5-owner-gated",
+			"status": "completed-on-pr-branch",
 			"evidence": [
 				"plan audit 019eb80f-e8f7-7c01-91fc-129991d90cf7: revised plan pass",
 				".github/workflows/build.yml trimmed to Windows/Linux jobs",
@@ -222,11 +222,13 @@
 				"git remote -v shows origin only",
 				"README attribution line preserved and LICENSE untouched",
 				"final post-AC6 npm run build-vite exit 0",
-				"final post-AC6 npm test exit 0, 31 files / 225 tests"
+				"final post-AC6 npm test exit 0, 31 files / 225 tests",
+				"PR https://github.com/pjyqifei02/openscreen/pull/30 opened from chore/demac-personalization to main",
+				"build.yml run https://github.com/pjyqifei02/openscreen/actions/runs/27371559635 conclusion success on head 146cbbabb6503dcbedafa140df40c2fc61916329",
+				"run 27371559635 artifacts: windows-installer size 386907134; linux-installer size 851792127",
+				"PR #30 CI checks green: Lint, Type Check, Test, Build"
 			],
-			"ownerGates": [
-				"AC5 requires owner-approved branch push/PR before GitHub Actions run evidence can be collected"
-			]
+			"ownerGates": ["main merge remains owner-gated"]
 		}
 	]
 }
