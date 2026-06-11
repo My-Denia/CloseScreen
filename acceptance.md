@@ -24,9 +24,12 @@ Follow-up live recheck after handoff:
 - Post-execute `node scripts/migrate-upstream-issues.mjs`: exit 0 dry-run, read 29 upstream issues, detected 29 existing migrated issues, and listed 0 pending copies.
 - GitHub Actions build run `https://github.com/My-Denia/openscreen/actions/runs/27367183706`: conclusion `success`; uploaded `windows-installer` and `linux-installer`.
 - Approved Visual Studio Build Tools C++ workload and FFmpeg installs completed; `npm run build:native:win` exits 0.
-- De-mac pass local validation is complete; remote Actions evidence for the trimmed workflow is pending owner-approved branch push/PR.
+- De-mac pass local validation and PR-branch Actions evidence are complete.
 - Post-migration cleanup: `scripts/migrate-upstream-issues.mjs` is deleted and `git remote -v` now shows `origin` only.
 - Final post-cleanup validation: `npm run build-vite` exit 0; `npm test` exit 0 with 31 test files and 225 tests.
+- PR evidence: `https://github.com/My-Denia/openscreen/pull/30` is open from `chore/demac-personalization` to `main`; PR CI checks Lint, Type Check, Test, and Build passed.
+- Trimmed build workflow evidence: `https://github.com/My-Denia/openscreen/actions/runs/27371559635` concluded `success` on head `146cbbabb6503dcbedafa140df40c2fc61916329`.
+- Artifact evidence for run `27371559635`: `windows-installer` size 386907134, `linux-installer` size 851792127.
 
 ## A. Takeover Map
 
@@ -157,10 +160,10 @@ Evidence so far:
 - Stop condition check: macOS helper references in TypeScript are platform-gated runtime paths/strings, not imports of deleted Swift source files; `npm run build-vite` remains the binary validation before completion.
 - AC4: final post-AC6 `npm run build-vite` exit 0; final post-AC6 `npm test` exit 0 with 31 files and 225 tests.
 - Additional static checks: workflow YAML parse exit 0; `git diff --check` exit 0; `git diff --name-only -- electron/native/wgc-capture` returned no output; `tasks.json` and `package.json` parsed.
-- AC5: pending owner approval to push a branch/open a PR and collect a new Actions run URL plus Windows/Linux artifact list.
+- AC5: `build.yml` run `https://github.com/My-Denia/openscreen/actions/runs/27371559635` concluded `success` on the trimmed workflow branch and uploaded `windows-installer` size 386907134 plus `linux-installer` size 851792127.
 - AC6: `scripts/migrate-upstream-issues.mjs` is deleted; `git remote -v` shows `origin` only; README attribution line remains and `LICENSE` has no diff.
 
 ## Remaining Owner Gates
 
-- De-mac AC5 requires owner approval before branch push/PR creation because `.github/workflows/*` changed.
+- Main-branch merge of PR #30 remains owner-gated.
 - No public release, registry submission, or upstream mutation was performed.
