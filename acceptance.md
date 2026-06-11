@@ -9,15 +9,18 @@ Confirmed identity: name/package/product `openscreen`, appId `io.github.pjyqifei
 
 ## Summary
 
-Local takeover prep is complete for the confirmed `openscreen` identity. Full completion is not claimable yet because the real GitHub Actions artifact run, issue migration execution/count verification, fork Issues enablement, and Visual Studio C++ workload install remain owner-gated or environment-gated.
+Local takeover prep is complete for the confirmed `openscreen` identity. Full completion is not claimable yet only because issue migration execution/count verification remains behind the owner gate and fork Issues are still disabled.
 
 Follow-up live recheck after handoff:
 - `npm install`: exit 0 on Node `v25.2.1` / npm `11.6.2`; emitted expected engine drift warning against pinned Node `22.22.1` / npm `10.9.4`.
 - `npx npm@10.9.4 install`: exit 0; restored npm 11 lockfile metadata noise without content changes.
 - `npm run build-vite`: exit 0.
 - `npm test`: exit 0, 31 test files and 225 tests passed.
+- Final recheck after evidence updates: `npm run build-vite` exit 0; `npm test` exit 0, 31 test files and 225 tests passed.
 - `gh repo view pjyqifei02/openscreen --json hasIssuesEnabled`: `false`.
 - `node scripts/migrate-upstream-issues.mjs`: exit 0 dry-run, read 29 upstream issues, listed 29 pending copies, and performed no writes.
+- GitHub Actions build run `https://github.com/pjyqifei02/openscreen/actions/runs/27367183706`: conclusion `success`; uploaded `windows-installer` and `linux-installer`.
+- Approved Visual Studio Build Tools C++ workload and FFmpeg installs completed; `npm run build:native:win` exits 0.
 
 ## A. Takeover Map
 
@@ -51,7 +54,7 @@ Intentional remaining references:
 
 ## C. CI Workflow
 
-Status: locally validated; real GitHub Actions evidence is owner-gated.
+Status: complete for Windows/Linux unsigned installable artifacts.
 
 Evidence:
 - `.github/workflows/build.yml`
@@ -63,6 +66,12 @@ Evidence:
   - Windows job succeeded and uploaded `windows-installer` with `size_in_bytes` 386907333.
   - Linux job failed during `.deb` packaging with `Please specify author 'email' in the application package.json`; no Linux artifact was uploaded.
   - Local fix applied: `electron-builder.json5` now sets Linux package maintainer to `openscreen maintainers <pjyqifei02@users.noreply.github.com>`.
+- Second GitHub Actions build run after the Linux maintainer fix: `https://github.com/pjyqifei02/openscreen/actions/runs/27367183706` for head SHA `261e33d136ef636621eabea588a3c0bc44d183ef`.
+  - Run conclusion: `success`.
+  - `build-windows`: success; uploaded `windows-installer`, `size_in_bytes` 386907191, not expired.
+  - `build-linux`: success; uploaded `linux-installer`, `size_in_bytes` 851775419, not expired.
+  - `build-macos`: skipped because `build_macos=false`.
+- `gh secret list --repo pjyqifei02/openscreen`: exit 0 with no output, so no original signing/notarization secrets are configured on the fork.
 - `.github/workflows/publish-winget.yml`, `.github/workflows/update-homebrew-cask.yml`, `.github/workflows/bump-nix-package.yml`, and `.github/workflows/discord.yaml` are TODO/no-op workflows and perform no external write.
 - PyYAML parsed all workflow files successfully.
 - `actionlint` and `act` are not installed locally, so no local Actions emulation was run.
@@ -71,9 +80,6 @@ Reasoning for GitHub pass:
 - Linux packaging uses GitHub-hosted Ubuntu with `libarchive-tools` installed before `electron-builder --linux`.
 - Windows packaging builds native helpers first, then runs Vite and `electron-builder --win --publish never`.
 - Signing/notarization and publish behavior are not required for Windows/Linux artifacts and are disabled or secret-gated.
-
-Unfinished AC3:
-- First real run produced Windows artifact evidence but failed before Linux artifact upload; AC3 remains pending until a rerun after the Linux maintainer fix uploads both Windows and Linux artifacts.
 
 ## D. Local Build And Unit Tests
 
@@ -94,9 +100,6 @@ Evidence:
 - After owner-approved Visual Studio Build Tools C++ workload install, `npm run build:native:win`: exit 0; `wgc-capture.exe` and `cursor-sampler.exe` were built/copied to `electron/native/bin/win32-x64/`.
 - After installing FFmpeg for `ffprobe`/`ffmpeg`, these commands exited 0: `test:wgc-helper:win`, `test:wgc-audio:win`, `test:wgc-mic:win`, `test:wgc-mixed-audio:win`, `test:wgc-webcam:win`, `test:wgc-full:win`, and `test:cursor-native:win`.
 - `npm run test:wgc-window:win`: exit 1; failed before capture because `mspaint.exe` is not installed on this Windows image.
-
-Unfinished AC5:
-- The native helper now builds and most WGC paths pass. The only remaining failing native test is the window fixture test, blocked by missing `mspaint.exe`.
 
 ## F. Issue Migration
 
@@ -141,7 +144,6 @@ Evidence:
 ## Remaining Owner Gates
 
 - Enable Issues on `pjyqifei02/openscreen`, then confirm the sanitized dry-run sample before running the migration script.
-- Rerun GitHub Actions build after Linux maintainer fix and record Windows/Linux artifact list.
 
 Post-approval command runbook:
-- `owner-gate-runbook.md` contains exact commands for push/build artifact evidence, issue migration execution/count verification, and optional native rerun after Visual Studio C++ setup.
+- `owner-gate-runbook.md` contains exact commands for issue migration execution/count verification after owner confirmation.

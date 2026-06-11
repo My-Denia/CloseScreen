@@ -75,8 +75,10 @@
   - Finds `vcvarsall.bat` from `VCVARSALL`, `VSINSTALLDIR`, or standard Visual Studio 2022 paths.
   - Uses `cmake` with Ninja and builds `wgc-capture.exe` plus `cursor-sampler.exe`.
   - Copies outputs to `electron/native/bin/win32-x64`.
-- Preflight on this machine found no Visual Studio C++ Build Tools in standard paths.
-- `native-report.md` records the resulting `build:native:win` failure and downstream WGC test failures verbatim.
+- Initial preflight on this machine found no Visual Studio C++ Build Tools in standard paths.
+- After owner-approved Visual Studio Build Tools C++ workload install, `build:native:win` succeeds and copies both native helper binaries.
+- After owner-approved FFmpeg install, all WGC tests except the Paint-backed window fixture pass; `test:wgc-window:win` remains blocked because `mspaint.exe` is missing.
+- `native-report.md` records the initial failure, post-install success, remaining window fixture failure, and diagnoses verbatim.
 
 ## README And Attribution
 

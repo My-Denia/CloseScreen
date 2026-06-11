@@ -22,13 +22,13 @@
 		},
 		{
 			"id": "remote-github-actions-evidence",
-			"status": "approved",
-			"reason": "owner approved git push origin main and first Actions artifact run"
+			"status": "completed",
+			"reason": "owner approved git push origin main; Actions run 27367183706 succeeded with Windows and Linux artifacts"
 		},
 		{
 			"id": "large-install",
-			"status": "approved",
-			"reason": "owner approved Visual Studio Build Tools C++ workload install"
+			"status": "completed",
+			"reason": "owner approved Visual Studio Build Tools C++ workload install; native build/test rerun documented"
 		},
 		{
 			"id": "fork-issues-disabled",
@@ -67,7 +67,7 @@
 		{
 			"id": 4,
 			"name": "Make CI fork-safe and build Windows/Linux artifacts",
-			"status": "needs-rerun-after-linux-maintainer-fix",
+			"status": "completed",
 			"evidence": [
 				".github/workflows/build.yml",
 				".github/workflows/publish-winget.yml",
@@ -75,7 +75,9 @@
 				".github/workflows/bump-nix-package.yml",
 				".github/workflows/discord.yaml",
 				"first run 27366037433: windows-installer uploaded; linux failed on missing maintainer email",
-				"electron-builder.json5 linux.maintainer added"
+				"electron-builder.json5 linux.maintainer added",
+				"second run 27367183706: conclusion success",
+				"second run 27367183706 artifacts: windows-installer size 386907191; linux-installer size 851775419"
 			]
 		},
 		{
@@ -104,11 +106,12 @@
 		{
 			"id": 7,
 			"name": "Acceptance evidence and final audit",
-			"status": "completed-local-pending-owner-gated-ac3-ac4",
+			"status": "completed-local-pending-owner-gated-ac4",
 			"evidence": [
 				"acceptance.md",
 				"independent execution auditor pass: 019eb784-4a26-7023-85d6-3bf9d0edd57e",
 				"2026-06-11 live recheck: npm install exit 0, npm run build-vite exit 0, npm test exit 0",
+				"GitHub Actions run 27367183706 conclusion success with Windows and Linux artifacts",
 				"fork Issues disabled: gh repo view pjyqifei02/openscreen --json hasIssuesEnabled => false"
 			]
 		},
@@ -118,21 +121,22 @@
 			"status": "completed-review-ready",
 			"evidence": [
 				"owner-gate-runbook.md",
-				"push/workflow artifact commands documented but not executed",
+				"push/workflow artifact gate completed by run 27367183706",
 				"issue migration execute/count commands documented but not executed",
-				"VS Build Tools native rerun commands documented but not executed"
+				"VS Build Tools native rerun completed; mspaint window fixture remains blocked"
 			]
 		},
 		{
 			"id": 9,
 			"name": "Repeated owner-gate blocked audit",
-			"status": "resumed-owner-approved-partial",
+			"status": "resumed-owner-approved-ci-native-complete",
 			"evidence": [
-				"git status --short --branch => main...origin/main [ahead 3]",
+				"HEAD 261e33d136ef636621eabea588a3c0bc44d183ef pushed to origin/main",
 				"gh repo view pjyqifei02/openscreen --json hasIssuesEnabled => false",
-				"gh run list --repo pjyqifei02/openscreen --limit 5 => []",
+				"gh run view 27367183706 => conclusion success",
 				"gh issue list --repo siddharthvaddem/openscreen --state open --limit 100 => 29",
-				"owner approved push and VS Build Tools install; AC4 --execute remains paused"
+				"owner approved push and VS Build Tools install; both completed",
+				"AC4 --execute remains paused"
 			]
 		},
 		{
@@ -156,12 +160,16 @@
 		{
 			"id": 12,
 			"name": "GitHub Actions first build run",
-			"status": "needs-rerun-after-fix",
+			"status": "completed-after-rerun",
 			"evidence": [
 				"https://github.com/pjyqifei02/openscreen/actions/runs/27366037433",
 				"headSha bc444f1ff0c1edfb3c1f88d5d639ec6964bc331c",
 				"windows-installer artifact uploaded, size 386907333",
-				"linux job failed before artifact upload because .deb maintainer email was missing"
+				"linux job failed before artifact upload because .deb maintainer email was missing",
+				"rerun https://github.com/pjyqifei02/openscreen/actions/runs/27367183706",
+				"rerun headSha 261e33d136ef636621eabea588a3c0bc44d183ef",
+				"rerun conclusion success",
+				"rerun artifacts: windows-installer size 386907191; linux-installer size 851775419"
 			]
 		},
 		{

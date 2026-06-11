@@ -3,44 +3,33 @@
 Date: 2026-06-11
 Workspace: `C:\Files\openscreen`
 Fork: `pjyqifei02/openscreen`
-Runbook created from local HEAD: `64d6761 docs: refresh openscreen takeover verification`
+Runbook updated from local HEAD: `261e33d fix: set linux package maintainer`
 
 This runbook captures the remaining owner-gated steps for the openscreen takeover baseline. Do not run the write commands until the repository owner explicitly approves that gate.
 
 ## Current Gate State
 
-- Local branch `main` is ahead of `origin/main` by 2 commits.
+- Local branch `main` is pushed to `origin/main` at `261e33d136ef636621eabea588a3c0bc44d183ef`.
 - Fork Issues are disabled: `gh repo view pjyqifei02/openscreen --json hasIssuesEnabled` returned `false`.
-- No GitHub Actions runs currently exist on the fork: `gh run list --repo pjyqifei02/openscreen --limit 5 --json databaseId,workflowName,status,conclusion,headSha,createdAt,url` returned `[]`.
+- GitHub Actions run `27367183706` completed successfully and uploaded `windows-installer` plus `linux-installer`.
 - Upstream currently has 29 open issues.
 
 ## Gate A: Push And Build Artifacts
 
-Owner approval required because this writes to the public fork and starts GitHub Actions.
+Completed after owner approval.
 
 ```powershell
-git status --short --branch
-git log --oneline --decorate -3
-git push origin main
-gh workflow run build.yml --repo pjyqifei02/openscreen --ref main -f arch=both -f build_macos=false
-gh run list --repo pjyqifei02/openscreen --workflow build.yml --branch main --limit 1 --json databaseId,status,conclusion,headSha,url
+gh run view 27367183706 --repo pjyqifei02/openscreen --json databaseId,status,conclusion,headSha,url
+gh api repos/pjyqifei02/openscreen/actions/runs/27367183706/artifacts --jq '.artifacts[] | {name, size_in_bytes, expired, archive_download_url}'
 ```
 
-After the run starts, replace `<RUN_ID>` with the returned `databaseId`:
+Acceptance evidence recorded in `acceptance.md`:
 
-```powershell
-gh run watch <RUN_ID> --repo pjyqifei02/openscreen --exit-status
-gh run view <RUN_ID> --repo pjyqifei02/openscreen --json status,conclusion,headSha,jobs,url
-gh api repos/pjyqifei02/openscreen/actions/runs/<RUN_ID>/artifacts --jq '.artifacts[] | {name, size_in_bytes, expired, archive_download_url}'
-```
-
-Acceptance evidence to copy into `acceptance.md`:
-
-- GitHub Actions run URL.
+- GitHub Actions run URL: `https://github.com/pjyqifei02/openscreen/actions/runs/27367183706`.
 - Run conclusion is `success`.
-- Artifact list includes `windows-installer`.
-- Artifact list includes `linux-installer`.
-- The run head SHA matches the pushed takeover commit.
+- Artifact list includes `windows-installer`, size `386907191`.
+- Artifact list includes `linux-installer`, size `851775419`.
+- The run head SHA matches the pushed takeover commit `261e33d136ef636621eabea588a3c0bc44d183ef`.
 
 ## Gate B: Enable Issues And Migrate Upstream Issues
 
@@ -70,7 +59,7 @@ Acceptance evidence to copy into `acceptance.md`:
 
 ## Gate C: Visual Studio Build Tools C++ Workload
 
-Owner approval required because installing Visual Studio Build Tools with the C++ workload can exceed 1 GB. If approved, install the C++ build tools or provide a valid `VCVARSALL` path, then rerun and append results to `native-report.md`:
+Completed after owner approval. These verification commands were run and results were appended to `native-report.md`:
 
 ```powershell
 npm run build:native:win
@@ -84,8 +73,9 @@ npm run test:wgc-full:win
 npm run test:cursor-native:win
 ```
 
-Acceptance evidence to copy into `native-report.md` and `acceptance.md`:
+Acceptance evidence recorded in `native-report.md` and `acceptance.md`:
 
 - Command, cwd, exit code, and verbatim output for each native command.
 - Diagnosis per failed command.
-- If WGC remains failing, do not edit C++ unless the fix is trivial and test-covered.
+- `build:native:win`, WGC helper/audio/mic/mixed-audio/webcam/full, and cursor-native pass.
+- `test:wgc-window:win` remains failed because `mspaint.exe` is missing; no C++ changes were made.
