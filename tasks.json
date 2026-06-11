@@ -17,8 +17,8 @@
 	"ownerGates": [
 		{
 			"id": "issue-migration-execution",
-			"status": "paused",
-			"reason": "script body sanitization added; owner must confirm sanitized dry-run sample before --execute; fork Issues must be enabled"
+			"status": "completed",
+			"reason": "owner confirmed sanitized dry-run sample; --execute created 29 migrated issues"
 		},
 		{
 			"id": "remote-github-actions-evidence",
@@ -32,8 +32,8 @@
 		},
 		{
 			"id": "fork-issues-disabled",
-			"status": "blocked",
-			"reason": "pjyqifei02/openscreen currently has Issues disabled"
+			"status": "resolved",
+			"reason": "pjyqifei02/openscreen Issues are enabled"
 		}
 	],
 	"tasks": [
@@ -96,23 +96,26 @@
 		{
 			"id": 6,
 			"name": "Issue migration script for review only",
-			"status": "completed-review-ready",
+			"status": "completed-executed",
 			"evidence": [
 				"scripts/migrate-upstream-issues.mjs",
 				"label upstream-migration",
-				"default dry-run"
+				"default dry-run",
+				"node scripts/migrate-upstream-issues.mjs --execute => exit 0",
+				"created 29 migrated issues"
 			]
 		},
 		{
 			"id": 7,
 			"name": "Acceptance evidence and final audit",
-			"status": "completed-local-pending-owner-gated-ac4",
+			"status": "completed",
 			"evidence": [
 				"acceptance.md",
 				"independent execution auditor pass: 019eb784-4a26-7023-85d6-3bf9d0edd57e",
 				"2026-06-11 live recheck: npm install exit 0, npm run build-vite exit 0, npm test exit 0",
 				"GitHub Actions run 27367183706 conclusion success with Windows and Linux artifacts",
-				"fork Issues disabled: gh repo view pjyqifei02/openscreen --json hasIssuesEnabled => false"
+				"fork Issues enabled: gh repo view pjyqifei02/openscreen --json hasIssuesEnabled => true",
+				"migrated issue count 29 equals upstream open issue count 29"
 			]
 		},
 		{
@@ -122,7 +125,7 @@
 			"evidence": [
 				"owner-gate-runbook.md",
 				"push/workflow artifact gate completed by run 27367183706",
-				"issue migration execute/count commands documented but not executed",
+				"issue migration execute/count gate completed",
 				"VS Build Tools native rerun completed; mspaint window fixture remains blocked"
 			]
 		},
@@ -132,23 +135,24 @@
 			"status": "resumed-owner-approved-ci-native-complete",
 			"evidence": [
 				"artifact-producing head 261e33d136ef636621eabea588a3c0bc44d183ef pushed to origin/main and built successfully",
-				"gh repo view pjyqifei02/openscreen --json hasIssuesEnabled => false",
+				"gh repo view pjyqifei02/openscreen --json hasIssuesEnabled => true",
 				"gh run view 27367183706 => conclusion success",
 				"gh issue list --repo siddharthvaddem/openscreen --state open --limit 100 => 29",
 				"owner approved push and VS Build Tools install; both completed",
-				"AC4 --execute remains paused"
+				"owner confirmed migration sample; AC4 --execute completed"
 			]
 		},
 		{
 			"id": 10,
 			"name": "Issue migration body sanitization",
-			"status": "completed-review-ready",
+			"status": "completed-executed-verified",
 			"evidence": [
 				"scripts/migrate-upstream-issues.mjs",
 				"node --check scripts/migrate-upstream-issues.mjs => exit 0",
 				"node scripts/migrate-upstream-issues.mjs --sample-body 602 => exit 0",
 				"sample body code-spans upstream issue URLs and uses non-URL source marker",
-				"@mention sanitizer added for copied body, labels, and title"
+				"@mention sanitizer added for copied body, labels, and title",
+				"post-execute body verification over 29 migrated issues: no missing markers, no missing code-spanned upstream URLs, no live unwrapped source URLs, no plain mentions outside code"
 			]
 		},
 		{

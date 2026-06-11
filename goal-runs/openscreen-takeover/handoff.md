@@ -20,9 +20,12 @@
 - `git diff upstream/main -- LICENSE`: no output.
 - `git diff --name-only -- electron/native`: no output.
 - Native report regenerated after final name confirmation.
-- `node scripts/migrate-upstream-issues.mjs` dry-run: exit 0, read 29 upstream issues, listed 29 pending copies, no writes.
-- `gh repo view pjyqifei02/openscreen --json hasIssuesEnabled`: `false`.
-- `owner-gate-runbook.md` documents exact post-approval commands for remaining owner-gated evidence.
+- Pre-execute `node scripts/migrate-upstream-issues.mjs` dry-run: exit 0, read 29 upstream issues, listed 29 pending copies, no writes.
+- `gh repo view pjyqifei02/openscreen --json hasIssuesEnabled`: `true`.
+- Owner confirmed the sanitized dry-run sample; `node scripts/migrate-upstream-issues.mjs --execute` exited 0 and created 29 migrated issues.
+- Post-execute `node scripts/migrate-upstream-issues.mjs` dry-run: exit 0, detected 29 existing migrated issues and 0 pending copies.
+- Migrated issue count with label `upstream-migration` is 29, matching upstream open issue count 29.
+- Body verification over all 29 migrated issues passed: markers and code-spanned upstream URLs present, no plain mentions outside code.
 - First `build.yml` run after push: `https://github.com/pjyqifei02/openscreen/actions/runs/27366037433`; Windows job uploaded `windows-installer`, Linux failed on missing `.deb` maintainer email.
 - Linux maintainer fix was pushed: `electron-builder.json5` has `openscreen maintainers <pjyqifei02@users.noreply.github.com>`.
 - Second `build.yml` run after the maintainer fix: `https://github.com/pjyqifei02/openscreen/actions/runs/27367183706`; conclusion `success`; uploaded `windows-installer` size 386907191 and `linux-installer` size 851775419.
@@ -30,12 +33,10 @@
 
 ## Blocked / Owner-Gated
 
-- AC4 migration execution: sanitized script is ready, but `--execute` remains paused until owner confirms the sanitized dry-run sample and fork Issues are enabled.
-- Fork Issues remain disabled, blocking migrated issue creation/count verification.
 - Native WGC window fixture remains environment-blocked by missing `mspaint.exe`; no C++ changes were made.
+- No takeover-baseline owner gates remain.
 
 ## Continue From Here
 
 1. Keep native status as documented unless `mspaint.exe` becomes available; do not change C++.
-2. Wait for owner confirmation of sanitized issue dry-run sample and fork Issues enablement before `node scripts/migrate-upstream-issues.mjs --execute`.
-3. Do not create releases, enable external publishing, or run issue migration without owner approval.
+2. Do not create releases or enable external publishing without owner approval.

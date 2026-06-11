@@ -39,17 +39,21 @@
 - 2026-06-11: Pushed Linux maintainer fix and reran `build.yml`. Second run URL: `https://github.com/pjyqifei02/openscreen/actions/runs/27367183706`; run concluded `success`; artifacts uploaded: `windows-installer` size 386907191 and `linux-installer` size 851775419.
 - 2026-06-11: Installed approved Visual Studio Build Tools C++ workload; `npm run build:native:win` now exits 0 and builds/copies WGC helper binaries.
 - 2026-06-11: Installed FFmpeg to satisfy native test probe tools; WGC helper/audio/mic/mixed-audio/webcam/full and cursor-native tests pass. `test:wgc-window:win` remains failed because `mspaint.exe` is not installed.
+- 2026-06-11: Owner confirmed the sanitized dry-run sample and fork Issues were enabled.
+- 2026-06-11: Ran `node scripts/migrate-upstream-issues.mjs --execute`: exit 0; created migrated issues for all 29 upstream open issues.
+- 2026-06-11: Verified migrated issue count equals upstream open issue count: `29` vs `29`; post-execute dry-run detects 29 existing migrated issues and 0 pending copies.
+- 2026-06-11: Verified all migrated issue bodies contain the source marker and code-spanned upstream issue URL, with no plain mentions outside code.
 
 ## Gates
 
-- Issue migration script execution is owner-only and must not run before sanitized dry-run sample review confirmation.
+- Issue migration script execution was owner-confirmed and completed.
 - Real GitHub Actions build-run evidence is complete for Windows/Linux artifacts: run `27367183706` succeeded.
 - Visual Studio Build Tools installation over ~1 GB is complete.
-- Fork Issues are currently disabled, blocking migrated issue creation/count verification.
+- Fork Issues are enabled and 29 migrated issues exist with label `upstream-migration`.
 - Push and workflow dispatch were performed only after owner approval.
-- No public release, registry submission, upstream mutation, or issue creation was performed in this run.
-- No redo is needed for the confirmed `openscreen` identity; the remaining incomplete criterion is owner-gated AC4 issue migration execution/count verification.
-- Post-approval issue migration path is documented in `owner-gate-runbook.md`.
+- No public release, registry submission, or upstream mutation was performed in this run.
+- No redo is needed for the confirmed `openscreen` identity; takeover baseline acceptance is complete.
+- Post-approval issue migration evidence is documented in `acceptance.md`.
 
 ## Workspace Cleanup Notes
 
