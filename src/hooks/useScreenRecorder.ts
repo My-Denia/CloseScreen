@@ -604,11 +604,7 @@ export function useScreenRecorder(): UseScreenRecorderReturn {
 			webcamRecorder.current = null;
 			teardownMedia();
 		};
-	}, [
-		teardownMedia,
-		safeHideCountdownOverlay,
-		finalizeNativeWindowsRecording,
-	]);
+	}, [teardownMedia, safeHideCountdownOverlay, finalizeNativeWindowsRecording]);
 
 	const safeShowCountdownOverlay = async (value: number, runId: number) => {
 		try {

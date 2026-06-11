@@ -129,10 +129,7 @@ export const SHORTCUT_LABELS: Record<ShortcutAction, string> = {
 	playPause: "Play / Pause",
 };
 
-export function matchesShortcut(
-	e: KeyboardEvent,
-	binding: ShortcutBinding | undefined,
-): boolean {
+export function matchesShortcut(e: KeyboardEvent, binding: ShortcutBinding | undefined): boolean {
 	if (!binding) return false;
 	if (e.key.toLowerCase() !== binding.key.toLowerCase()) return false;
 
