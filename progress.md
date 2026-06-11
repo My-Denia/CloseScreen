@@ -29,26 +29,27 @@
 - 2026-06-11: Re-ran migration dry-run: exit 0, read 29 upstream issues, listed 29 pending copies, and did not execute writes.
 - 2026-06-11: Added `owner-gate-runbook.md` with exact post-approval commands for push/Actions artifact evidence, issue enablement/migration/count verification, and optional VS Build Tools native rerun.
 - 2026-06-11: Ran `npm run lint`: exit 1 because Biome sees baseline LF-vs-CRLF formatting differences on the Windows checkout (`i/lf w/crlf`); no broad line-ending rewrite was performed.
-- 2026-06-11: Rechecked after runbook commit: local `main` is ahead of `origin/main` by 3 commits, fork Issues remain disabled, fork Actions run list remains empty, and upstream open issue count remains 29.
-- 2026-06-11: No further non-owner-gated local work remains for AC3/AC4/green WGC native verification. Remaining work requires owner approval or external state change: push/workflow run, enabling Issues plus issue migration execution, or Visual Studio C++ Build Tools setup.
+- 2026-06-11: Earlier pre-approval check after runbook commit found local commits not yet pushed, fork Issues disabled, no fork Actions runs yet, and upstream open issue count 29.
+- 2026-06-11: Earlier blocked state recorded before owner approvals: AC3 required push/workflow run, AC4 required enabling Issues plus owner-approved issue migration execution, and native Windows verification required Visual Studio C++ Build Tools setup.
 - 2026-06-11: Owner approved `git push origin main` and VS Build Tools C++ workload install. AC4 `--execute` remains paused pending sanitized dry-run sample review.
 - 2026-06-11: Renamed the misspelled Claude rule file to `CLAUDE.md` and confirmed old fork-name placeholders no longer appear in the workspace.
 - 2026-06-11: Updated `scripts/migrate-upstream-issues.mjs` so copied upstream issue body text wraps upstream issue links in code spans, uses a non-URL source marker, and breaks GitHub `@mention` patterns with a zero-width space. Dry-run sample for upstream #602 shows sanitized source and copied #275 links.
 - 2026-06-11: Pushed takeover commits to `origin/main` and triggered `build.yml`. First run URL: `https://github.com/My-Denia/openscreen/actions/runs/27366037433`; Windows artifact uploaded, Linux `.deb` packaging failed because maintainer email was missing.
 - 2026-06-11: Added Linux package maintainer to `electron-builder.json5`: `openscreen maintainers <176143450+My-Denia@users.noreply.github.com>`.
+- 2026-06-11: Pushed Linux maintainer fix and reran `build.yml`. Second run URL: `https://github.com/My-Denia/openscreen/actions/runs/27367183706`; run concluded `success`; artifacts uploaded: `windows-installer` size 386907191 and `linux-installer` size 851775419.
 - 2026-06-11: Installed approved Visual Studio Build Tools C++ workload; `npm run build:native:win` now exits 0 and builds/copies WGC helper binaries.
 - 2026-06-11: Installed FFmpeg to satisfy native test probe tools; WGC helper/audio/mic/mixed-audio/webcam/full and cursor-native tests pass. `test:wgc-window:win` remains failed because `mspaint.exe` is not installed.
 
 ## Gates
 
 - Issue migration script execution is owner-only and must not run before sanitized dry-run sample review confirmation.
-- Real GitHub Actions build-run evidence is partially collected; first run needs rerun after Linux maintainer fix.
+- Real GitHub Actions build-run evidence is complete for Windows/Linux artifacts: run `27367183706` succeeded.
 - Visual Studio Build Tools installation over ~1 GB is complete.
 - Fork Issues are currently disabled, blocking migrated issue creation/count verification.
-- No push, public release, registry submission, upstream mutation, or issue creation in this run.
-- No redo is needed for the confirmed `openscreen` identity; remaining incomplete criteria are owner-gated or environment-gated.
-- Post-approval execution path is documented in `owner-gate-runbook.md`.
-- Current blocked state is repeated and confirmed: no push, issue writes, workflow trigger, large install, release, registry publish, or upstream mutation has been performed.
+- Push and workflow dispatch were performed only after owner approval.
+- No public release, registry submission, upstream mutation, or issue creation was performed in this run.
+- No redo is needed for the confirmed `openscreen` identity; the remaining incomplete criterion is owner-gated AC4 issue migration execution/count verification.
+- Post-approval issue migration path is documented in `owner-gate-runbook.md`.
 
 ## Workspace Cleanup Notes
 

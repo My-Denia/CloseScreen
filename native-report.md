@@ -4,7 +4,7 @@
 - CWD: C:\Files\openscreen
 - Host: Windows PowerShell
 - Scope: npm run build:native:win, every test:wgc-*:win, and test:cursor-native:win.
-- Constraint: no C++ fixes this week; no Visual Studio Build Tools install was performed.
+- Constraint: no C++ fixes this week. Visual Studio Build Tools C++ workload and FFmpeg were installed only after owner approval.
 
 ## npm run build:native:win
 
@@ -12,7 +12,7 @@
 - End: 2026-06-11T17:23:39.9256134+01:00
 - Exit code: 1
 - Log file: goal-runs\openscreen-takeover\native-logs\build-native-win.log
-- Diagnosis: Failed before CMake because Visual Studio vcvarsall.bat was not found. This matches preflight: the Visual Studio C++ workload is missing or not installed in a standard location. Install is owner-gated because it is larger than about 1 GB.
+- Diagnosis: Failed before CMake because Visual Studio vcvarsall.bat was not found. This matched preflight at the time: the Visual Studio C++ workload was missing or not installed in a standard location. Installation was owner-gated because it is larger than about 1 GB, then completed after approval.
 
 ```text
 

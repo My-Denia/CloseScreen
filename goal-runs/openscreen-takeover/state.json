@@ -1,6 +1,6 @@
 {
 	"goal": "openscreen takeover baseline",
-	"status": "resumed-owner-approved-partial",
+	"status": "ci-native-complete-ac4-owner-gated",
 	"auditMode": "independent-subagents",
 	"baselineCommit": "71622a20e34fea4844b5bef1d092927de54bf9a9",
 	"identity": {
@@ -14,25 +14,17 @@
 		"preflight": "completed",
 		"takeoverMap": "completed",
 		"rebrand": "completed-local",
-		"ci": "needs-rerun-after-linux-maintainer-fix",
+		"ci": "completed",
 		"validation": "completed-local",
 		"native": "documented-mostly-green-mspaint-fixture-blocked",
 		"issues": "completed-review-ready-owner-gated",
-		"acceptance": "completed-local-pending-owner-gated-ac3-ac4",
+		"acceptance": "completed-local-pending-owner-gated-ac4",
 		"ownerGateRunbook": "completed-review-ready"
 	},
 	"blockedOrOwnerGated": [
 		{
-			"criterion": 3,
-			"reason": "owner approved push/workflow run; pending execution"
-		},
-		{
 			"criterion": 4,
 			"reason": "sanitized dry-run sample must be owner-confirmed and fork Issues enabled before --execute"
-		},
-		{
-			"criterion": 5,
-			"reason": "Visual Studio C++ Build Tools were missing; owner approved install and native rerun is pending"
 		}
 	],
 	"planAudit": {
@@ -51,14 +43,10 @@
 	},
 	"blockedAudit": {
 		"date": "2026-06-11",
-		"localState": "main ahead of origin/main by 3 commits; only AGENTS.md and CLAUND.md untracked",
-		"remoteState": "fork Issues disabled; Actions run list empty; upstream open issue count 29",
-		"remainingGates": [
-			"owner-approved push and GitHub Actions build artifact evidence",
-			"owner-enabled Issues plus owner-approved issue migration execution",
-			"owner-approved Visual Studio Build Tools C++ workload or valid VCVARSALL for green WGC native rerun"
-		],
-		"decision": "Owner approved push and VS Build Tools install; AC4 execute remains paused pending sanitized dry-run sample confirmation."
+		"localState": "main matches origin/main at 261e33d; AGENTS.md remains untracked",
+		"remoteState": "fork Issues disabled; Actions run 27367183706 succeeded with Windows and Linux artifacts; upstream open issue count 29",
+		"remainingGates": ["owner-enabled Issues plus owner-approved issue migration execution"],
+		"decision": "Owner-approved push, workflow run, VS Build Tools install, and native rerun are complete. AC4 execute remains paused pending sanitized dry-run sample confirmation and fork Issues enablement."
 	},
 	"resumeAfterOwnerApproval": {
 		"date": "2026-06-11",
@@ -70,13 +58,13 @@
 		"migrationSanitization": "upstream issue links code-spanned; source marker is non-URL; @mention patterns are broken with zero-width space"
 	},
 	"latestActionsRun": {
-		"runId": 27366037433,
-		"url": "https://github.com/My-Denia/openscreen/actions/runs/27366037433",
-		"headSha": "bc444f1ff0c1edfb3c1f88d5d639ec6964bc331c",
-		"conclusion": "failure",
-		"windowsArtifact": "windows-installer uploaded, size_in_bytes 386907333",
-		"linuxFailure": ".deb packaging required maintainer email",
-		"localFix": "electron-builder.json5 linux.maintainer added"
+		"runId": 27367183706,
+		"url": "https://github.com/My-Denia/openscreen/actions/runs/27367183706",
+		"headSha": "261e33d136ef636621eabea588a3c0bc44d183ef",
+		"conclusion": "success",
+		"windowsArtifact": "windows-installer uploaded, size_in_bytes 386907191, expired false",
+		"linuxArtifact": "linux-installer uploaded, size_in_bytes 851775419, expired false",
+		"previousRun": "27366037433 failed only on Linux .deb maintainer email; fixed by electron-builder.json5 linux.maintainer"
 	},
 	"latestNativeVerification": {
 		"vsBuildToolsInstall": "exit 0",

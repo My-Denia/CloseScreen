@@ -39,7 +39,7 @@
 - 2026-06-11: Re-ran `node scripts/migrate-upstream-issues.mjs` dry-run: exit 0, read 29 upstream issues, listed 29 pending copies, and performed no writes.
 - 2026-06-11: Added `owner-gate-runbook.md` with exact owner-approved commands for remote Actions artifact evidence, issue migration/count verification, and optional native rerun after VS C++ setup. Did not run any write commands.
 - 2026-06-11: Ran `npm run lint`: exit 1. Biome reported 250 formatting errors dominated by LF-vs-CRLF differences; `git ls-files --eol` on representative files showed `i/lf w/crlf`. No broad formatting or line-ending rewrite was applied.
-- 2026-06-11: Rechecked blocked state: `git status --short --branch` showed `main...origin/main [ahead 3]`; `gh repo view My-Denia/openscreen --json hasIssuesEnabled` returned `false`; `gh run list --repo My-Denia/openscreen --limit 5` returned `[]`; upstream open issue count returned `29`. No further non-owner-gated local work remains.
+- 2026-06-11: Earlier pre-approval blocked-state check found local commits not yet pushed, fork Issues disabled, no fork Actions runs yet, and upstream open issue count `29`.
 - 2026-06-11: Owner approved `git push origin main` and Visual Studio Build Tools C++ workload install. Owner paused AC4 `--execute` pending sanitized dry-run sample review.
 - 2026-06-11: Criterion 2 push preflight grep over package/build/workflow configs returned no stale upstream identifier matches. Old fork-name placeholder scan returned no matches.
 - 2026-06-11: Renamed `CLAUND.md` to `CLAUDE.md`.
@@ -49,3 +49,7 @@
 - 2026-06-11: Added `linux.maintainer` to `electron-builder.json5` for fork-owned Linux packages.
 - 2026-06-11: Installed Visual Studio Build Tools C++ workload via winget: exit 0. Installed FFmpeg via winget: exit 0.
 - 2026-06-11: Native after toolchain install: `build:native:win` exit 0; WGC helper/audio/mic/mixed-audio/webcam/full and cursor-native tests exit 0; `test:wgc-window:win` exit 1 because `mspaint.exe` is missing. Full logs are under `goal-runs/openscreen-takeover/native-logs/`.
+- 2026-06-11: Pushed Linux maintainer fix to origin. Current pushed HEAD: `261e33d136ef636621eabea588a3c0bc44d183ef`.
+- 2026-06-11: Triggered `build.yml` run `27367183706` (`https://github.com/My-Denia/openscreen/actions/runs/27367183706`) with `build_macos=false`. Run conclusion: `success`; `build-windows` and `build-linux` succeeded; `build-macos` skipped.
+- 2026-06-11: Artifact query for run `27367183706`: `windows-installer` size `386907191`, expired `false`; `linux-installer` size `851775419`, expired `false`.
+- 2026-06-11: AC4 remains owner-gated. Fork Issues are disabled and `node scripts/migrate-upstream-issues.mjs --execute` has not been run.
