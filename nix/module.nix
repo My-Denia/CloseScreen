@@ -1,7 +1,7 @@
-# NixOS module for OpenScreen
+# NixOS module for openscreen
 # Usage in flake-based NixOS config:
 #
-#   inputs.openscreen.url = "github:siddharthvaddem/openscreen";
+#   inputs.openscreen.url = "github:My-Denia/openscreen";
 #
 #   { inputs, ... }: {
 #     imports = [ inputs.openscreen.nixosModules.default ];
@@ -20,13 +20,13 @@ let
 in
 {
   options.programs.openscreen = {
-    enable = lib.mkEnableOption "OpenScreen screen recorder";
+    enable = lib.mkEnableOption "openscreen screen recorder";
 
     package = lib.mkOption {
       type = lib.types.package;
       default = self.packages.${pkgs.stdenv.hostPlatform.system}.openscreen;
       defaultText = lib.literalExpression "inputs.openscreen.packages.\${pkgs.stdenv.hostPlatform.system}.openscreen";
-      description = "The OpenScreen package to use.";
+      description = "The openscreen package to use.";
     };
   };
 

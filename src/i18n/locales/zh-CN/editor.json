@@ -42,7 +42,7 @@
 		"cameraDisconnected": "摄像头已断开连接。",
 		"cameraNotFound": "未找到摄像头。",
 		"permissionDenied": "录屏权限被拒绝。请允许屏幕录制。",
-		"accessibilityAllowAndRetry": "允许 OpenScreen 使用辅助功能权限，然后再次按录制以开始倒计时。"
+		"accessibilityAllowAndRetry": "允许 openscreen 使用辅助功能权限，然后再次按录制以开始倒计时。"
 	},
 	"autoCaptions": {
 		"button": "自动字幕",
@@ -65,7 +65,7 @@
 	},
 	"emptyState": {
 		"title": "未打开任何项目",
-		"description": "导入视频开始编辑，或加载已有的 OpenScreen 项目。",
+		"description": "导入视频开始编辑，或加载已有的 openscreen 项目。",
 		"importVideoButton": "导入视频文件…",
 		"loadProjectButton": "加载项目…",
 		"supportedFormats": "支持的格式：MP4、MOV、WebM、MKV、AVI、M4V、WMV",

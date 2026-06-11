@@ -31,9 +31,9 @@
 		"zoomOut": "Uzaklaştır",
 		"toggleFullScreen": "Tam Ekranı Aç/Kapat",
 		"recordingStatus": "Kaydediliyor: {{source}}",
-		"about": "OpenScreen Hakkında",
+		"about": "openscreen Hakkında",
 		"services": "Servisler",
-		"hide": "OpenScreen’i Gizle",
+		"hide": "openscreen’i Gizle",
 		"hideOthers": "Diğerlerini Gizle",
 		"unhide": "Tümünü Göster"
 	},

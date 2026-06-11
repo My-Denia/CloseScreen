@@ -42,7 +42,7 @@
 	"language": "語言",
 	"systemLanguagePrompt": {
 		"title": "要使用系統語言嗎？",
-		"description": "偵測到系統語言為 {{language}}。要將 OpenScreen 切換為 {{language}} 嗎？",
+		"description": "偵測到系統語言為 {{language}}。要將 openscreen 切換為 {{language}} 嗎？",
 		"switch": "切換為 {{language}}",
 		"keepDefault": "保持目前語言"
 	}

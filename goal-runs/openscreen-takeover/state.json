@@ -1,0 +1,41 @@
+{
+	"goal": "openscreen takeover baseline",
+	"status": "active",
+	"auditMode": "independent-subagents",
+	"baselineCommit": "71622a20e34fea4844b5bef1d092927de54bf9a9",
+	"identity": {
+		"name": "openscreen",
+		"packageName": "openscreen",
+		"productName": "openscreen",
+		"appId": "io.github.My-Denia.openscreen",
+		"issueMigrationLabel": "upstream-migration"
+	},
+	"milestones": {
+		"preflight": "completed",
+		"takeoverMap": "completed",
+		"rebrand": "completed-local",
+		"ci": "completed-local",
+		"validation": "completed-local",
+		"native": "documented-blocked-vs-build-tools",
+		"issues": "completed-review-ready-owner-gated",
+		"acceptance": "completed-local-pending-owner-gated-ac3-ac4"
+	},
+	"blockedOrOwnerGated": [
+		{
+			"criterion": 3,
+			"reason": "real GitHub Actions evidence requires owner-approved push/workflow run"
+		},
+		{
+			"criterion": 4,
+			"reason": "issue migration execution requires owner approval and fork Issues are disabled"
+		},
+		{
+			"criterion": 5,
+			"reason": "Visual Studio C++ Build Tools are missing; install is owner-gated because it may exceed 1 GB"
+		}
+	],
+	"planAudit": {
+		"decision": "pass",
+		"agent": "019eb774-7b9e-7940-a578-557596f2e3ac"
+	}
+}

@@ -6,21 +6,19 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: "Release tag to publish to winget (e.g. v1.4.0)"
+        description: "Release tag that would be published to WinGet"
         required: true
         type: string
 
+permissions:
+  contents: read
+
 jobs:
-  publish:
-    runs-on: windows-latest
-    if: github.event_name == 'workflow_dispatch' || !github.event.release.prerelease
+  publish-disabled:
+    runs-on: ubuntu-latest
     steps:
-      - uses: vedantmgoyal9/winget-releaser@v2
-        with:
-          identifier: SiddharthVaddem.OpenScreen
-          # Match the Windows installer asset attached to each release.
-          # Today: "Openscreen.Setup.latest.exe". Adjust this regex if you
-          # ever rename the installer to include a version (e.g. "Setup\.\d+\.\d+\.\d+\.exe").
-          installers-regex: 'Setup\..*\.exe$'
-          release-tag: ${{ inputs.tag || github.event.release.tag_name }}
-          token: ${{ secrets.WINGET_ACC_TOKEN }}
+      - name: WinGet publishing disabled for fork takeover
+        run: |
+          echo "TODO: Re-enable after the maintainer confirms the new WinGet package identifier and token."
+          echo "WinGet publishing is disabled for this fork takeover."
+          echo "No package-manager submission is performed by this workflow."

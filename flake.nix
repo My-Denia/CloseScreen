@@ -1,5 +1,5 @@
 {
-  description = "OpenScreen — desktop screen recorder with built-in editor";
+  description = "openscreen — desktop screen recorder with built-in editor";
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
@@ -104,7 +104,7 @@
             PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD = "1";
 
             shellHook = ''
-              echo "OpenScreen dev shell — node $(node --version), electron v$(electron --version 2>/dev/null | tr -d 'v')"
+              echo "openscreen dev shell — node $(node --version), electron v$(electron --version 2>/dev/null | tr -d 'v')"
             '';
           };
         }

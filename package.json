@@ -9,8 +9,8 @@
 		"npm": "10.9.4"
 	},
 	"author": {
-		"name": "Sid",
-		"email": "svaddem@asu.edu"
+		"name": "openscreen maintainers",
+		"url": "https://github.com/My-Denia/openscreen"
 	},
 	"scripts": {
 		"dev": "vite",
