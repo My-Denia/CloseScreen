@@ -30,6 +30,7 @@ Follow-up live recheck after handoff:
 - PR evidence: `https://github.com/My-Denia/openscreen/pull/30` is open from `chore/demac-personalization` to `main`; PR CI checks Lint, Type Check, Test, and Build passed.
 - Trimmed build workflow evidence: `https://github.com/My-Denia/openscreen/actions/runs/27371559635` concluded `success` on head `146cbbabb6503dcbedafa140df40c2fc61916329`.
 - Artifact evidence for run `27371559635`: `windows-installer` size 386907134, `linux-installer` size 851792127.
+- Darwin dead-code local validation: mac/darwin/screencapturekit grep over `src` and `electron` TypeScript/JSON surfaces returned no matches; dead mac i18n keys returned no matches; `npm run build-vite` exit 0; `npm test` exit 0 with 30 files and 220 tests.
 
 ## A. Takeover Map
 
@@ -167,3 +168,29 @@ Evidence so far:
 
 - Main-branch merge of PR #30 remains owner-gated.
 - No public release, registry submission, or upstream mutation was performed.
+
+## I. Darwin Dead-Code Removal
+
+Status: complete with independent execution audit pass.
+
+Evidence so far:
+- AC1: `rg -n -i "darwin|macos|mac os|screencapturekit" src electron -g "*.ts" -g "*.tsx" -g "*.json" -g "!electron/native/wgc-capture/**"` returned no matches.
+- AC1 additional cleanup sweep: `rg -n -i "\bmac\b|macos|mac os|darwin|screencapturekit" src electron -g "*.ts" -g "*.tsx" -g "*.json" -g "!electron/native/wgc-capture/**"` returned no matches.
+- AC1 mac-facing locale cleanup: `rg -n '"(services|hide|hideOthers|unhide|accessibilityAllowAndRetry)"' src\i18n\locales -g "*.json"` returned no matches after removing unused mac app-menu and mac cursor Accessibility retry keys.
+- Locale integrity: every `src/i18n/locales/**/*.json` file parsed successfully.
+- AC2: `npm run build-vite` exit 0.
+- AC2: `npm test` exit 0 with 30 test files and 220 tests.
+- AC2 removed mac-only test names:
+  - `parses Electron window source ids into ScreenCaptureKit window ids`
+  - `rejects non-window source ids for window parsing`
+  - `parses Electron display source ids into ScreenCaptureKit display ids`
+  - `rejects non-display source ids for display parsing`
+  - `retries opening after macOS screen permission becomes granted`
+  - `stops retrying once macOS permission is explicitly denied`
+- AC2 surviving shared-path tests reviewed in diff: `src/components/launch/openSourceSelectorFlow.test.ts` now keeps platform-neutral selector open/failure coverage; `src/lib/cursor/nativeCursor.test.ts` keeps cursor rendering/theme coverage with Windows/Linux sample assets; `src/components/launch/SourceSelector.test.tsx` only updates the no-sources copy to remove mac permission wording.
+- AC3: `git diff --name-only -- electron/native/wgc-capture` returned no output.
+- AC4: net source diff is deletion-heavy; no new platform branch or mac-facing string was added. The only replacement copy is the platform-neutral source-selector empty-state text: `Reload this picker if the available screens or windows changed.`
+- Removed mac-only locale keys: `services`, `hide`, `hideOthers`, and `unhide` from locale `common.json` files; `accessibilityAllowAndRetry` from locale `editor.json` files.
+- Deleted TypeScript files: `electron/native-bridge/cursor/recording/macNativeCursorRecordingSession.ts`, `src/lib/nativeMacRecording.ts`, and `src/lib/nativeMacRecording.test.ts`.
+- Paired IPC/API removal: native mac recording and mac cursor access handlers were removed from `electron/ipc/handlers.ts` together with preload exposure, renderer type declarations, and renderer call sites in `src/hooks/useScreenRecorder.ts` and launch source-selector flow.
+- Independent execution audit: subagent `019eb869-a850-7980-9917-adf1b7e188a5` returned `pass` after inspecting the latest diff and independently rerunning scoped mac grep, i18n dead-key grep, locale JSON parse, wgc-capture diff check, `git diff --check`, `npm run build-vite`, and `npm test`.

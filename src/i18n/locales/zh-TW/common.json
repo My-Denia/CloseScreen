@@ -31,11 +31,7 @@
 		"zoomOut": "縮小",
 		"toggleFullScreen": "切換全螢幕",
 		"recordingStatus": "錄製中：{{source}}",
-		"about": "關於 openscreen",
-		"services": "服務",
-		"hide": "隱藏 openscreen",
-		"hideOthers": "隱藏其他",
-		"unhide": "全部顯示"
+		"about": "關於 openscreen"
 	},
 	"playback": {
 		"play": "播放",

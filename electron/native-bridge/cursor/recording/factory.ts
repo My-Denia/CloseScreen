@@ -1,5 +1,4 @@
 import type { Rectangle } from "electron";
-import { MacNativeCursorRecordingSession } from "./macNativeCursorRecordingSession";
 import type { CursorRecordingSession } from "./session";
 import { TelemetryRecordingSession } from "./telemetryRecordingSession";
 import { WindowsNativeRecordingSession } from "./windowsNativeRecordingSession";
@@ -22,15 +21,6 @@ export function createCursorRecordingSession(
 			maxSamples: options.maxSamples,
 			sampleIntervalMs: options.sampleIntervalMs,
 			sourceId: options.sourceId,
-			startTimeMs: options.startTimeMs,
-		});
-	}
-
-	if (options.platform === "darwin") {
-		return new MacNativeCursorRecordingSession({
-			getDisplayBounds: options.getDisplayBounds,
-			maxSamples: options.maxSamples,
-			sampleIntervalMs: options.sampleIntervalMs,
 			startTimeMs: options.startTimeMs,
 		});
 	}

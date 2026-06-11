@@ -229,6 +229,28 @@
 				"PR #30 CI checks green: Lint, Type Check, Test, Build"
 			],
 			"ownerGates": ["main merge remains owner-gated"]
+		},
+		{
+			"id": 16,
+			"name": "Darwin dead-code removal from TypeScript runtime",
+			"status": "completed-local",
+			"evidence": [
+				"baseline main commit 5f0dc6ca630c",
+				"removed mac-only IPC/preload/API surface from electron/ipc/handlers.ts, electron/preload.ts, electron/electron-env.d.ts, and src/hooks/useScreenRecorder.ts",
+				"deleted electron/native-bridge/cursor/recording/macNativeCursorRecordingSession.ts",
+				"deleted src/lib/nativeMacRecording.ts and src/lib/nativeMacRecording.test.ts",
+				"collapsed platform conditionals to Windows/Linux branches in Electron main/window setup, native bridge platform normalization, cursor recording factory, shortcuts, launch source selector, and video editor cursor handling",
+				"removed unused mac app-menu locale keys services/hide/hideOthers/unhide from common.json files and removed unused accessibilityAllowAndRetry from editor.json files",
+				"removed tests: parses Electron window source ids into ScreenCaptureKit window ids; rejects non-window source ids for window parsing; parses Electron display source ids into ScreenCaptureKit display ids; rejects non-display source ids for display parsing; retries opening after macOS screen permission becomes granted; stops retrying once macOS permission is explicitly denied",
+				"acceptance grep over src/electron TS/TSX/JSON excluding electron/native/wgc-capture returned no matches for darwin|macos|mac os|screencapturekit",
+				"wider grep over src/electron TS/TSX/JSON excluding electron/native/wgc-capture returned no matches for mac/darwin/screencapturekit terms",
+				"i18n dead-key grep over src/i18n/locales returned no matches for services/hide/hideOthers/unhide/accessibilityAllowAndRetry; all locale JSON parsed",
+				"npm run build-vite exit 0",
+				"npm test exit 0, 30 files / 220 tests",
+				"git diff --name-only -- electron/native/wgc-capture returned no output",
+				"independent execution audit 019eb869-a850-7980-9917-adf1b7e188a5 returned pass"
+			],
+			"ownerGates": ["push remains owner-gated"]
 		}
 	]
 }

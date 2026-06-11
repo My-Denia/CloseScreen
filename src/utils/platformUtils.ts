@@ -15,9 +15,7 @@ export const getPlatform = async (): Promise<string> => {
 		// Fallback for dev/testing
 		let fallbackPlatform = "win32";
 		if (typeof navigator !== "undefined") {
-			if (/Mac|iPhone|iPad|iPod/.test(navigator.platform)) {
-				fallbackPlatform = "darwin";
-			} else if (/Linux/.test(navigator.platform)) {
+			if (/Linux/.test(navigator.platform)) {
 				fallbackPlatform = "linux";
 			}
 		}
@@ -28,25 +26,17 @@ export const getPlatform = async (): Promise<string> => {
 };
 
 /**
- * Detects if the current platform is macOS
- */
-export const isMac = async (): Promise<boolean> => {
-	const platform = await getPlatform();
-	return platform === "darwin";
-};
-
-/**
  * Gets the modifier key symbol based on the platform
  */
 export const getModifierKey = async (): Promise<string> => {
-	return (await isMac()) ? "⌘" : "Ctrl";
+	return "Ctrl";
 };
 
 /**
  * Gets the shift key symbol based on the platform
  */
 export const getShiftKey = async (): Promise<string> => {
-	return (await isMac()) ? "⇧" : "Shift";
+	return "Shift";
 };
 
 /**
@@ -54,11 +44,10 @@ export const getShiftKey = async (): Promise<string> => {
  * @param keys Array of key combinations (e.g., ['mod', 'D'] or ['shift', 'mod', 'Scroll'])
  */
 export const formatShortcut = async (keys: string[]): Promise<string> => {
-	const isMacPlatform = await isMac();
 	return keys
 		.map((key) => {
-			if (key.toLowerCase() === "mod") return isMacPlatform ? "⌘" : "Ctrl";
-			if (key.toLowerCase() === "shift") return isMacPlatform ? "⇧" : "Shift";
+			if (key.toLowerCase() === "mod") return "Ctrl";
+			if (key.toLowerCase() === "shift") return "Shift";
 			return key;
 		})
 		.join(" + ");

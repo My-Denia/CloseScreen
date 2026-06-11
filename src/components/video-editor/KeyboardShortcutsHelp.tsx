@@ -5,7 +5,7 @@ import { FIXED_SHORTCUTS, formatBinding, SHORTCUT_ACTIONS } from "@/lib/shortcut
 import { BLUR_REGIONS_ENABLED } from "./featureFlags";
 
 export function KeyboardShortcutsHelp() {
-	const { shortcuts, isMac, openConfig } = useShortcuts();
+	const { shortcuts, openConfig } = useShortcuts();
 	const t = useScopedT("shortcuts");
 
 	return (
@@ -32,7 +32,7 @@ export function KeyboardShortcutsHelp() {
 							<div key={action} className="flex items-center justify-between">
 								<span className="text-slate-400">{t(`actions.${action}`)}</span>
 								<kbd className="px-1 py-0.5 bg-white/5 border border-white/10 rounded text-[#34B27B] font-mono">
-									{formatBinding(shortcuts[action], isMac)}
+									{formatBinding(shortcuts[action])}
 								</kbd>
 							</div>
 						),
@@ -45,12 +45,7 @@ export function KeyboardShortcutsHelp() {
 									{t(`fixedActions.${fixed.i18nKey}`, { defaultValue: fixed.label })}
 								</span>
 								<kbd className="px-1 py-0.5 bg-white/5 border border-white/10 rounded text-[#34B27B] font-mono">
-									{isMac
-										? fixed.display
-												.replace(/Ctrl/g, "⌘")
-												.replace(/Shift/g, "⇧")
-												.replace(/Alt/g, "⌥")
-										: fixed.display}
+									{fixed.display}
 								</kbd>
 							</div>
 						))}

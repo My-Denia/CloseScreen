@@ -31,11 +31,7 @@
 		"zoomOut": "Уменьшить",
 		"toggleFullScreen": "Полноэкранный режим",
 		"recordingStatus": "Запись: {{source}}",
-		"about": "О openscreen",
-		"services": "Сервисы",
-		"hide": "Скрыть openscreen",
-		"hideOthers": "Скрыть остальные",
-		"unhide": "Показать все"
+		"about": "О openscreen"
 	},
 	"playback": {
 		"play": "Воспроизвести",

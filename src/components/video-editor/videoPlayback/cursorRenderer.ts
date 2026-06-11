@@ -11,7 +11,7 @@ import { UPLOADED_CURSOR_SAMPLE_SIZE, uploadedCursorAssets } from "./uploadedCur
 
 type CursorAssetKey = NonNullable<CursorTelemetryPoint["cursorType"]>;
 
-/** System cursor asset from native helper (macOS only). */
+/** System cursor asset from native helper. */
 type SystemCursorAsset = {
 	dataUrl: string;
 	width: number;

@@ -31,11 +31,7 @@
 		"zoomOut": "تصغير",
 		"toggleFullScreen": "ملء الشاشة",
 		"recordingStatus": "جاري التسجيل: {{source}}",
-		"about": "حول openscreen",
-		"services": "خدمات",
-		"hide": "إخفاء openscreen",
-		"hideOthers": "إخفاء الآخرين",
-		"unhide": "إظهار الكل"
+		"about": "حول openscreen"
 	},
 	"playback": {
 		"play": "تشغيل",

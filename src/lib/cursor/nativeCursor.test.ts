@@ -36,7 +36,7 @@ describe("native cursor click bounce", () => {
 		expect(getNativeCursorClickBounceScale(5, 0)).toBe(1);
 	});
 
-	it("uses the default cursor asset for telemetry-only macOS recordings", () => {
+	it("uses the default cursor asset for telemetry-only recordings", () => {
 		const recordingData = {
 			version: 2,
 			provider: "none" as const,
@@ -54,10 +54,10 @@ describe("native cursor click bounce", () => {
 		expect(frame?.sample.cy).toBeCloseTo(0.5);
 	});
 
-	it("renders the natively captured cursor bitmap for untyped macOS samples", () => {
+	it("renders the natively captured cursor bitmap for untyped samples", () => {
 		const capturedAsset: NativeCursorAsset = {
 			id: "sha-custom",
-			platform: "darwin",
+			platform: "win32",
 			imageDataUrl: "data:image/png;base64,CUSTOMCURSOR",
 			width: 48,
 			height: 48,
@@ -86,7 +86,7 @@ describe("native cursor click bounce", () => {
 		expect(rendered.hotspotX).toBe(4);
 	});
 
-	it("applies click bounce to telemetry-only macOS recordings", () => {
+	it("applies click bounce to telemetry-only recordings", () => {
 		const recordingData = {
 			version: 2,
 			provider: "none" as const,
@@ -105,7 +105,7 @@ describe("native cursor click bounce", () => {
 describe("custom cursor themes", () => {
 	const arrowAsset: NativeCursorAsset = {
 		id: "telemetry-arrow",
-		platform: "darwin",
+		platform: "linux",
 		imageDataUrl: "default-arrow",
 		width: 32,
 		height: 32,
@@ -128,10 +128,10 @@ describe("custom cursor themes", () => {
 		expect(rendered.hotspotX).toBeCloseTo(1.5);
 	});
 
-	it("classifies an untyped macOS arrow bitmap (top-left hotspot) as the themed arrow", () => {
-		const macArrow: NativeCursorAsset = {
+	it("classifies an untyped arrow bitmap with a top-left hotspot as the themed arrow", () => {
+		const arrowBitmap: NativeCursorAsset = {
 			id: "sha-arrow",
-			platform: "darwin",
+			platform: "win32",
 			imageDataUrl: "captured-bitmap",
 			width: 34,
 			height: 46,
@@ -140,7 +140,7 @@ describe("custom cursor themes", () => {
 			scaleFactor: 2,
 		};
 		const rendered = resolveNativeCursorRenderAsset(
-			macArrow,
+			arrowBitmap,
 			1,
 			{ timeMs: 0, cx: 0.5, cy: 0.5 },
 			"hello-kitty-watermelon",
@@ -150,10 +150,10 @@ describe("custom cursor themes", () => {
 		expect(rendered.imageDataUrl).toContain("cursors/hello-kitty-watermelon/arrow.png");
 	});
 
-	it("classifies an untyped macOS hand bitmap (upper-center hotspot) as the themed pointer", () => {
-		const macHand: NativeCursorAsset = {
+	it("classifies an untyped hand bitmap with an upper-center hotspot as the themed pointer", () => {
+		const handBitmap: NativeCursorAsset = {
 			id: "sha-hand",
-			platform: "darwin",
+			platform: "win32",
 			imageDataUrl: "captured-bitmap",
 			width: 64,
 			height: 64,
@@ -162,7 +162,7 @@ describe("custom cursor themes", () => {
 			scaleFactor: 2,
 		};
 		const rendered = resolveNativeCursorRenderAsset(
-			macHand,
+			handBitmap,
 			1,
 			{ timeMs: 0, cx: 0.5, cy: 0.5 },
 			"hello-kitty-watermelon",
@@ -173,9 +173,9 @@ describe("custom cursor themes", () => {
 	});
 
 	it("leaves an untyped text/crosshair bitmap (centered hotspot) as the real captured cursor", () => {
-		const macText: NativeCursorAsset = {
+		const centeredBitmap: NativeCursorAsset = {
 			id: "sha-text",
-			platform: "darwin",
+			platform: "win32",
 			imageDataUrl: "captured-ibeam",
 			width: 18,
 			height: 36,
@@ -184,7 +184,7 @@ describe("custom cursor themes", () => {
 			scaleFactor: 2,
 		};
 		const rendered = resolveNativeCursorRenderAsset(
-			macText,
+			centeredBitmap,
 			1,
 			{ timeMs: 0, cx: 0.5, cy: 0.5 },
 			"hello-kitty-watermelon",
