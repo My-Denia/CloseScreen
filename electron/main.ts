@@ -8,7 +8,6 @@ import {
 	Menu,
 	nativeImage,
 	session,
-	systemPreferences,
 	Tray,
 } from "electron";
 import { ShortcutBinding } from "../src/lib/shortcuts";
@@ -27,13 +26,6 @@ import {
 } from "./windows";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-
-// Use Screen & System Audio Recording permissions instead of the CoreAudio Tap API on macOS.
-// Tap needs NSAudioCaptureUsageDescription in the parent app's Info.plist, which breaks when
-// running from a terminal/IDE during dev.
-if (process.platform === "darwin") {
-	app.commandLine.appendSwitch("disable-features", "MacCatapLoopbackAudioForScreenShare");
-}
 
 // Wayland support for screen capture and window management on Wayland compositors.
 if (process.platform === "linux") {
@@ -84,8 +76,7 @@ let sourceSelectorWindow: BrowserWindow | null = null;
 let countdownOverlayWindow: BrowserWindow | null = null;
 let tray: Tray | null = null;
 let selectedSourceName = "";
-const isMac = process.platform === "darwin";
-const trayIconSize = isMac ? 16 : 24;
+const trayIconSize = 24;
 
 // Tray Icons
 const defaultTrayIcon = getTrayIcon("openscreen.png", trayIconSize);
@@ -133,40 +124,7 @@ function sendEditorMenuAction(
 }
 
 function setupApplicationMenu() {
-	const isMac = process.platform === "darwin";
 	const template: Electron.MenuItemConstructorOptions[] = [];
-
-	if (isMac) {
-		template.push({
-			label: app.name,
-			submenu: [
-				{
-					role: "about",
-					label: mainT("common", "actions.about") || "About openscreen",
-				},
-				{ type: "separator" },
-				{
-					role: "services",
-					label: mainT("common", "actions.services") || "Services",
-				},
-				{ type: "separator" },
-				{
-					role: "hide",
-					label: mainT("common", "actions.hide") || "Hide openscreen",
-				},
-				{
-					role: "hideOthers",
-					label: mainT("common", "actions.hideOthers") || "Hide Others",
-				},
-				{
-					role: "unhide",
-					label: mainT("common", "actions.unhide") || "Show All",
-				},
-				{ type: "separator" },
-				{ role: "quit", label: mainT("common", "actions.quit") || "Quit" },
-			],
-		});
-	}
 
 	template.push(
 		{
@@ -174,34 +132,30 @@ function setupApplicationMenu() {
 			submenu: [
 				{
 					label: mainT("dialogs", "unsavedChanges.newProject") || "New Project",
-					accelerator: "CmdOrCtrl+N",
+					accelerator: "Ctrl+N",
 					click: () => sendEditorMenuAction("menu-new-project"),
 				},
 				{ type: "separator" as const },
 				{
 					label: mainT("dialogs", "unsavedChanges.loadProject") || "Load Project…",
-					accelerator: "CmdOrCtrl+O",
+					accelerator: "Ctrl+O",
 					click: () => sendEditorMenuAction("menu-load-project"),
 				},
 				{
 					label: mainT("dialogs", "unsavedChanges.saveProject") || "Save Project…",
-					accelerator: "CmdOrCtrl+S",
+					accelerator: "Ctrl+S",
 					click: () => sendEditorMenuAction("menu-save-project"),
 				},
 				{
 					label: mainT("dialogs", "unsavedChanges.saveProjectAs") || "Save Project As…",
-					accelerator: "CmdOrCtrl+Shift+S",
+					accelerator: "Ctrl+Shift+S",
 					click: () => sendEditorMenuAction("menu-save-project-as"),
 				},
-				...(isMac
-					? []
-					: [
-							{ type: "separator" as const },
-							{
-								role: "quit" as const,
-								label: mainT("common", "actions.quit") || "Quit",
-							},
-						]),
+				{ type: "separator" as const },
+				{
+					role: "quit" as const,
+					label: mainT("common", "actions.quit") || "Quit",
+				},
 			],
 		},
 		{
@@ -256,26 +210,16 @@ function setupApplicationMenu() {
 		},
 		{
 			label: mainT("common", "actions.window") || "Window",
-			submenu: isMac
-				? [
-						{
-							role: "minimize",
-							label: mainT("common", "actions.minimize") || "Minimize",
-						},
-						{ role: "zoom" },
-						{ type: "separator" },
-						{ role: "front" },
-					]
-				: [
-						{
-							role: "minimize",
-							label: mainT("common", "actions.minimize") || "Minimize",
-						},
-						{
-							role: "close",
-							label: mainT("common", "actions.close") || "Close",
-						},
-					],
+			submenu: [
+				{
+					role: "minimize",
+					label: mainT("common", "actions.minimize") || "Minimize",
+				},
+				{
+					role: "close",
+					label: mainT("common", "actions.close") || "Close",
+				},
+			],
 		},
 	);
 
@@ -433,34 +377,11 @@ app.on("window-all-closed", () => {
 	app.quit();
 });
 
-app.on("activate", () => {
-	// On macOS, re-open a window when the dock icon is clicked and none are open.
-	const hasVisibleWindow = BrowserWindow.getAllWindows().some((window) => {
-		if (window.isDestroyed() || !window.isVisible()) {
-			return false;
-		}
-
-		const url = window.webContents.getURL();
-		const isCountdownOverlayWindow = url.includes("windowType=countdown-overlay");
-		return !isCountdownOverlayWindow;
-	});
-	if (!hasVisibleWindow) {
-		showMainWindow();
-	}
-});
-
 app.on("will-quit", () => {
 	unregisterAllGlobalShortcuts();
 });
 
 app.whenReady().then(async () => {
-	// Force "regular" activation policy so the Dock icon appears. The HUD overlay
-	// (transparent, frameless, skipTaskbar) is the first window, and AppKit would
-	// otherwise classify us as an accessory app.
-	if (process.platform === "darwin") {
-		app.dock?.show();
-	}
-
 	session.defaultSession.setPermissionCheckHandler((_webContents, permission) => {
 		const allowed = [
 			"media",
@@ -502,15 +423,6 @@ app.whenReady().then(async () => {
 		},
 		{ useSystemPicker: false },
 	);
-
-	// Request mic permission now. Screen Recording is requested lazily from the
-	// source-picker action so its prompt isn't hidden behind the selector window.
-	if (process.platform === "darwin") {
-		const micStatus = systemPreferences.getMediaAccessStatus("microphone");
-		if (micStatus !== "granted") {
-			await systemPreferences.askForMediaAccess("microphone");
-		}
-	}
 
 	ipcMain.on("hud-overlay-close", () => {
 		app.quit();

@@ -39,8 +39,7 @@
 		"cameraDenied": "Accès à la caméra refusé. L'enregistrement continuera sans webcam.",
 		"cameraDisconnected": "Webcam déconnectée.",
 		"cameraNotFound": "Caméra introuvable.",
-		"permissionDenied": "Permission d'enregistrement refusée. Veuillez autoriser l'enregistrement d'écran.",
-		"accessibilityAllowAndRetry": "Autorisez l'accès Accessibilité pour openscreen, puis appuyez de nouveau sur enregistrer pour lancer le compte à rebours."
+		"permissionDenied": "Permission d'enregistrement refusée. Veuillez autoriser l'enregistrement d'écran."
 	},
 	"loadingVideo": "Chargement de la vidéo...",
 	"loadingEditor": "Chargement de l'éditeur...",

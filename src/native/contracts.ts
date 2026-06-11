@@ -1,7 +1,7 @@
 export const NATIVE_BRIDGE_CHANNEL = "native-bridge:invoke";
 export const NATIVE_BRIDGE_VERSION = 1;
 
-export type NativePlatform = "darwin" | "win32" | "linux";
+export type NativePlatform = "win32" | "linux";
 export type CursorProviderKind = "native" | "none";
 export type NativeCursorType =
 	| "arrow"

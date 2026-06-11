@@ -31,11 +31,7 @@
 		"zoomOut": "Uzaklaştır",
 		"toggleFullScreen": "Tam Ekranı Aç/Kapat",
 		"recordingStatus": "Kaydediliyor: {{source}}",
-		"about": "openscreen Hakkında",
-		"services": "Servisler",
-		"hide": "openscreen’i Gizle",
-		"hideOthers": "Diğerlerini Gizle",
-		"unhide": "Tümünü Göster"
+		"about": "openscreen Hakkında"
 	},
 	"playback": {
 		"play": "Oynat",

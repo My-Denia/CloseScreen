@@ -31,11 +31,7 @@
 		"zoomOut": "Alejar",
 		"toggleFullScreen": "Alternar pantalla completa",
 		"recordingStatus": "Grabando: {{source}}",
-		"about": "Acerca de openscreen",
-		"services": "Servicios",
-		"hide": "Ocultar openscreen",
-		"hideOthers": "Ocultar otros",
-		"unhide": "Mostrar todo"
+		"about": "Acerca de openscreen"
 	},
 	"playback": {
 		"play": "Reproducir",

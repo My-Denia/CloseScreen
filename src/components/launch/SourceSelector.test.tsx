@@ -18,7 +18,7 @@ vi.mock("@/contexts/I18nContext", () => ({
 			if (key === "sourceSelector.loading") return "Loading sources...";
 			if (key === "sourceSelector.emptyTitle") return "No screens or windows found";
 			if (key === "sourceSelector.emptyDescription") {
-				return "If you just granted screen recording permission, reload this picker. On macOS you may need to reopen openscreen.";
+				return "Reload this picker if the available screens or windows changed.";
 			}
 			if (key === "sourceSelector.loadFailedDescription") {
 				return "openscreen could not load capture sources. Reload this picker and try again.";

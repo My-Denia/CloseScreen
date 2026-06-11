@@ -31,11 +31,7 @@
 		"zoomOut": "Zoom Out",
 		"toggleFullScreen": "Toggle Full Screen",
 		"recordingStatus": "Recording: {{source}}",
-		"about": "About openscreen",
-		"services": "Services",
-		"hide": "Hide openscreen",
-		"hideOthers": "Hide Others",
-		"unhide": "Show All"
+		"about": "About openscreen"
 	},
 	"playback": {
 		"play": "Play",

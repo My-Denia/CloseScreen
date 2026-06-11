@@ -217,7 +217,7 @@ const PRETTY_NATIVE_CURSOR_ASSETS: Partial<Record<NativeCursorType, PrettyNative
 
 const TELEMETRY_CURSOR_ASSET: NativeCursorAsset = {
 	id: "telemetry-arrow",
-	platform: "darwin",
+	platform: "linux",
 	imageDataUrl: arrowUrl,
 	width: PRETTY_NATIVE_CURSOR_ASSETS.arrow?.width ?? 32,
 	height: PRETTY_NATIVE_CURSOR_ASSETS.arrow?.height ?? 32,
@@ -529,8 +529,8 @@ export function resolvePrettyNativeCursorAsset(
 }
 
 /**
- * Infers "arrow" vs "pointer" from a captured bitmap's hotspot, for platforms (macOS)
- * that don't tag samples with a `cursorType`. Arrow's hotspot is in the top-left tip;
+ * Infers "arrow" vs "pointer" from a captured bitmap's hotspot when samples
+ * do not include a `cursorType`. Arrow's hotspot is in the top-left tip;
  * the pointing hand's fingertip is in the upper-center band. Anything else stays
  * unclassified so it keeps its real captured cursor instead of a themed arrow/pointer.
  */
@@ -587,8 +587,8 @@ export function resolveNativeCursorRenderAsset(
 	const cursorType = sample?.cursorType ?? asset.cursorType ?? null;
 	if (themeId && themeId !== DEFAULT_CURSOR_THEME_ID) {
 		// A known type uses its override when the theme provides one. Untyped samples
-		// (common on macOS, where the type isn't tagged) are classified from the captured
-		// bitmap's hotspot so arrow becomes themed-arrow and hand becomes themed-pointer.
+		// are classified from the captured bitmap's hotspot so arrow becomes
+		// themed-arrow and hand becomes themed-pointer.
 		const themedType = cursorType ?? classifyCapturedCursorType(asset);
 		const themedAsset = themedType ? resolveThemedCursorAsset(themeId, themedType) : null;
 		if (themedAsset && themedType) {

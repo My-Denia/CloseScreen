@@ -31,11 +31,7 @@
 		"zoomOut": "Diminuir Zoom",
 		"toggleFullScreen": "Tela Cheia",
 		"recordingStatus": "Gravando: {{source}}",
-		"about": "Sobre o openscreen",
-		"services": "Serviços",
-		"hide": "Ocultar openscreen",
-		"hideOthers": "Ocultar Outros",
-		"unhide": "Mostrar Todos"
+		"about": "Sobre o openscreen"
 	},
 	"playback": {
 		"play": "Play",

@@ -77,3 +77,19 @@
 - 2026-06-11: Pushed branch `chore/demac-personalization` and opened PR `https://github.com/pjyqifei02/openscreen/pull/30`.
 - 2026-06-11: Trimmed `build.yml` Actions run `https://github.com/pjyqifei02/openscreen/actions/runs/27371559635` succeeded on head `146cbbabb6503dcbedafa140df40c2fc61916329`; artifacts uploaded: `windows-installer` size 386907134 and `linux-installer` size 851792127.
 - 2026-06-11: PR #30 CI check rollup is green: Lint, Type Check, Test, and Build all passed.
+
+## Darwin Dead-Code Removal
+
+- 2026-06-11: Started from `main` commit `5f0dc6ca630c`; user-owned `CLAUDE.md` was already dirty and remains excluded from this work.
+- 2026-06-11: Removed mac-only TypeScript IPC/preload/API surface from `electron/ipc/handlers.ts`, `electron/preload.ts`, `electron/electron-env.d.ts`, and `src/hooks/useScreenRecorder.ts` in one paired change.
+- 2026-06-11: Removed mac-only runtime branches from Electron main/window setup, native bridge platform normalization, cursor recording factory, launch source-selector flow, shortcut formatting, and video editor cursor/shortcut handling.
+- 2026-06-11: Deleted mac-only TypeScript files `electron/native-bridge/cursor/recording/macNativeCursorRecordingSession.ts`, `src/lib/nativeMacRecording.ts`, and `src/lib/nativeMacRecording.test.ts`.
+- 2026-06-11: Removed or generalized mac-facing UI/test strings in launch source selector text and cursor/shortcut tests.
+- 2026-06-11: Removed unused mac app-menu i18n keys `services`, `hide`, `hideOthers`, and `unhide` from all locale `common.json` files, and removed unused mac cursor Accessibility retry text `accessibilityAllowAndRetry` from all locale `editor.json` files.
+- 2026-06-11: Removed mac-only tests by name: `parses Electron window source ids into ScreenCaptureKit window ids`; `rejects non-window source ids for window parsing`; `parses Electron display source ids into ScreenCaptureKit display ids`; `rejects non-display source ids for display parsing`; `retries opening after macOS screen permission becomes granted`; `stops retrying once macOS permission is explicitly denied`.
+- 2026-06-11: Static acceptance grep `rg -n -i "darwin|macos|mac os|screencapturekit" src electron -g "*.ts" -g "*.tsx" -g "*.json" -g "!electron/native/wgc-capture/**"` returned no matches.
+- 2026-06-11: Wider cleanup grep `rg -n -i "\bmac\b|macos|mac os|darwin|screencapturekit" src electron -g "*.ts" -g "*.tsx" -g "*.json" -g "!electron/native/wgc-capture/**"` returned no matches.
+- 2026-06-11: Additional i18n dead-key grep `rg -n '"(services|hide|hideOthers|unhide|accessibilityAllowAndRetry)"' src\i18n\locales -g "*.json"` returned no matches; all locale JSON parsed.
+- 2026-06-11: Final local validation passed after the i18n dead-key cleanup: `npm run build-vite` exit 0; `npm test` exit 0 with 30 test files and 220 tests.
+- 2026-06-11: Non-goal check passed: `git diff --name-only -- electron/native/wgc-capture` returned no output.
+- 2026-06-11: Independent execution audit `019eb869-a850-7980-9917-adf1b7e188a5` returned `pass`; auditor independently re-ran the scoped grep, i18n dead-key grep, locale JSON parse, `git diff --check`, wgc-capture diff check, `npm run build-vite`, and `npm test`.

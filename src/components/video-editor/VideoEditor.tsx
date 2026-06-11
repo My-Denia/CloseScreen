@@ -300,13 +300,10 @@ export default function VideoEditor() {
 	const nextTrimIdRef = useRef(1);
 	const nextSpeedIdRef = useRef(1);
 
-	const { shortcuts, isMac } = useShortcuts();
-	// Windows recordings include captured cursor assets. macOS hides the system
-	// cursor in ScreenCaptureKit and renders telemetry samples with openscreen's
-	// default arrow asset for the editable overlay.
+	const { shortcuts } = useShortcuts();
 	const hasEditableCursorRecording =
 		recordingCursorCaptureMode === "editable-overlay" &&
-		(nativePlatform === "win32" || nativePlatform === "darwin") &&
+		nativePlatform === "win32" &&
 		hasNativeCursorRecordingData(cursorRecordingData);
 	const effectiveShowCursor = showCursor && hasEditableCursorRecording;
 	const showCursorSettings = hasEditableCursorRecording;
@@ -1699,7 +1696,7 @@ export default function VideoEditor() {
 				e.preventDefault();
 			}
 
-			if (matchesShortcut(e, shortcuts.playPause, isMac)) {
+			if (matchesShortcut(e, shortcuts.playPause)) {
 				// Let space pass through inside inputs/textareas.
 				if (isInput) {
 					return;
@@ -1714,7 +1711,7 @@ export default function VideoEditor() {
 
 		window.addEventListener("keydown", handleKeyDown, { capture: true });
 		return () => window.removeEventListener("keydown", handleKeyDown, { capture: true });
-	}, [undo, redo, shortcuts, isMac]);
+	}, [undo, redo, shortcuts]);
 
 	useEffect(() => {
 		if (selectedZoomId && !zoomRegions.some((region) => region.id === selectedZoomId)) {
@@ -2490,9 +2487,7 @@ export default function VideoEditor() {
 					className="flex-1 flex items-center gap-1"
 					style={{ WebkitAppRegion: "no-drag" } as CSSProperties}
 				>
-					<div
-						className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-white/50 hover:text-white/90 hover:bg-white/[0.08] transition-all duration-150 ${isMac ? "ml-14" : "ml-2"}`}
-					>
+					<div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-white/50 hover:text-white/90 hover:bg-white/[0.08] transition-all duration-150 ml-2">
 						<Languages size={14} />
 						<select
 							value={locale}

@@ -949,7 +949,7 @@ export default function TimelineEditor({
 		zoom: "Ctrl + Scroll",
 	});
 	const timelineContainerRef = useRef<HTMLDivElement>(null);
-	const { shortcuts: keyShortcuts, isMac } = useShortcuts();
+	const { shortcuts: keyShortcuts } = useShortcuts();
 
 	useEffect(() => {
 		formatShortcut(["mod", "Scroll"]).then((zoom) => {
@@ -1242,22 +1242,22 @@ export default function TimelineEditor({
 				return;
 			}
 
-			if (matchesShortcut(e, keyShortcuts.addKeyframe, isMac)) {
+			if (matchesShortcut(e, keyShortcuts.addKeyframe)) {
 				addKeyframe();
 			}
-			if (matchesShortcut(e, keyShortcuts.addZoom, isMac)) {
+			if (matchesShortcut(e, keyShortcuts.addZoom)) {
 				handleAddZoom();
 			}
-			if (matchesShortcut(e, keyShortcuts.addTrim, isMac)) {
+			if (matchesShortcut(e, keyShortcuts.addTrim)) {
 				handleAddTrim();
 			}
-			if (matchesShortcut(e, keyShortcuts.addAnnotation, isMac)) {
+			if (matchesShortcut(e, keyShortcuts.addAnnotation)) {
 				handleAddAnnotation();
 			}
-			if (BLUR_REGIONS_ENABLED && matchesShortcut(e, keyShortcuts.addBlur, isMac)) {
+			if (BLUR_REGIONS_ENABLED && matchesShortcut(e, keyShortcuts.addBlur)) {
 				handleAddBlur();
 			}
-			if (matchesShortcut(e, keyShortcuts.addSpeed, isMac)) {
+			if (matchesShortcut(e, keyShortcuts.addSpeed)) {
 				handleAddSpeed();
 			}
 
@@ -1282,11 +1282,11 @@ export default function TimelineEditor({
 					}
 				}
 			}
-			// Delete key or Ctrl+D / Cmd+D
+			// Delete key or Ctrl+D
 			if (
 				e.key === "Delete" ||
 				e.key === "Backspace" ||
-				matchesShortcut(e, keyShortcuts.deleteSelected, isMac)
+				matchesShortcut(e, keyShortcuts.deleteSelected)
 			) {
 				if (selectedKeyframeId) {
 					deleteSelectedKeyframe();
@@ -1328,7 +1328,6 @@ export default function TimelineEditor({
 		currentTime,
 		onSelectAnnotation,
 		keyShortcuts,
-		isMac,
 	]);
 
 	const clampedRange = useMemo<Range>(() => {

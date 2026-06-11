@@ -82,7 +82,7 @@ ipcMain.on("hud-overlay-set-size", (_event, width: number, height: number) => {
 
 /**
  * Frameless transparent HUD overlay, always-on-top, centred at the bottom of the
- * primary display. Follows the user across macOS Spaces so it isn't lost on switch.
+ * primary display.
  */
 export function createHudOverlayWindow(): BrowserWindow {
 	const primaryDisplay = screen.getPrimaryDisplay();
@@ -105,11 +105,9 @@ export function createHudOverlayWindow(): BrowserWindow {
 		y: y,
 		frame: false,
 		transparent: true,
-		// Fully-transparent ARGB backing. Without this macOS draws the window as a
-		// rounded glass panel with a border around the HUD content.
+		// Fully-transparent ARGB backing keeps the HUD content visually unframed.
 		backgroundColor: "#00000000",
-		// Don't let macOS mask the window into a rounded rect; the HUD bar provides
-		// its own rounding and the window itself must be invisible.
+		// The HUD bar provides its own rounding and the window itself must be invisible.
 		roundedCorners: false,
 		resizable: false,
 		alwaysOnTop: true,
@@ -125,12 +123,6 @@ export function createHudOverlayWindow(): BrowserWindow {
 		},
 	});
 	win.setIgnoreMouseEvents(true, { forward: true });
-
-	// Follow the user across macOS Spaces, else the HUD stays pinned to the Space
-	// it was first opened on.
-	if (process.platform === "darwin") {
-		win.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
-	}
 
 	// Show only once painted to avoid the black rectangle flash when a transparent
 	// window is shown before its first paint.
@@ -162,21 +154,15 @@ export function createHudOverlayWindow(): BrowserWindow {
 }
 
 /**
- * Main editor window. Starts maximised with a hidden title bar on macOS; not
- * always-on-top and appears in the taskbar/dock.
+ * Main editor window. Starts maximised, is not always-on-top, and appears in
+ * the taskbar.
  */
 export function createEditorWindow(): BrowserWindow {
-	const isMac = process.platform === "darwin";
-
 	const win = new BrowserWindow({
 		width: 1200,
 		height: 800,
 		minWidth: 800,
 		minHeight: 600,
-		...(isMac && {
-			titleBarStyle: "hiddenInset",
-			trafficLightPosition: { x: 12, y: 12 },
-		}),
 		transparent: false,
 		resizable: true,
 		alwaysOnTop: false,
@@ -226,7 +212,7 @@ export function createEditorWindow(): BrowserWindow {
 
 /**
  * Floating source-selector window for picking a screen or window to record.
- * Frameless, transparent, and follows the user across macOS Spaces.
+ * Frameless and transparent.
  */
 export function createSourceSelectorWindow(): BrowserWindow {
 	const { width, height } = screen.getPrimaryDisplay().workAreaSize;
@@ -250,12 +236,6 @@ export function createSourceSelectorWindow(): BrowserWindow {
 			contextIsolation: true,
 		},
 	});
-
-	// Follow the user across macOS Spaces so the selector appears on the active
-	// desktop regardless of where the HUD was opened.
-	if (process.platform === "darwin") {
-		win.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
-	}
 
 	if (VITE_DEV_SERVER_URL) {
 		win.loadURL(VITE_DEV_SERVER_URL + "?windowType=source-selector");
@@ -305,10 +285,6 @@ export function createCountdownOverlayWindow(): BrowserWindow {
 	});
 
 	win.setIgnoreMouseEvents(true);
-
-	if (process.platform === "darwin") {
-		win.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
-	}
 
 	if (VITE_DEV_SERVER_URL) {
 		win.loadURL(VITE_DEV_SERVER_URL + "?windowType=countdown-overlay");

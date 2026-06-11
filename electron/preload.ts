@@ -1,5 +1,4 @@
 import { contextBridge, ipcRenderer, webUtils } from "electron";
-import type { NativeMacRecordingRequest } from "../src/lib/nativeMacRecording";
 import type { NativeWindowsRecordingRequest } from "../src/lib/nativeWindowsRecording";
 import type { RecordingSession, StoreRecordedSessionInput } from "../src/lib/recordingSession";
 import type { ShortcutBinding } from "../src/lib/shortcuts";
@@ -56,12 +55,6 @@ contextBridge.exposeInMainWorld("electronAPI", {
 	requestCameraAccess: () => {
 		return ipcRenderer.invoke("request-camera-access");
 	},
-	requestScreenAccess: () => {
-		return ipcRenderer.invoke("request-screen-access");
-	},
-	requestNativeMacCursorAccess: () => {
-		return ipcRenderer.invoke("request-native-mac-cursor-access");
-	},
 	storeRecordedVideo: (videoData: ArrayBuffer, fileName: string) => {
 		return ipcRenderer.invoke("store-recorded-video", videoData, fileName);
 	},
@@ -91,9 +84,6 @@ contextBridge.exposeInMainWorld("electronAPI", {
 	isNativeWindowsCaptureAvailable: () => {
 		return ipcRenderer.invoke("is-native-windows-capture-available");
 	},
-	isNativeMacCaptureAvailable: () => {
-		return ipcRenderer.invoke("is-native-mac-capture-available");
-	},
 	startNativeWindowsRecording: (request: NativeWindowsRecordingRequest) => {
 		return ipcRenderer.invoke("start-native-windows-recording", request);
 	},
@@ -105,26 +95,6 @@ contextBridge.exposeInMainWorld("electronAPI", {
 	},
 	resumeNativeWindowsRecording: () => {
 		return ipcRenderer.invoke("resume-native-windows-recording");
-	},
-	startNativeMacRecording: (request: NativeMacRecordingRequest) => {
-		return ipcRenderer.invoke("start-native-mac-recording", request);
-	},
-	pauseNativeMacRecording: () => {
-		return ipcRenderer.invoke("pause-native-mac-recording");
-	},
-	resumeNativeMacRecording: () => {
-		return ipcRenderer.invoke("resume-native-mac-recording");
-	},
-	stopNativeMacRecording: (discard?: boolean) => {
-		return ipcRenderer.invoke("stop-native-mac-recording", discard);
-	},
-	attachNativeMacWebcamRecording: (payload: {
-		screenVideoPath: string;
-		recordingId: number;
-		webcam: { fileName: string; videoData: ArrayBuffer };
-		cursorCaptureMode?: import("../src/lib/recordingSession").CursorCaptureMode;
-	}) => {
-		return ipcRenderer.invoke("attach-native-mac-webcam-recording", payload);
 	},
 	getCursorTelemetry: (videoPath?: string) => {
 		return ipcRenderer.invoke("get-cursor-telemetry", videoPath);

@@ -31,11 +31,7 @@
 		"zoomOut": "Zoom arrière",
 		"toggleFullScreen": "Basculer en plein écran",
 		"recordingStatus": "Enregistrement : {{source}}",
-		"about": "À propos d’openscreen",
-		"services": "Services",
-		"hide": "Masquer openscreen",
-		"hideOthers": "Masquer les autres",
-		"unhide": "Tout afficher"
+		"about": "À propos d’openscreen"
 	},
 	"playback": {
 		"play": "Lecture",

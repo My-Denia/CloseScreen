@@ -211,7 +211,7 @@ export function LaunchWindow() {
 			.getPlatform()
 			.then((platform) => {
 				if (!cancelled) {
-					setSupportsCursorModeToggle(platform === "win32" || platform === "darwin");
+					setSupportsCursorModeToggle(platform === "win32");
 				}
 			})
 			.catch(() => {
@@ -448,7 +448,6 @@ export function LaunchWindow() {
 		if (window.electronAPI) {
 			await openSourceSelectorWithPermissionRetry({
 				openSourceSelector: () => window.electronAPI.openSourceSelector(),
-				requestScreenAccess: () => window.electronAPI.requestScreenAccess(),
 			});
 		}
 	};

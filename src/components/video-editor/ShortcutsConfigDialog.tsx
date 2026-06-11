@@ -27,8 +27,7 @@ import { BLUR_REGIONS_ENABLED } from "./featureFlags";
 const MODIFIER_KEYS = new Set(["Control", "Shift", "Alt", "Meta"]);
 
 export function ShortcutsConfigDialog() {
-	const { shortcuts, isMac, isConfigOpen, closeConfig, setShortcuts, persistShortcuts } =
-		useShortcuts();
+	const { shortcuts, isConfigOpen, closeConfig, setShortcuts, persistShortcuts } = useShortcuts();
 	const t = useScopedT("shortcuts");
 	const tc = useScopedT("common");
 
@@ -64,7 +63,7 @@ export function ShortcutsConfigDialog() {
 
 			const binding: ShortcutBinding = {
 				key: e.key.toLowerCase(),
-				...(e.ctrlKey || e.metaKey ? { ctrl: true } : {}),
+				...(e.ctrlKey ? { ctrl: true } : {}),
 				...(e.shiftKey ? { shift: true } : {}),
 				...(e.altKey ? { alt: true } : {}),
 			};
@@ -168,7 +167,7 @@ export function ShortcutsConfigDialog() {
 															: "bg-white/5 border-white/10 text-slate-200 hover:border-[#34B27B]/50 hover:text-[#34B27B] cursor-pointer",
 												].join(" ")}
 											>
-												{isCapturing ? t("pressKey") : formatBinding(draft[action], isMac)}
+												{isCapturing ? t("pressKey") : formatBinding(draft[action])}
 											</button>
 										</div>
 										{hasConflict && conflict?.conflictWith.type === "configurable" && (

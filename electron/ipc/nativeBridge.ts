@@ -40,7 +40,7 @@ export interface NativeBridgeContext {
 }
 
 function normalizePlatform(platform: NodeJS.Platform): NativePlatform {
-	if (platform === "darwin" || platform === "win32") {
+	if (platform === "win32") {
 		return platform;
 	}
 

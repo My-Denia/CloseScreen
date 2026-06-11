@@ -8,11 +8,9 @@ import {
 	useState,
 } from "react";
 import { DEFAULT_SHORTCUTS, mergeWithDefaults, type ShortcutsConfig } from "@/lib/shortcuts";
-import { isMac as getIsMac } from "@/utils/platformUtils";
 
 interface ShortcutsContextValue {
 	shortcuts: ShortcutsConfig;
-	isMac: boolean;
 	setShortcuts: (config: ShortcutsConfig) => void;
 	persistShortcuts: (config?: ShortcutsConfig) => Promise<boolean>;
 	isConfigOpen: boolean;
@@ -30,16 +28,9 @@ export function useShortcuts(): ShortcutsContextValue {
 
 export function ShortcutsProvider({ children }: { children: ReactNode }) {
 	const [shortcuts, setShortcuts] = useState<ShortcutsConfig>(DEFAULT_SHORTCUTS);
-	const [isMac, setIsMac] = useState(false);
 	const [isConfigOpen, setIsConfigOpen] = useState(false);
 
 	useEffect(() => {
-		getIsMac()
-			.then(setIsMac)
-			.catch(() => {
-				// Keep default non-mac fallback if detection fails.
-			});
-
 		window.electronAPI
 			.getShortcuts?.()
 			.then((saved) => {
@@ -69,14 +60,13 @@ export function ShortcutsProvider({ children }: { children: ReactNode }) {
 	const value = useMemo<ShortcutsContextValue>(
 		() => ({
 			shortcuts,
-			isMac,
 			setShortcuts,
 			persistShortcuts,
 			isConfigOpen,
 			openConfig,
 			closeConfig,
 		}),
-		[shortcuts, isMac, persistShortcuts, isConfigOpen, openConfig, closeConfig],
+		[shortcuts, persistShortcuts, isConfigOpen, openConfig, closeConfig],
 	);
 
 	return <ShortcutsContext.Provider value={value}>{children}</ShortcutsContext.Provider>;
