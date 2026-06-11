@@ -5,14 +5,15 @@ Workspace: `C:\Files\openscreen`
 Fork: `My-Denia/openscreen`
 Runbook updated after successful build run `27367183706`; artifact-producing head: `261e33d136ef636621eabea588a3c0bc44d183ef`
 
-This runbook captures the remaining owner-gated steps for the openscreen takeover baseline. Do not run the write commands until the repository owner explicitly approves that gate.
+This runbook captures owner-gated steps and final evidence for the openscreen takeover baseline.
 
 ## Current Gate State
 
 - Local branch `main` is pushed to `origin/main`; the artifact-producing build run used head `261e33d136ef636621eabea588a3c0bc44d183ef`.
-- Fork Issues are disabled: `gh repo view My-Denia/openscreen --json hasIssuesEnabled` returned `false`.
+- Fork Issues are enabled: `gh repo view My-Denia/openscreen --json hasIssuesEnabled` returned `true`.
 - GitHub Actions run `27367183706` completed successfully and uploaded `windows-installer` plus `linux-installer`.
 - Upstream currently has 29 open issues.
+- Target fork has 29 migrated issues with label `upstream-migration`.
 
 ## Gate A: Push And Build Artifacts
 
@@ -33,29 +34,23 @@ Acceptance evidence recorded in `acceptance.md`:
 
 ## Gate B: Enable Issues And Migrate Upstream Issues
 
-Owner approval required because this writes issues under the owner's GitHub identity. Enabling Issues is also required before the script can detect existing migrated issues.
+Completed after owner approval. The sanitized dry-run sample was confirmed, fork Issues were enabled, and the migration script created 29 issues.
 
 ```powershell
-gh repo edit My-Denia/openscreen --enable-issues
 gh repo view My-Denia/openscreen --json hasIssuesEnabled
 gh issue list --repo siddharthvaddem/openscreen --state open --limit 100 --json number --jq 'length'
 node scripts/migrate-upstream-issues.mjs
-```
-
-Review the dry-run output. If the dry-run is correct and owner approval is explicit:
-
-```powershell
 node scripts/migrate-upstream-issues.mjs --execute
 gh issue list --repo My-Denia/openscreen --state all --label upstream-migration --limit 200 --json number --jq 'length'
 gh issue list --repo My-Denia/openscreen --state all --label upstream-migration --limit 200 --json body --jq '[.[].body | contains("`https://github.com/siddharthvaddem/openscreen/issues/") and contains("upstream-migration-source: siddharthvaddem/openscreen#")] | all'
 ```
 
-Acceptance evidence to copy into `acceptance.md`:
+Acceptance evidence recorded in `acceptance.md`:
 
-- Upstream open issue count at migration time.
-- Migrated issue count with label `upstream-migration`.
-- Source-link code span and source marker check result is `true`.
-- Any script output showing skipped existing migrated issues, if rerun.
+- Upstream open issue count at migration time: `29`.
+- Migrated issue count with label `upstream-migration`: `29`.
+- Post-execute dry-run detected 29 existing migrated issues and 0 pending copies.
+- Source markers and code-spanned upstream issue URLs verified across all migrated issues.
 
 ## Gate C: Visual Studio Build Tools C++ Workload
 

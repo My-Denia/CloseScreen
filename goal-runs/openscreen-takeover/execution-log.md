@@ -52,4 +52,8 @@
 - 2026-06-11: Pushed Linux maintainer fix to origin. Current pushed HEAD: `261e33d136ef636621eabea588a3c0bc44d183ef`.
 - 2026-06-11: Triggered `build.yml` run `27367183706` (`https://github.com/My-Denia/openscreen/actions/runs/27367183706`) with `build_macos=false`. Run conclusion: `success`; `build-windows` and `build-linux` succeeded; `build-macos` skipped.
 - 2026-06-11: Artifact query for run `27367183706`: `windows-installer` size `386907191`, expired `false`; `linux-installer` size `851775419`, expired `false`.
-- 2026-06-11: AC4 remains owner-gated. Fork Issues are disabled and `node scripts/migrate-upstream-issues.mjs --execute` has not been run.
+- 2026-06-11: AC4 was owner-confirmed after sanitized dry-run sample review and fork Issues enablement.
+- 2026-06-11: Pre-execute migration dry-run: `node scripts/migrate-upstream-issues.mjs` exit 0; read 29 upstream open issues, detected 0 existing migrated issues, listed 29 pending copies.
+- 2026-06-11: Ran `node scripts/migrate-upstream-issues.mjs --execute`: exit 0; created migrated issues for upstream #689, #688, #686, #684, #683, #679, #670, #661, #660, #655, #650, #649, #630, #626, #625, #624, #623, #604, #602, #585, #584, #583, #582, #572, #553, #550, #527, #506, and #488.
+- 2026-06-11: Post-execute verification: upstream open issue count 29; target migrated issue count with label `upstream-migration` 29; post-execute dry-run detected 29 existing migrated issues and 0 pending copies.
+- 2026-06-11: Body verification over 29 migrated issues passed: no missing source markers, no missing code-spanned upstream URLs, no live unwrapped source URLs, and no plain mentions outside code.

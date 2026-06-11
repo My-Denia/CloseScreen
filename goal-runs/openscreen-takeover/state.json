@@ -1,6 +1,6 @@
 {
 	"goal": "openscreen takeover baseline",
-	"status": "ci-native-complete-ac4-owner-gated",
+	"status": "completed",
 	"auditMode": "independent-subagents",
 	"baselineCommit": "71622a20e34fea4844b5bef1d092927de54bf9a9",
 	"identity": {
@@ -17,19 +17,19 @@
 		"ci": "completed",
 		"validation": "completed-local",
 		"native": "documented-mostly-green-mspaint-fixture-blocked",
-		"issues": "completed-review-ready-owner-gated",
-		"acceptance": "completed-local-pending-owner-gated-ac4",
+		"issues": "completed-executed-verified",
+		"acceptance": "completed",
 		"ownerGateRunbook": "completed-review-ready"
 	},
-	"blockedOrOwnerGated": [
-		{
-			"criterion": 4,
-			"reason": "sanitized dry-run sample must be owner-confirmed and fork Issues enabled before --execute"
-		}
-	],
+	"blockedOrOwnerGated": [],
 	"planAudit": {
 		"decision": "pass",
 		"agent": "019eb774-7b9e-7940-a578-557596f2e3ac"
+	},
+	"executionAudit": {
+		"decision": "pass",
+		"agent": "019eb801-ee75-7490-92de-d3f5178d39c3",
+		"summary": "AC1-AC6 verified; AC4 issue migration count and body checks passed; current diff limited to evidence docs plus owner-authored project rule changes."
 	},
 	"latestLiveRecheck": {
 		"date": "2026-06-11",
@@ -37,25 +37,29 @@
 		"buildVite": "exit 0",
 		"unitTests": "exit 0, 31 files / 225 tests",
 		"upstreamOpenIssueCount": 29,
-		"forkIssuesEnabled": false,
-		"migrationDryRun": "exit 0, 29 pending copies, no writes",
+		"forkIssuesEnabled": true,
+		"migrationDryRun": "post-execute exit 0, 29 existing migrated issues, 0 pending copies",
+		"migrationExecute": "exit 0, created 29 migrated issues",
+		"migratedIssueCount": 29,
+		"migrationBodyVerification": "29 issues checked; source markers and code-spanned upstream URLs present; no plain mentions outside code",
 		"ownerGateRunbook": "owner-gate-runbook.md"
 	},
 	"blockedAudit": {
 		"date": "2026-06-11",
 		"localState": "main is pushed to origin/main; AGENTS.md remains untracked; artifact-producing build run used head 261e33d",
-		"remoteState": "fork Issues disabled; Actions run 27367183706 succeeded with Windows and Linux artifacts; upstream open issue count 29",
-		"remainingGates": ["owner-enabled Issues plus owner-approved issue migration execution"],
-		"decision": "Owner-approved push, workflow run, VS Build Tools install, and native rerun are complete. AC4 execute remains paused pending sanitized dry-run sample confirmation and fork Issues enablement."
+		"remoteState": "fork Issues enabled; Actions run 27367183706 succeeded with Windows and Linux artifacts; upstream open issue count 29; migrated issue count 29",
+		"remainingGates": [],
+		"decision": "Owner-approved push, workflow run, VS Build Tools install, native rerun, and issue migration are complete."
 	},
 	"resumeAfterOwnerApproval": {
 		"date": "2026-06-11",
 		"pushApproved": true,
 		"vsBuildToolsInstallApproved": true,
-		"issueMigrationExecuteApproved": false,
+		"issueMigrationExecuteApproved": true,
 		"criterion2PrePushGrep": "git grep stale upstream identifiers over package/build/workflow configs returned no matches",
 		"newNameDrift": "old fork-name placeholder scan returned no matches",
-		"migrationSanitization": "upstream issue links code-spanned; source marker is non-URL; @mention patterns are broken with zero-width space"
+		"migrationSanitization": "upstream issue links code-spanned; source marker is non-URL; @mention patterns are broken with zero-width space",
+		"migrationExecution": "node scripts/migrate-upstream-issues.mjs --execute exit 0; 29 issues created"
 	},
 	"latestActionsRun": {
 		"runId": 27367183706,

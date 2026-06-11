@@ -9,7 +9,7 @@ Confirmed identity: name/package/product `openscreen`, appId `io.github.My-Denia
 
 ## Summary
 
-Local takeover prep is complete for the confirmed `openscreen` identity. Full completion is not claimable yet only because issue migration execution/count verification remains behind the owner gate and fork Issues are still disabled.
+Takeover baseline is complete for the confirmed `openscreen` identity. The owner-confirmed issue migration executed successfully after fork Issues were enabled.
 
 Follow-up live recheck after handoff:
 - `npm install`: exit 0 on Node `v25.2.1` / npm `11.6.2`; emitted expected engine drift warning against pinned Node `22.22.1` / npm `10.9.4`.
@@ -17,8 +17,11 @@ Follow-up live recheck after handoff:
 - `npm run build-vite`: exit 0.
 - `npm test`: exit 0, 31 test files and 225 tests passed.
 - Final recheck after evidence updates: `npm run build-vite` exit 0; `npm test` exit 0, 31 test files and 225 tests passed.
-- `gh repo view My-Denia/openscreen --json hasIssuesEnabled`: `false`.
-- `node scripts/migrate-upstream-issues.mjs`: exit 0 dry-run, read 29 upstream issues, listed 29 pending copies, and performed no writes.
+- Post-migration final recheck: `npm run build-vite` exit 0; `npm test` exit 0, 31 test files and 225 tests passed.
+- `gh repo view My-Denia/openscreen --json hasIssuesEnabled`: `true`.
+- Pre-execute `node scripts/migrate-upstream-issues.mjs`: exit 0 dry-run, read 29 upstream issues, detected 0 existing migrated issues, and listed 29 pending copies.
+- Owner confirmed the sanitized dry-run sample; `node scripts/migrate-upstream-issues.mjs --execute`: exit 0 and created migrated issues for all 29 upstream issues.
+- Post-execute `node scripts/migrate-upstream-issues.mjs`: exit 0 dry-run, read 29 upstream issues, detected 29 existing migrated issues, and listed 0 pending copies.
 - GitHub Actions build run `https://github.com/My-Denia/openscreen/actions/runs/27367183706`: conclusion `success`; uploaded `windows-installer` and `linux-installer`.
 - Approved Visual Studio Build Tools C++ workload and FFmpeg installs completed; `npm run build:native:win` exits 0.
 
@@ -103,13 +106,13 @@ Evidence:
 
 ## F. Issue Migration
 
-Status: sanitized script ready for review; execution remains blocked pending owner confirmation.
+Status: complete.
 
 Evidence:
 - `scripts/migrate-upstream-issues.mjs` exists.
 - `node --check scripts/migrate-upstream-issues.mjs`: exit 0.
 - `node scripts/migrate-upstream-issues.mjs --help`: exit 0.
-- `node scripts/migrate-upstream-issues.mjs`: exit 0 in dry-run mode, read 29 upstream issues, listed 29 pending issue copies with source links, and warned that existing target issue detection could not run because fork Issues are disabled.
+- Pre-execute `node scripts/migrate-upstream-issues.mjs`: exit 0 in dry-run mode, read 29 upstream issues, detected 0 existing migrated issues, and listed 29 pending issue copies with source links.
 - Script uses label `upstream-migration` and marker `upstream-migration-source`.
 - Copied issue bodies are sanitized before creation:
   - upstream issue links in copied/header text are wrapped in code spans;
@@ -117,13 +120,14 @@ Evidence:
   - GitHub `@mention` patterns are broken with a zero-width space;
   - issue titles are mention-sanitized before creation.
 - `node scripts/migrate-upstream-issues.mjs --sample-body 602`: exit 0, printed a sanitized dry-run body where both `https://github.com/siddharthvaddem/openscreen/issues/602` and the copied `#275` upstream issue URL were code-spanned.
+- Owner confirmed the sanitized dry-run sample.
+- `node scripts/migrate-upstream-issues.mjs --execute`: exit 0; output included `Created migrated issue for upstream #...` for all 29 upstream issues.
 - `gh auth status`: logged in as `My-Denia`.
 - Read-only upstream count: `gh issue list --repo siddharthvaddem/openscreen --state open --limit 100 --json number --jq 'length'` returned `29`.
-
-Unfinished AC4:
-- The migration script was not executed.
-- `gh issue list --repo My-Denia/openscreen --state all --label upstream-migration --limit 200 --json number --jq 'length'` failed with: `the 'My-Denia/openscreen' repository has disabled issues`.
-- The fork must have Issues enabled and the sanitized sample must be owner-confirmed before migrated issues can be created or counted.
+- Migrated issue count: `gh issue list --repo My-Denia/openscreen --state all --label upstream-migration --limit 200 --json number --jq 'length'` returned `29`.
+- Post-execute dry-run: `node scripts/migrate-upstream-issues.mjs` returned `Existing migrated issues detected: 29` and `Issues to create: 0`.
+- Body verification over all 29 migrated issues returned no missing `upstream-migration-source` markers, no missing code-spanned upstream issue URLs, no live unwrapped source URLs, and no plain mentions outside code.
+- Example migrated issue: `https://github.com/My-Denia/openscreen/issues/19` for upstream #602 starts with code-spanned source URL and `Source: ` code span.
 
 ## G. LICENSE And Attribution
 
@@ -143,7 +147,4 @@ Evidence:
 
 ## Remaining Owner Gates
 
-- Enable Issues on `My-Denia/openscreen`, then confirm the sanitized dry-run sample before running the migration script.
-
-Post-approval command runbook:
-- `owner-gate-runbook.md` contains exact commands for issue migration execution/count verification after owner confirmation.
+- None for the takeover baseline. No public release, registry submission, or upstream mutation was performed.
