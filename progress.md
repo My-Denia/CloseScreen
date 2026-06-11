@@ -24,6 +24,9 @@
 - 2026-06-11: Added `scripts/migrate-upstream-issues.mjs`; label is `upstream-migration`; default mode is dry-run; execution remains owner-gated.
 - 2026-06-11: Rebrand values finalized from owner input: package slug `openscreen`, productName `openscreen`, appId `io.github.pjyqifei02.openscreen`.
 - 2026-06-11: Updated README first screen and attribution section; LICENSE remains untouched.
+- 2026-06-11: Rechecked after handoff and latest goal file: `npm install` exit 0, `npx npm@10.9.4 install` exit 0 after npm 11 lockfile metadata noise, `npm run build-vite` exit 0, `npm test` exit 0 with 31 files / 225 tests.
+- 2026-06-11: Rechecked GitHub read-only state: `gh auth status` logged in as `pjyqifei02`, upstream open issue count is 29, fork `hasIssuesEnabled` is `false`.
+- 2026-06-11: Re-ran migration dry-run: exit 0, read 29 upstream issues, listed 29 pending copies, and did not execute writes.
 
 ## Gates
 
@@ -32,6 +35,7 @@
 - Visual Studio Build Tools installation over ~1 GB is owner-only.
 - Fork Issues are currently disabled, blocking migrated issue creation/count verification.
 - No push, public release, registry submission, upstream mutation, or issue creation in this run.
+- No redo is needed for the confirmed `openscreen` identity; remaining incomplete criteria are owner-gated or environment-gated.
 
 ## Workspace Cleanup Notes
 

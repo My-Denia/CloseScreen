@@ -1,6 +1,6 @@
 {
 	"goal": "openscreen takeover baseline",
-	"status": "active",
+	"status": "needs-owner-decision",
 	"auditMode": "independent-subagents",
 	"baselineCommit": "71622a20e34fea4844b5bef1d092927de54bf9a9",
 	"identity": {
@@ -37,5 +37,14 @@
 	"planAudit": {
 		"decision": "pass",
 		"agent": "019eb774-7b9e-7940-a578-557596f2e3ac"
+	},
+	"latestLiveRecheck": {
+		"date": "2026-06-11",
+		"npmInstall": "exit 0",
+		"buildVite": "exit 0",
+		"unitTests": "exit 0, 31 files / 225 tests",
+		"upstreamOpenIssueCount": 29,
+		"forkIssuesEnabled": false,
+		"migrationDryRun": "exit 0, 29 pending copies, no writes"
 	}
 }

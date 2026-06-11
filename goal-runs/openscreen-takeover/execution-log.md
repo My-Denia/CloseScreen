@@ -34,3 +34,6 @@
 - 2026-06-11: Ran `npm test`: exit 0, 31 files and 225 tests passed.
 - 2026-06-11: Static validation passed: workflow YAML parse, stale publisher identifier greps, migration script checks, `git diff --check`, `git diff upstream/main -- LICENSE`, `git diff --name-only -- electron/native`, and tracked-file secret scan.
 - 2026-06-11: Ran `node scripts/migrate-upstream-issues.mjs` dry-run: exit 0, read 29 upstream issues and listed 29 pending copies; warned that target issue detection is blocked because fork Issues are disabled. Did not run `--execute`.
+- 2026-06-11: Rechecked after handoff and latest goal file: `npm install` exit 0; `npx npm@10.9.4 install` exit 0 after npm 11 lockfile metadata noise; `npm run build-vite` exit 0; `npm test` exit 0 with 31 files and 225 tests.
+- 2026-06-11: Read-only GitHub checks: `gh auth status` logged in as `pjyqifei02`; `gh repo view pjyqifei02/openscreen --json hasIssuesEnabled` returned `false`; upstream open issue count returned 29.
+- 2026-06-11: Re-ran `node scripts/migrate-upstream-issues.mjs` dry-run: exit 0, read 29 upstream issues, listed 29 pending copies, and performed no writes.

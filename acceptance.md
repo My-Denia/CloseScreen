@@ -9,7 +9,15 @@ Confirmed identity: name/package/product `openscreen`, appId `io.github.pjyqifei
 
 ## Summary
 
-Local takeover prep is complete. Full completion is not claimable yet because the real GitHub Actions artifact run, issue migration execution/count verification, fork Issues enablement, and Visual Studio C++ workload install remain owner-gated or environment-gated.
+Local takeover prep is complete for the confirmed `openscreen` identity. Full completion is not claimable yet because the real GitHub Actions artifact run, issue migration execution/count verification, fork Issues enablement, and Visual Studio C++ workload install remain owner-gated or environment-gated.
+
+Follow-up live recheck after handoff:
+- `npm install`: exit 0 on Node `v25.2.1` / npm `11.6.2`; emitted expected engine drift warning against pinned Node `22.22.1` / npm `10.9.4`.
+- `npx npm@10.9.4 install`: exit 0; restored npm 11 lockfile metadata noise without content changes.
+- `npm run build-vite`: exit 0.
+- `npm test`: exit 0, 31 test files and 225 tests passed.
+- `gh repo view pjyqifei02/openscreen --json hasIssuesEnabled`: `false`.
+- `node scripts/migrate-upstream-issues.mjs`: exit 0 dry-run, read 29 upstream issues, listed 29 pending copies, and performed no writes.
 
 ## A. Takeover Map
 
