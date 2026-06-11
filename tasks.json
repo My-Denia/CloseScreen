@@ -103,6 +103,17 @@
 				"2026-06-11 live recheck: npm install exit 0, npm run build-vite exit 0, npm test exit 0",
 				"fork Issues disabled: gh repo view My-Denia/openscreen --json hasIssuesEnabled => false"
 			]
+		},
+		{
+			"id": 8,
+			"name": "Owner-gated execution runbook",
+			"status": "completed-review-ready",
+			"evidence": [
+				"owner-gate-runbook.md",
+				"push/workflow artifact commands documented but not executed",
+				"issue migration execute/count commands documented but not executed",
+				"VS Build Tools native rerun commands documented but not executed"
+			]
 		}
 	]
 }

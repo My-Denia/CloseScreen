@@ -125,9 +125,13 @@ Evidence:
 - `git diff --check`: exit 0.
 - `git diff --name-only -- electron/native`: no output.
 - Secret scan for common token/private-key patterns over tracked files: no matches.
+- `npm run lint`: exit 1. Biome reported 250 formatting errors dominated by LF-vs-CRLF differences on baseline checkout files; `git ls-files --eol biome.json components.json electron/globalShortcut.ts tsconfig.json vitest.config.ts` showed `i/lf w/crlf`. This was not fixed because broad repository line-ending normalization is outside the takeover baseline.
 
 ## Remaining Owner Gates
 
 - Enable Issues on `My-Denia/openscreen`, then review and approve running the migration script.
 - Approve push and GitHub Actions workflow run to collect AC3 artifact evidence.
 - Approve Visual Studio Build Tools C++ workload install if native WGC verification must run on this machine.
+
+Post-approval command runbook:
+- `owner-gate-runbook.md` contains exact commands for push/build artifact evidence, issue migration execution/count verification, and optional native rerun after Visual Studio C++ setup.

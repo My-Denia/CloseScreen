@@ -22,6 +22,7 @@
 - Native report regenerated after final name confirmation.
 - `node scripts/migrate-upstream-issues.mjs` dry-run: exit 0, read 29 upstream issues, listed 29 pending copies, no writes.
 - `gh repo view My-Denia/openscreen --json hasIssuesEnabled`: `false`.
+- `owner-gate-runbook.md` documents exact post-approval commands for remaining owner-gated evidence.
 
 ## Blocked / Owner-Gated
 

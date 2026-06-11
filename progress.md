@@ -27,6 +27,8 @@
 - 2026-06-11: Rechecked after handoff and latest goal file: `npm install` exit 0, `npx npm@10.9.4 install` exit 0 after npm 11 lockfile metadata noise, `npm run build-vite` exit 0, `npm test` exit 0 with 31 files / 225 tests.
 - 2026-06-11: Rechecked GitHub read-only state: `gh auth status` logged in as `My-Denia`, upstream open issue count is 29, fork `hasIssuesEnabled` is `false`.
 - 2026-06-11: Re-ran migration dry-run: exit 0, read 29 upstream issues, listed 29 pending copies, and did not execute writes.
+- 2026-06-11: Added `owner-gate-runbook.md` with exact post-approval commands for push/Actions artifact evidence, issue enablement/migration/count verification, and optional VS Build Tools native rerun.
+- 2026-06-11: Ran `npm run lint`: exit 1 because Biome sees baseline LF-vs-CRLF formatting differences on the Windows checkout (`i/lf w/crlf`); no broad line-ending rewrite was performed.
 
 ## Gates
 
@@ -36,6 +38,7 @@
 - Fork Issues are currently disabled, blocking migrated issue creation/count verification.
 - No push, public release, registry submission, upstream mutation, or issue creation in this run.
 - No redo is needed for the confirmed `openscreen` identity; remaining incomplete criteria are owner-gated or environment-gated.
+- Post-approval execution path is documented in `owner-gate-runbook.md`.
 
 ## Workspace Cleanup Notes
 

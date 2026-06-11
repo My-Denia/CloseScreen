@@ -18,7 +18,8 @@
 		"validation": "completed-local",
 		"native": "documented-blocked-vs-build-tools",
 		"issues": "completed-review-ready-owner-gated",
-		"acceptance": "completed-local-pending-owner-gated-ac3-ac4"
+		"acceptance": "completed-local-pending-owner-gated-ac3-ac4",
+		"ownerGateRunbook": "completed-review-ready"
 	},
 	"blockedOrOwnerGated": [
 		{
@@ -45,6 +46,7 @@
 		"unitTests": "exit 0, 31 files / 225 tests",
 		"upstreamOpenIssueCount": 29,
 		"forkIssuesEnabled": false,
-		"migrationDryRun": "exit 0, 29 pending copies, no writes"
+		"migrationDryRun": "exit 0, 29 pending copies, no writes",
+		"ownerGateRunbook": "owner-gate-runbook.md"
 	}
 }
