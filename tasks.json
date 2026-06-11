@@ -67,21 +67,29 @@
 		{
 			"id": 4,
 			"name": "Make CI fork-safe and build Windows/Linux artifacts",
-			"status": "completed-local",
+			"status": "needs-rerun-after-linux-maintainer-fix",
 			"evidence": [
 				".github/workflows/build.yml",
 				".github/workflows/publish-winget.yml",
 				".github/workflows/update-homebrew-cask.yml",
 				".github/workflows/bump-nix-package.yml",
-				".github/workflows/discord.yaml"
+				".github/workflows/discord.yaml",
+				"first run 27366037433: windows-installer uploaded; linux failed on missing maintainer email",
+				"electron-builder.json5 linux.maintainer added"
 			]
 		},
 		{
 			"id": 5,
 			"name": "Native Windows build/test report",
-			"status": "documented-blocked",
-			"blockedBy": "large-install",
-			"evidence": ["native-report.md", "goal-runs/openscreen-takeover/native-logs/"]
+			"status": "documented-mostly-green",
+			"blockedBy": "missing-mspaint-window-fixture",
+			"evidence": [
+				"native-report.md",
+				"goal-runs/openscreen-takeover/native-logs/",
+				"build:native:win exit 0 after VS Build Tools install",
+				"all WGC tests except test:wgc-window:win pass after FFmpeg install",
+				"test:wgc-window:win fails because mspaint.exe is missing"
+			]
 		},
 		{
 			"id": 6,
@@ -144,6 +152,37 @@
 			"name": "Project rule filename cleanup and goal drift removal",
 			"status": "completed-local",
 			"evidence": ["CLAUND.md renamed to CLAUDE.md", "old fork-name placeholder scan => no matches"]
+		},
+		{
+			"id": 12,
+			"name": "GitHub Actions first build run",
+			"status": "needs-rerun-after-fix",
+			"evidence": [
+				"https://github.com/My-Denia/openscreen/actions/runs/27366037433",
+				"headSha bc444f1ff0c1edfb3c1f88d5d639ec6964bc331c",
+				"windows-installer artifact uploaded, size 386907333",
+				"linux job failed before artifact upload because .deb maintainer email was missing"
+			]
+		},
+		{
+			"id": 13,
+			"name": "Linux package maintainer fix",
+			"status": "completed-local",
+			"evidence": [
+				"electron-builder.json5 linux.maintainer openscreen maintainers <176143450+My-Denia@users.noreply.github.com>",
+				"takeover-map.md updated"
+			]
+		},
+		{
+			"id": 14,
+			"name": "Approved native toolchain installation",
+			"status": "completed",
+			"evidence": [
+				"winget install Microsoft.VisualStudio.2022.BuildTools exit 0",
+				"vcvarsall.bat present",
+				"winget install Gyan.FFmpeg exit 0",
+				"ffprobe -version exit 0"
+			]
 		}
 	]
 }

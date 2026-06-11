@@ -75,6 +75,7 @@
     }
   },
   "linux": {
+    "maintainer": "openscreen maintainers <176143450+My-Denia@users.noreply.github.com>",
     "target": [
       "AppImage",
       "deb",

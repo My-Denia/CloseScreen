@@ -19,6 +19,7 @@
 - `electron-builder.json5`
   - `appId`: `io.github.My-Denia.openscreen`
   - `productName`: `openscreen`
+  - Linux package maintainer: `openscreen maintainers <176143450+My-Denia@users.noreply.github.com>`
   - mac/linux artifact names derive from `${productName}`.
   - mac permission strings use `openscreen`.
 - Runtime/UI/i18n display strings containing the product name use `openscreen`.
