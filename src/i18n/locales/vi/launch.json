@@ -38,7 +38,7 @@
 	"language": "Ngôn ngữ",
 	"systemLanguagePrompt": {
 		"title": "Sử dụng ngôn ngữ hệ thống của bạn?",
-		"description": "Chúng tôi phát hiện {{language}} là ngôn ngữ hệ thống của bạn. Bạn có muốn chuyển openscreen sang {{language}} không?",
+		"description": "Chúng tôi phát hiện {{language}} là ngôn ngữ hệ thống của bạn. Bạn có muốn chuyển CloseScreen sang {{language}} không?",
 		"switch": "Chuyển sang {{language}}",
 		"keepDefault": "Giữ ngôn ngữ hiện tại"
 	},

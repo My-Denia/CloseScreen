@@ -1,5 +1,5 @@
 {
-  description = "openscreen — desktop screen recorder with built-in editor";
+  description = "CloseScreen — desktop screen recorder with built-in editor";
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
@@ -18,8 +18,8 @@
       # -- Per-system outputs (packages, dev shells) --
 
       packages = forAllSystems (pkgs: {
-        openscreen = pkgs.callPackage ./nix/package.nix { };
-        default = self.packages.${pkgs.stdenv.hostPlatform.system}.openscreen;
+        closescreen = pkgs.callPackage ./nix/package.nix { };
+        default = self.packages.${pkgs.stdenv.hostPlatform.system}.closescreen;
       });
 
       devShells = forAllSystems (
@@ -104,7 +104,7 @@
             PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD = "1";
 
             shellHook = ''
-              echo "openscreen dev shell — node $(node --version), electron v$(electron --version 2>/dev/null | tr -d 'v')"
+              echo "CloseScreen dev shell — node $(node --version), electron v$(electron --version 2>/dev/null | tr -d 'v')"
             '';
           };
         }
@@ -113,7 +113,7 @@
       # -- System-wide outputs (modules, overlay) --
 
       overlays.default = final: _prev: {
-        openscreen = self.packages.${final.stdenv.hostPlatform.system}.openscreen;
+        closescreen = self.packages.${final.stdenv.hostPlatform.system}.closescreen;
       };
 
       nixosModules.default = import ./nix/module.nix self;

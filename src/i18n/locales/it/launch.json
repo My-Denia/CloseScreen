@@ -42,7 +42,7 @@
 	"language": "Lingua",
 	"systemLanguagePrompt": {
 		"title": "Usare la lingua del sistema?",
-		"description": "Abbiamo rilevato {{language}} come lingua del sistema. Vuoi passare openscreen a {{language}}?",
+		"description": "Abbiamo rilevato {{language}} come lingua del sistema. Vuoi passare CloseScreen a {{language}}?",
 		"switch": "Passa a {{language}}",
 		"keepDefault": "Mantieni la lingua corrente"
 	}

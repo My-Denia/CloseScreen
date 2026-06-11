@@ -65,12 +65,12 @@
 		"saveGif": "حفظ GIF المصدر",
 		"saveVideo": "حفظ الفيديو المصدر",
 		"selectVideo": "حدد ملف فيديو",
-		"saveProject": "حفظ مشروع openscreen",
-		"openProject": "فتح مشروع openscreen",
+		"saveProject": "حفظ مشروع CloseScreen",
+		"openProject": "فتح مشروع CloseScreen",
 		"gifImage": "صورة GIF",
 		"mp4Video": "فيديو MP4",
 		"videoFiles": "ملفات فيديو",
-		"openscreenProject": "مشروع openscreen",
+		"closescreenProject": "مشروع CloseScreen",
 		"allFiles": "جميع الملفات"
 	}
 }

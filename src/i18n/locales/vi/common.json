@@ -31,7 +31,7 @@
 		"zoomOut": "Thu nhỏ",
 		"toggleFullScreen": "Bật/tắt toàn màn hình",
 		"recordingStatus": "Đang ghi: {{source}}",
-		"about": "Giới thiệu openscreen"
+		"about": "Giới thiệu CloseScreen"
 	},
 	"playback": {
 		"play": "Phát",

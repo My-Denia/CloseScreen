@@ -31,7 +31,7 @@ import { patchWebmDurationOnDisk } from "../recording/webm-duration";
 import { registerNativeBridgeHandlers } from "./nativeBridge";
 import { RecordingStreamRegistry, registerRecordingStreamHandlers } from "./recordingStream";
 
-const PROJECT_FILE_EXTENSION = "openscreen";
+const PROJECT_FILE_EXTENSION = "closescreen";
 export const SHORTCUTS_FILE = path.join(app.getPath("userData"), "shortcuts.json");
 const RECORDING_FILE_PREFIX = "recording-";
 const RECORDING_SESSION_SUFFIX = ".session.json";
@@ -494,7 +494,7 @@ function resolvePackagedResourcePath(...segments: string[]) {
 }
 
 function getNativeWindowsCaptureHelperCandidates() {
-	const envPath = process.env.OPENSCREEN_WGC_CAPTURE_EXE?.trim();
+	const envPath = process.env.CLOSESCREEN_WGC_CAPTURE_EXE?.trim();
 	const archTag = process.arch === "arm64" ? "win32-arm64" : "win32-x64";
 	return [
 		envPath,
@@ -1804,7 +1804,7 @@ export function registerIpcHandlers(
 					defaultPath: path.join(RECORDINGS_DIR, defaultName),
 					filters: [
 						{
-							name: mainT("dialogs", "fileDialogs.openscreenProject"),
+							name: mainT("dialogs", "fileDialogs.closescreenProject"),
 							extensions: [PROJECT_FILE_EXTENSION],
 						},
 						{ name: "JSON", extensions: ["json"] },
@@ -1871,7 +1871,7 @@ export function registerIpcHandlers(
 					defaultPath: defaultDir,
 					filters: [
 						{
-							name: mainT("dialogs", "fileDialogs.openscreenProject"),
+							name: mainT("dialogs", "fileDialogs.closescreenProject"),
 							extensions: [PROJECT_FILE_EXTENSION],
 						},
 						{ name: "JSON", extensions: ["json"] },
@@ -1919,7 +1919,7 @@ export function registerIpcHandlers(
 			}
 			// Validate extension and readability
 			if (path.extname(filePath).toLowerCase() !== `.${PROJECT_FILE_EXTENSION}`) {
-				return { success: false, message: "Not an openscreen project file" };
+				return { success: false, message: "Not a CloseScreen project file" };
 			}
 			const stats = await fs.stat(filePath).catch(() => null);
 			if (!stats?.isFile()) {
@@ -2070,7 +2070,7 @@ export function registerIpcHandlers(
 		) => {
 			const { filePath, canceled } = await dialog.showSaveDialog({
 				title: "Save Diagnostic File",
-				defaultPath: `openscreen-diagnostic-${Date.now()}.json`,
+				defaultPath: `closescreen-diagnostic-${Date.now()}.json`,
 				filters: [{ name: "JSON", extensions: ["json"] }],
 			});
 

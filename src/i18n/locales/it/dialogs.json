@@ -59,12 +59,12 @@
 		"saveGif": "Salva GIF esportata",
 		"saveVideo": "Salva video esportato",
 		"selectVideo": "Seleziona file video",
-		"saveProject": "Salva progetto openscreen",
-		"openProject": "Apri progetto openscreen",
+		"saveProject": "Salva progetto CloseScreen",
+		"openProject": "Apri progetto CloseScreen",
 		"gifImage": "Immagine GIF",
 		"mp4Video": "Video MP4",
 		"videoFiles": "File video",
-		"openscreenProject": "Progetto openscreen",
+		"closescreenProject": "Progetto CloseScreen",
 		"allFiles": "Tutti i file"
 	}
 }

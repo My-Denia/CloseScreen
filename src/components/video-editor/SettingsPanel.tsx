@@ -746,7 +746,7 @@ export function SettingsPanel({
 				type="button"
 				onClick={() => {
 					window.electronAPI?.openExternalUrl(
-						"https://github.com/My-Denia/openscreen/issues/new/choose",
+						"https://github.com/My-Denia/CloseScreen/issues/new/choose",
 					);
 				}}
 				className="flex-1 flex items-center justify-center gap-1.5 text-[10px] text-slate-500 hover:text-slate-300 py-1.5 transition-colors"
@@ -767,7 +767,7 @@ export function SettingsPanel({
 			<button
 				type="button"
 				onClick={() => {
-					window.electronAPI?.openExternalUrl("https://github.com/My-Denia/openscreen");
+					window.electronAPI?.openExternalUrl("https://github.com/My-Denia/CloseScreen");
 				}}
 				className="flex-1 flex items-center justify-center gap-1.5 text-[10px] text-slate-500 hover:text-slate-300 py-1.5 transition-colors"
 			>

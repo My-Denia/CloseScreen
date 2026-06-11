@@ -42,7 +42,7 @@
 	"language": "言語",
 	"systemLanguagePrompt": {
 		"title": "システム言語を使用しますか？",
-		"description": "システム言語として{{language}}が検出されました。openscreenを{{language}}に切り替えますか？",
+		"description": "システム言語として{{language}}が検出されました。CloseScreenを{{language}}に切り替えますか？",
 		"switch": "{{language}}に切り替え",
 		"keepDefault": "現在の言語を保持"
 	}

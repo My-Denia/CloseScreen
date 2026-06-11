@@ -31,7 +31,7 @@
 		"zoomOut": "缩小",
 		"toggleFullScreen": "切换全屏",
 		"recordingStatus": "正在录制：{{source}}",
-		"about": "关于 openscreen"
+		"about": "关于 CloseScreen"
 	},
 	"playback": {
 		"play": "播放",

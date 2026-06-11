@@ -51,7 +51,7 @@ export function UnsavedChangesDialog({
 				<DialogHeader className="mb-5">
 					<div className="flex items-center gap-3">
 						<img
-							src="./openscreen.png"
+							src="./closescreen.png"
 							alt=""
 							aria-hidden="true"
 							className="w-9 h-9 rounded-xl flex-shrink-0"

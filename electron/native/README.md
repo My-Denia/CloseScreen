@@ -4,7 +4,7 @@
 
 Windows native recording is resolved from one of these locations:
 
-1. `OPENSCREEN_WGC_CAPTURE_EXE`, for local development and diagnostics.
+1. `CLOSESCREEN_WGC_CAPTURE_EXE`, for local development and diagnostics.
 2. `electron/native/wgc-capture/build/wgc-capture.exe`, for a locally built Ninja helper.
 3. `electron/native/wgc-capture/build/Release/wgc-capture.exe`, for a locally built multi-config helper.
 4. `electron/native/bin/win32-x64/wgc-capture.exe` or `electron/native/bin/win32-arm64/wgc-capture.exe`, for packaged prebuilt helpers.
@@ -66,15 +66,15 @@ npm run test:wgc-webcam:win
 To validate a specific native webcam manually:
 
 ```powershell
-$env:OPENSCREEN_WGC_TEST_WEBCAM_DEVICE_NAME = "NVIDIA Broadcast"
+$env:CLOSESCREEN_WGC_TEST_WEBCAM_DEVICE_NAME = "NVIDIA Broadcast"
 npm run test:wgc-webcam:win
-Remove-Item Env:OPENSCREEN_WGC_TEST_WEBCAM_DEVICE_NAME
+Remove-Item Env:CLOSESCREEN_WGC_TEST_WEBCAM_DEVICE_NAME
 ```
 
 To validate a specific native microphone manually:
 
 ```powershell
-$env:OPENSCREEN_WGC_TEST_MICROPHONE_DEVICE_NAME = "Microphone (NVIDIA Broadcast)"
+$env:CLOSESCREEN_WGC_TEST_MICROPHONE_DEVICE_NAME = "Microphone (NVIDIA Broadcast)"
 npm run test:wgc-mic:win
-Remove-Item Env:OPENSCREEN_WGC_TEST_MICROPHONE_DEVICE_NAME
+Remove-Item Env:CLOSESCREEN_WGC_TEST_MICROPHONE_DEVICE_NAME
 ```

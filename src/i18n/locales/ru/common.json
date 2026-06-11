@@ -31,7 +31,7 @@
 		"zoomOut": "Уменьшить",
 		"toggleFullScreen": "Полноэкранный режим",
 		"recordingStatus": "Запись: {{source}}",
-		"about": "О openscreen"
+		"about": "О CloseScreen"
 	},
 	"playback": {
 		"play": "Воспроизвести",
