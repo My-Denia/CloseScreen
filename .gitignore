@@ -9,6 +9,7 @@ lerna-debug.log*
 
 # Local agent/project-run scratch files
 AGENTS.md
+CLAUDE.md
 /goal-runs/
 
 node_modules
