@@ -96,7 +96,13 @@
 		{
 			"id": 7,
 			"name": "Acceptance evidence and final audit",
-			"status": "in_progress"
+			"status": "completed-local-pending-owner-gated-ac3-ac4",
+			"evidence": [
+				"acceptance.md",
+				"independent execution auditor pass: 019eb784-4a26-7023-85d6-3bf9d0edd57e",
+				"2026-06-11 live recheck: npm install exit 0, npm run build-vite exit 0, npm test exit 0",
+				"fork Issues disabled: gh repo view My-Denia/openscreen --json hasIssuesEnabled => false"
+			]
 		}
 	]
 }

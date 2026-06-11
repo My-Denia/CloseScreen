@@ -14,11 +14,14 @@
 
 - `npm run build-vite`: exit 0.
 - `npm test`: exit 0, 31 files / 225 tests.
+- Follow-up recheck after handoff: `npm install`, `npx npm@10.9.4 install`, `npm run build-vite`, and `npm test` all exited 0.
 - Workflow YAML parse with PyYAML: exit 0.
 - Stale upstream publisher identifier greps over package/build configs: no matches.
 - `git diff upstream/main -- LICENSE`: no output.
 - `git diff --name-only -- electron/native`: no output.
 - Native report regenerated after final name confirmation.
+- `node scripts/migrate-upstream-issues.mjs` dry-run: exit 0, read 29 upstream issues, listed 29 pending copies, no writes.
+- `gh repo view My-Denia/openscreen --json hasIssuesEnabled`: `false`.
 
 ## Blocked / Owner-Gated
 
@@ -28,6 +31,7 @@
 
 ## Continue From Here
 
-1. Run final execution audit over the current diff and evidence.
-2. If audit passes or only owner-gated blockers remain, close out without claiming AC3/AC4 complete.
-3. Do not push, create releases, enable external publishing, or run issue migration without owner approval.
+1. Owner enables Issues on `My-Denia/openscreen`.
+2. Owner approves push/workflow run if AC3 artifact evidence should be collected now.
+3. Owner reviews `scripts/migrate-upstream-issues.mjs` and explicitly approves `--execute`.
+4. Do not push, create releases, enable external publishing, or run issue migration without owner approval.
