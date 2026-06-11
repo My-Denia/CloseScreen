@@ -10,7 +10,7 @@ This project is based on [Siddharth Vaddem's OpenScreen](https://github.com/sidd
 
 - Maintained fork: active takeover and CI hardening are in progress.
 - Product identity: confirmed as `openscreen` with package slug `openscreen` and appId `io.github.My-Denia.openscreen`.
-- Distribution status: GitHub Actions builds are being prepared for unsigned Windows and Linux installable artifacts from this fork. WinGet, Homebrew, Discord notification, and Nix release automation are disabled until the maintainer explicitly re-enables them with new identifiers and tokens.
+- Distribution status: GitHub Actions builds unsigned Windows and Linux installable artifacts from this fork for GitHub Releases. External channel automation is removed until the maintainer explicitly reintroduces it with new identifiers and tokens.
 - Native status: Windows WGC/WASAPI/MediaFoundation verification is tracked in `native-report.md`.
 
 ## Core Features
@@ -39,21 +39,20 @@ npm ci
 npm run build-vite
 ```
 
-Platform packaging is handled by `electron-builder`:
+Windows and Linux packaging is handled by `electron-builder`:
 
 ```bash
 npm run build:win
 npm run build:linux
-npm run build:mac
 ```
 
-The Windows and macOS native helper builds require their platform toolchains. Windows helper status for this machine is documented in `native-report.md`.
+The Windows native helper build requires the Windows C++ toolchain. Windows helper status for this machine is documented in `native-report.md`.
 
 ## Platform Differences
 
-Everything in the editor and export is intended to stay consistent on macOS, Windows, and Linux: zooms, backgrounds, motion blur, crop/trim/speed, blur regions, annotations, auto-captions, projects, export, and supported languages. Capture differs by operating system:
+Everything in the editor and export is intended to stay consistent on Windows and Linux: zooms, backgrounds, motion blur, crop/trim/speed, blur regions, annotations, auto-captions, projects, export, and supported languages. Capture differs by operating system:
 
-- macOS and Windows use native capture helpers for higher quality screen/window capture and cursor data.
+- Windows uses a native capture helper for higher quality screen/window capture and cursor data.
 - Linux uses the browser capture path.
 - System audio support depends on the operating system and local permissions.
 
@@ -71,12 +70,6 @@ Native Windows helper diagnostics:
 npm run build:native:win
 npm run test:wgc-full:win
 npm run test:cursor-native:win
-```
-
-Issue migration tooling is prepared but owner-gated:
-
-```bash
-node scripts/migrate-upstream-issues.mjs --help
 ```
 
 ## License

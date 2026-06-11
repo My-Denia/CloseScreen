@@ -4,7 +4,7 @@
 		"date": "2026-06-11",
 		"workspace": "C:\\Files\\openscreen",
 		"remote": "https://github.com/My-Denia/openscreen.git",
-		"upstream": "https://github.com/siddharthvaddem/openscreen.git",
+		"upstream": "removed after issue migration completion; use explicit upstream repository URLs for future read-only checks",
 		"commit": "71622a20e34fea4844b5bef1d092927de54bf9a9"
 	},
 	"identity": {
@@ -96,9 +96,9 @@
 		{
 			"id": 6,
 			"name": "Issue migration script for review only",
-			"status": "completed-executed",
+			"status": "completed-executed-then-removed",
 			"evidence": [
-				"scripts/migrate-upstream-issues.mjs",
+				"scripts/migrate-upstream-issues.mjs removed after migration completion",
 				"label upstream-migration",
 				"default dry-run",
 				"node scripts/migrate-upstream-issues.mjs --execute => exit 0",
@@ -145,9 +145,9 @@
 		{
 			"id": 10,
 			"name": "Issue migration body sanitization",
-			"status": "completed-executed-verified",
+			"status": "completed-executed-verified-then-removed",
 			"evidence": [
-				"scripts/migrate-upstream-issues.mjs",
+				"scripts/migrate-upstream-issues.mjs removed after migration completion",
 				"node --check scripts/migrate-upstream-issues.mjs => exit 0",
 				"node scripts/migrate-upstream-issues.mjs --sample-body 602 => exit 0",
 				"sample body code-spans upstream issue URLs and uses non-URL source marker",
@@ -194,6 +194,38 @@
 				"vcvarsall.bat present",
 				"winget install Gyan.FFmpeg exit 0",
 				"ffprobe -version exit 0"
+			]
+		},
+		{
+			"id": 15,
+			"name": "De-mac and GitHub Releases-only workflow pass",
+			"status": "local-validation-complete-ac5-owner-gated",
+			"evidence": [
+				"plan audit 019eb80f-e8f7-7c01-91fc-129991d90cf7: revised plan pass",
+				".github/workflows/build.yml trimmed to Windows/Linux jobs",
+				"publish-winget.yml, update-homebrew-cask.yml, bump-nix-package.yml, and discord.yaml deleted",
+				"electron/native/screencapturekit and macos.entitlements deleted",
+				"scripts/build_macos.sh and scripts/build-macos-screencapturekit-helper.mjs deleted",
+				"package.json mac-only scripts removed",
+				"electron-builder.json5 mac config removed",
+				"README mac install/platform text removed, attribution kept",
+				"AGENTS.md and /goal-runs/ ignored per owner clarification",
+				"tracked goal-runs/openscreen-takeover artifacts removed from repository",
+				"de-mac grep over workflows/package/builder/README returned no matches",
+				"target path Test-Path check returned False for deleted workflows, electron/native/screencapturekit, macos.entitlements, and mac scripts",
+				"workflow YAML parse exit 0",
+				"npm run build-vite exit 0",
+				"npm test exit 0, 31 files / 225 tests",
+				"git diff --check exit 0",
+				"git diff --name-only -- electron/native/wgc-capture returned no output",
+				"scripts/migrate-upstream-issues.mjs deleted after completed migration",
+				"git remote -v shows origin only",
+				"README attribution line preserved and LICENSE untouched",
+				"final post-AC6 npm run build-vite exit 0",
+				"final post-AC6 npm test exit 0, 31 files / 225 tests"
+			],
+			"ownerGates": [
+				"AC5 requires owner-approved branch push/PR before GitHub Actions run evidence can be collected"
 			]
 		}
 	]
