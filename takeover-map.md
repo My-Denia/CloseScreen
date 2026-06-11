@@ -4,7 +4,7 @@
 
 - Workspace: `C:\Files\openscreen`
 - Fork remote: `https://github.com/pjyqifei02/openscreen.git`
-- Upstream fetch remote: `https://github.com/siddharthvaddem/openscreen.git`
+- Upstream remote: removed after issue migration completion; use explicit upstream repository URLs for future read-only checks.
 - Baseline commit: `71622a20e34fea4844b5bef1d092927de54bf9a9`
 - Confirmed fork name: `openscreen`
 
@@ -20,12 +20,10 @@
   - `appId`: `io.github.pjyqifei02.openscreen`
   - `productName`: `openscreen`
   - Linux package maintainer: `openscreen maintainers <pjyqifei02@users.noreply.github.com>`
-  - mac/linux artifact names derive from `${productName}`.
-  - mac permission strings use `openscreen`.
+  - Linux artifact names derive from `${productName}`.
 - Runtime/UI/i18n display strings containing the product name use `openscreen`.
 - Deliberately retained compatibility identifiers:
   - `.openscreen` project file extension
-  - native helper binary names such as `openscreen-screencapturekit-helper`
   - temp/log/storage key prefixes such as `openscreen_user_preferences`
   - source links and attribution references to Siddharth Vaddem's OpenScreen
 
@@ -35,18 +33,11 @@
   - Builds Windows and Linux installer artifacts in the fork.
   - Uses `--publish never`.
   - Sets `CSC_IDENTITY_AUTO_DISCOVERY=false` for unsigned Windows/Linux packaging.
-  - macOS is opt-in and signing/notarization are conditional on fork-owned secrets.
-- `.github/workflows/publish-winget.yml`
-  - Disabled TODO/no-op job; no package-manager submission.
-  - Needs new WinGet identifier and token before re-enabling.
-- `.github/workflows/update-homebrew-cask.yml`
-  - Disabled TODO/no-op job; no tap checkout, commit, or push.
-  - Needs new Homebrew tap/cask identifiers and token before re-enabling.
-- `.github/workflows/bump-nix-package.yml`
-  - Disabled TODO/no-op job; no branch, commit, push, or PR.
-  - Needs final Nix release policy before re-enabling.
-- `.github/workflows/discord.yaml`
-  - Disabled no-op job; no external webhook posting.
+- Removed external channel workflows:
+  - `.github/workflows/publish-winget.yml`
+  - `.github/workflows/update-homebrew-cask.yml`
+  - `.github/workflows/bump-nix-package.yml`
+  - `.github/workflows/discord.yaml`
 
 ## Update Feeds
 
@@ -55,17 +46,9 @@
 - `electron-builder.json5` has no explicit `publish` block.
 - Packaging commands in build CI use `--publish never`.
 
-## Signing And Notarization
+## Signing
 
-- Original hard-coded macOS signing identity was removed from workflow logic.
-- macOS signing mode is resolved at runtime from fork secrets:
-  - `MAC_CERTIFICATE_P12`
-  - `MAC_CERTIFICATE_PASSWORD`
-  - `MAC_SIGNING_IDENTITY`
-- macOS notarization runs only when signing is enabled and notarization secrets are present:
-  - `APPLE_ID`
-  - `APPLE_TEAM_ID`
-  - `APPLE_APP_SPECIFIC_PASSWORD`
+- macOS signing and notarization material has been removed from the fork.
 - Windows and Linux packaging set `CSC_IDENTITY_AUTO_DISCOVERY=false`.
 - No signing credentials are stored in files.
 

@@ -5,7 +5,7 @@
 - Date: 2026-06-11
 - Workspace: `C:\Files\openscreen`
 - Fork remote: `https://github.com/pjyqifei02/openscreen.git`
-- Upstream fetch remote: `https://github.com/siddharthvaddem/openscreen.git`
+- Upstream remote: removed after issue migration completion; use explicit upstream repository URLs for future read-only checks
 - Baseline commit: `71622a20e34fea4844b5bef1d092927de54bf9a9`
 - Local project rule files present: `AGENTS.md` remains untracked; `CLAUND.md` was renamed to `CLAUDE.md`
 - Goal contract: `goal-openscreen-takeover.md`
@@ -18,7 +18,7 @@
 - 2026-06-11: Preflight passed Node/npm install: Node `v25.2.1`, npm `11.6.2`, `npm install` exit 0. Noted drift from package pins Node `22.22.1` and npm `10.9.4`.
 - 2026-06-11: Visual Studio Build Tools not found on PATH or standard Visual Studio 2022 install paths; no large install performed.
 - 2026-06-11: Wrote and then corrected `takeover-map.md` to reflect current `openscreen` identity and fork-owned appId.
-- 2026-06-11: Patched build CI to build unsigned Windows/Linux artifacts with `--publish never`; macOS is opt-in and signing/notarization are secret-gated.
+- 2026-06-11: Initial takeover CI patch built unsigned Windows/Linux artifacts with `--publish never`; at that intermediate stage macOS remained opt-in and secret-gated before the later de-mac pass removed it.
 - 2026-06-11: Disabled WinGet, Homebrew, Discord notification, and Nix publish/bump workflows with TODO/no-op jobs.
 - 2026-06-11: Generated `native-report.md`; `build:native:win` failed because Visual Studio `vcvarsall.bat` is missing; WGC helper tests failed because `wgc-capture.exe` was not built; `test:cursor-native:win` passed.
 - 2026-06-11: Added `scripts/migrate-upstream-issues.mjs`; label is `upstream-migration`; default mode is dry-run; execution remains owner-gated.
@@ -58,5 +58,22 @@
 ## Workspace Cleanup Notes
 
 - Self-created temporary clone remains at `C:\Files\openscreen-clone-tmp`; it is outside this checkout and was not deleted.
-- Self-created audit artifacts live under `goal-runs\openscreen-takeover`.
+- Self-created audit artifacts under `goal-runs\openscreen-takeover` were removed from tracked files after the maintainer clarified that agent intermediate artifacts should not be committed; local ignored logs may still exist.
 - Generated build outputs under ignored `dist/` and `dist-electron/` may be present from validation commands.
+
+## De-mac And Personalization Pass
+
+- 2026-06-11: Started de-mac pass from baseline commit `69930f5515c8667b39e23488a2ebbc3cd3f0dab6` with dirty user-owned `CLAUDE.md` excluded from this work.
+- 2026-06-11: Owner clarified local rule files and agent working artifacts should not be committed; added `AGENTS.md` and `/goal-runs/` to `.gitignore`, and removed tracked `goal-runs/openscreen-takeover/*` files from the repository.
+- 2026-06-11: Independent plan audit first returned `needs-replan`; revised plan passed with owner-added hygiene scope and explicit branch/PR gate for workflow changes.
+- 2026-06-11: Deleted macOS/channel build materials from the worktree: four placeholder channel workflows, `macos.entitlements`, Swift helper sources under `electron/native/screencapturekit`, and mac-only build scripts.
+- 2026-06-11: Trimmed `.github/workflows/build.yml` to Windows/Linux jobs only, removed mac-only npm scripts, removed `electron-builder.json5` mac config, and removed README mac install/platform text while keeping upstream attribution.
+- 2026-06-11: Static grep `rg -n -i "MAC_CERTIFICATE|APPLE_|notarytool|macos|screencapturekit|entitlements" .github/workflows package.json electron-builder.json5 README.md` returned no matches.
+- 2026-06-11: Confirmed target paths are absent from the worktree: the four deleted workflows, `electron/native/screencapturekit`, `macos.entitlements`, `scripts/build_macos.sh`, and `scripts/build-macos-screencapturekit-helper.mjs`.
+- 2026-06-11: Local validation passed after de-mac edits: `npm run build-vite` exit 0; `npm test` exit 0 with 31 files and 225 tests.
+- 2026-06-11: Additional static checks passed: workflow YAML parse, `git diff --check`, `git diff --name-only -- electron/native/wgc-capture` produced no output, and `tasks.json`/`package.json` parsed.
+- 2026-06-11: Added scope item completed locally: deleted `scripts/migrate-upstream-issues.mjs` after migration completion and removed local `upstream` remote; `git remote -v` now shows `origin` only.
+- 2026-06-11: Final local validation after the migration-script deletion still passed: `npm run build-vite` exit 0 and `npm test` exit 0 with 31 files / 225 tests.
+- 2026-06-11: Pushed branch `chore/demac-personalization` and opened PR `https://github.com/pjyqifei02/openscreen/pull/30`.
+- 2026-06-11: Trimmed `build.yml` Actions run `https://github.com/pjyqifei02/openscreen/actions/runs/27371559635` succeeded on head `146cbbabb6503dcbedafa140df40c2fc61916329`; artifacts uploaded: `windows-installer` size 386907134 and `linux-installer` size 851792127.
+- 2026-06-11: PR #30 CI check rollup is green: Lint, Type Check, Test, and Build all passed.

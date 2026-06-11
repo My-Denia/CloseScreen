@@ -1392,7 +1392,7 @@ export function registerIpcHandlers(
 			const mainWin = getMainWindow();
 			const detail =
 				access.status === "missing-helper"
-					? "The cursor helper couldn't be found in this build, so the editable cursor can't be enabled. Rebuild the native helper (npm run build:native:mac) or switch the HUD cursor mode to system."
+					? "The cursor helper couldn't be found in this build, so the editable cursor can't be enabled. Switch the HUD cursor mode to system."
 					: "Allow openscreen under System Settings → Privacy & Security → Accessibility, then press record again to start the countdown.";
 			const messageOptions = {
 				type: "warning",

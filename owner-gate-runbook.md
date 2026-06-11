@@ -34,16 +34,7 @@ Acceptance evidence recorded in `acceptance.md`:
 
 ## Gate B: Enable Issues And Migrate Upstream Issues
 
-Completed after owner approval. The sanitized dry-run sample was confirmed, fork Issues were enabled, and the migration script created 29 issues.
-
-```powershell
-gh repo view pjyqifei02/openscreen --json hasIssuesEnabled
-gh issue list --repo siddharthvaddem/openscreen --state open --limit 100 --json number --jq 'length'
-node scripts/migrate-upstream-issues.mjs
-node scripts/migrate-upstream-issues.mjs --execute
-gh issue list --repo pjyqifei02/openscreen --state all --label upstream-migration --limit 200 --json number --jq 'length'
-gh issue list --repo pjyqifei02/openscreen --state all --label upstream-migration --limit 200 --json body --jq '[.[].body | contains("`https://github.com/siddharthvaddem/openscreen/issues/") and contains("upstream-migration-source: siddharthvaddem/openscreen#")] | all'
-```
+Completed after owner approval. The sanitized dry-run sample was confirmed, fork Issues were enabled, and the migration script created 29 issues. The helper script was removed after migration completion and 0 pending copies were verified.
 
 Acceptance evidence recorded in `acceptance.md`:
 

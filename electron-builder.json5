@@ -46,34 +46,6 @@
     }
   ],
 
-  "mac": {
-    "notarize": false,
-    "hardenedRuntime": true,
-    "entitlements": "macos.entitlements",
-    "entitlementsInherit": "macos.entitlements",
-    "target": [
-      {
-        "target": "dmg",
-        "arch": ["x64", "arm64"]
-      }
-    ],
-    "icon": "icons/icons/mac/icon.icns",
-    "artifactName": "${productName}-Mac-${arch}-${version}-Installer.${ext}",
-    "extraResources": [
-      {
-        "from": "electron/native/bin",
-        "to": "electron/native/bin",
-        "filter": ["darwin-*/*"]
-      }
-    ],
-    "extendInfo": {
-      "NSAudioCaptureUsageDescription": "openscreen needs audio capture permission to record system audio.",
-      "NSMicrophoneUsageDescription": "openscreen needs microphone access to record voice audio.",
-      "NSCameraUsageDescription": "openscreen needs camera access to record webcam video.",
-      "NSScreenCaptureUsageDescription": "openscreen needs screen recording permission to detect and capture windows.",
-      "NSCameraUseContinuityCameraDeviceType": true
-    }
-  },
   "linux": {
     "maintainer": "openscreen maintainers <pjyqifei02@users.noreply.github.com>",
     "target": [
