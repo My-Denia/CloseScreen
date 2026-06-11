@@ -209,14 +209,14 @@ it("detects unsaved changes from differing snapshots", () => {
 describe("wallpaper legacy normalization", () => {
 	it("rewrites pre-fix packaged paths (resources/assets/wallpapers/…)", () => {
 		const normalized = normalizeProjectEditor({
-			wallpaper: "file:///opt/Openscreen/resources/assets/wallpapers/wallpaper5.jpg",
+			wallpaper: "file:///opt/openscreen/resources/assets/wallpapers/wallpaper5.jpg",
 		});
 		expect(normalized.wallpaper).toBe("/wallpapers/wallpaper5.jpg");
 	});
 
 	it("rewrites new packaged layout (resources/wallpapers/…)", () => {
 		const normalized = normalizeProjectEditor({
-			wallpaper: "file:///opt/Openscreen/resources/wallpapers/wallpaper3.jpg",
+			wallpaper: "file:///opt/openscreen/resources/wallpapers/wallpaper3.jpg",
 		});
 		expect(normalized.wallpaper).toBe("/wallpapers/wallpaper3.jpg");
 	});
@@ -259,7 +259,7 @@ describe("wallpaper legacy normalization", () => {
 
 	it("falls back to default for bundled paths outside WALLPAPER_PATHS", () => {
 		const normalized = normalizeProjectEditor({
-			wallpaper: "file:///opt/Openscreen/resources/wallpapers/wallpaper99.jpg",
+			wallpaper: "file:///opt/openscreen/resources/wallpapers/wallpaper99.jpg",
 		});
 		expect(normalized.wallpaper).toBe("/wallpapers/wallpaper1.jpg");
 	});

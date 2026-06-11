@@ -1,0 +1,102 @@
+{
+	"goal": "openscreen takeover baseline",
+	"baseline": {
+		"date": "2026-06-11",
+		"workspace": "C:\\Files\\openscreen",
+		"remote": "https://github.com/pjyqifei02/openscreen.git",
+		"upstream": "https://github.com/siddharthvaddem/openscreen.git",
+		"commit": "71622a20e34fea4844b5bef1d092927de54bf9a9"
+	},
+	"identity": {
+		"name": "openscreen",
+		"packageName": "openscreen",
+		"productName": "openscreen",
+		"appId": "io.github.pjyqifei02.openscreen",
+		"issueMigrationLabel": "upstream-migration"
+	},
+	"ownerGates": [
+		{
+			"id": "issue-migration-execution",
+			"status": "blocked",
+			"reason": "owner must review and approve the script before it runs with --execute"
+		},
+		{
+			"id": "remote-github-actions-evidence",
+			"status": "blocked",
+			"reason": "requires owner-approved push/workflow execution"
+		},
+		{
+			"id": "large-install",
+			"status": "blocked-unless-approved",
+			"reason": "Visual Studio Build Tools C++ workload may exceed 1 GB"
+		},
+		{
+			"id": "fork-issues-disabled",
+			"status": "blocked",
+			"reason": "pjyqifei02/openscreen currently has Issues disabled"
+		}
+	],
+	"tasks": [
+		{
+			"id": 1,
+			"name": "Preflight Node/npm/VS Build Tools",
+			"status": "completed",
+			"evidence": [
+				"node -v => v25.2.1",
+				"npm -v => 11.6.2",
+				"npm install => exit 0",
+				"VS Build Tools probes => not found"
+			]
+		},
+		{
+			"id": 2,
+			"name": "Explore takeover surface and write takeover-map.md",
+			"status": "completed",
+			"evidence": ["takeover-map.md"]
+		},
+		{
+			"id": 3,
+			"name": "Rebrand to confirmed openscreen identity",
+			"status": "completed-local",
+			"evidence": [
+				"package.json name openscreen",
+				"electron-builder.json5 appId io.github.pjyqifei02.openscreen",
+				"README first screen maintained fork"
+			]
+		},
+		{
+			"id": 4,
+			"name": "Make CI fork-safe and build Windows/Linux artifacts",
+			"status": "completed-local",
+			"evidence": [
+				".github/workflows/build.yml",
+				".github/workflows/publish-winget.yml",
+				".github/workflows/update-homebrew-cask.yml",
+				".github/workflows/bump-nix-package.yml",
+				".github/workflows/discord.yaml"
+			]
+		},
+		{
+			"id": 5,
+			"name": "Native Windows build/test report",
+			"status": "documented-blocked",
+			"blockedBy": "large-install",
+			"evidence": ["native-report.md", "goal-runs/openscreen-takeover/native-logs/"]
+		},
+		{
+			"id": 6,
+			"name": "Issue migration script for review only",
+			"status": "completed-review-ready",
+			"evidence": [
+				"scripts/migrate-upstream-issues.mjs",
+				"label upstream-migration",
+				"default dry-run"
+			]
+		},
+		{
+			"id": 7,
+			"name": "Acceptance evidence and final audit",
+			"status": "in_progress"
+		}
+	]
+}

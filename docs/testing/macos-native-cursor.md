@@ -1,6 +1,6 @@
 # macOS native cursor test pipeline
 
-This document covers manual and diagnostic testing for macOS native cursor capture — the path that records real system cursor bitmaps via `NSCursor.currentSystem` and surfaces them through the OpenScreen editor and export pipeline.
+This document covers manual and diagnostic testing for macOS native cursor capture — the path that records real system cursor bitmaps via `NSCursor.currentSystem` and surfaces them through the openscreen editor and export pipeline.
 
 ## How the macOS cursor helper works
 

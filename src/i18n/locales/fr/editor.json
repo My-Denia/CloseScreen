@@ -40,7 +40,7 @@
 		"cameraDisconnected": "Webcam déconnectée.",
 		"cameraNotFound": "Caméra introuvable.",
 		"permissionDenied": "Permission d'enregistrement refusée. Veuillez autoriser l'enregistrement d'écran.",
-		"accessibilityAllowAndRetry": "Autorisez l'accès Accessibilité pour OpenScreen, puis appuyez de nouveau sur enregistrer pour lancer le compte à rebours."
+		"accessibilityAllowAndRetry": "Autorisez l'accès Accessibilité pour openscreen, puis appuyez de nouveau sur enregistrer pour lancer le compte à rebours."
 	},
 	"loadingVideo": "Chargement de la vidéo...",
 	"loadingEditor": "Chargement de l'éditeur...",
@@ -65,7 +65,7 @@
 	},
 	"emptyState": {
 		"title": "Aucun projet ouvert",
-		"description": "Importez une vidéo pour commencer à éditer, ou chargez un projet OpenScreen existant.",
+		"description": "Importez une vidéo pour commencer à éditer, ou chargez un projet openscreen existant.",
 		"importVideoButton": "Importer un fichier vidéo…",
 		"loadProjectButton": "Charger un projet…",
 		"supportedFormats": "Formats pris en charge : MP4, MOV, WebM, MKV, AVI, M4V, WMV",

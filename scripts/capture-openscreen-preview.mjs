@@ -195,7 +195,7 @@ try {
 				await new Promise((resolve) => setTimeout(resolve, 100));
 			}
 		}
-		throw new Error("Timed out waiting for OpenScreen IPC handlers.");
+		throw new Error("Timed out waiting for openscreen IPC handlers.");
 	});
 
 	try {

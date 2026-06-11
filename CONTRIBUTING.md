@@ -43,7 +43,7 @@ Thank you for considering contributing to this project! By contributing, you hel
 
 ## Reporting Issues
 
-If you encounter a bug or have a feature request, please open an issue in the [Issues](https://github.com/siddharthvaddem/openscreen/issues) section of this repository. Provide as much detail as possible to help us address the issue effectively.
+If you encounter a bug or have a feature request, please open an issue in the [Issues](https://github.com/pjyqifei02/openscreen/issues) section of this fork. Provide as much detail as possible to help us address the issue effectively.
 
 ## Style Guide
 

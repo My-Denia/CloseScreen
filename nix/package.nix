@@ -99,7 +99,7 @@ buildNpmPackage {
   desktopItems = [
     (makeDesktopItem {
       name = "openscreen";
-      desktopName = "OpenScreen";
+      desktopName = "openscreen";
       genericName = "Screen Recorder";
       exec = "openscreen %U";
       icon = "openscreen";
@@ -109,14 +109,14 @@ buildNpmPackage {
         "Video"
         "Recorder"
       ];
-      startupWMClass = "Openscreen";
+      startupWMClass = "openscreen";
       terminal = false;
     })
   ];
 
   meta = {
     description = "Desktop screen recorder with built-in editor";
-    homepage = "https://github.com/siddharthvaddem/openscreen";
+    homepage = "https://github.com/pjyqifei02/openscreen";
     license = lib.licenses.mit;
     mainProgram = "openscreen";
     platforms = lib.platforms.linux;

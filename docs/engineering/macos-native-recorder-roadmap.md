@@ -1,13 +1,13 @@
 # macOS Native Recorder Roadmap
 
-OpenScreen's macOS recorder should follow the same architecture boundaries as the Windows native recorder: Electron owns session orchestration and persistence, while a platform-native helper owns capture, timing, encoding, and platform-specific permissions.
+openscreen's macOS recorder should follow the same architecture boundaries as the Windows native recorder: Electron owns session orchestration and persistence, while a platform-native helper owns capture, timing, encoding, and platform-specific permissions.
 
 This work is intentionally scoped as a macOS-only port. Windows native capture remains owned by the WGC helper, and Linux remains on the existing Electron path.
 
 ## Goals
 
 - Capture displays and windows through ScreenCaptureKit.
-- Exclude the real system cursor during capture when using the editable OpenScreen cursor overlay.
+- Exclude the real system cursor during capture when using the editable openscreen cursor overlay.
 - Preserve the current high-quality cursor overlay path in preview and export.
 - Capture macOS system audio through ScreenCaptureKit on supported macOS versions.
 - Capture microphone audio through the same native timing domain where the OS supports it, or through an explicit companion path until it can be moved into the helper.
@@ -160,7 +160,7 @@ Acceptance:
 
 - Resolve the selected microphone device from the renderer-provided browser `deviceId` and user-visible label.
 - Capture microphone audio in the helper timing domain.
-- Apply OpenScreen microphone gain policy.
+- Apply openscreen microphone gain policy.
 - Mix system and microphone audio before final AAC output.
 
 Acceptance:

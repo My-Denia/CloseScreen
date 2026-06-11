@@ -1,0 +1,36 @@
+# Execution Log
+
+## 2026-06-11
+- Cloned `https://github.com/pjyqifei02/openscreen.git` into `C:\Files\openscreen-clone-tmp`.
+- Copied clone contents into `C:\Files\openscreen`, preserving local `AGENTS.md` and `CLAUND.md`.
+- Baseline HEAD: `71622a20e34fea4844b5bef1d092927de54bf9a9`.
+- Saved `goal-openscreen-takeover.md`.
+- Preflight: `node -v` => `v25.2.1`; `npm -v` => `11.6.2`; `npm install` exited 0 with engine drift warning because package pins Node `22.22.1` and npm `10.9.4`.
+- Preflight: `cl.exe`, `msbuild.exe`, `vswhere.exe`, and standard Visual Studio 2022 install paths were not found.
+- Plan audit: independent subagent decision `needs-replan`; plan updated to separate local readiness from owner-gated remote Actions and issue migration evidence.
+- Wrote `takeover-map.md`.
+- Patched `.github/workflows/build.yml` for unsigned Windows/Linux packaging with `--publish never`; macOS is opt-in and signing/notarization are secret-gated.
+- Replaced WinGet, Homebrew, and Nix mutating workflows with TODO no-op jobs.
+- Ran `npm run build-vite` before rebrand: exit 0.
+- Ran `npm test` before rebrand: exit 0, 31 files and 225 tests passed.
+- Generated `native-report.md` and per-command native logs.
+- Added `scripts/migrate-upstream-issues.mjs`; `node --check` and `--help` exited 0. Did not run dry-run or execute against GitHub.
+- Applied placeholder rebrand values: display `openscreen`, package slug `openscreen`, appId `io.github.pjyqifei02.openscreen`.
+- Reverted accidental native source string edits with `git restore electron\native`; no native source diff remains.
+- Ran `npm run build-vite` after rebrand: exit 0.
+- Ran `npm test` after rebrand: exit 0, 31 files and 225 tests passed.
+- Ran `npm run i18n:check` after rebrand: exit 1. Same failure reproduced in pristine `C:\Files\openscreen-clone-tmp`, so this is baseline locale key drift, not a rebrand regression.
+- Added `upstream` remote for fetch-only LICENSE comparison and set upstream push URL to `DISABLED`.
+- `gh auth status` reported a valid login for `pjyqifei02`.
+- Read-only upstream open issue count returned 29.
+- Read-only fork migrated-issue count failed because `pjyqifei02/openscreen` has Issues disabled.
+- Wrote `acceptance.md`.
+
+- 2026-06-11: User clarified the current goal contract is the rebrand baseline and confirmed the final name is `openscreen`.
+- 2026-06-11: Applied confirmed identity: package/product `openscreen`, appId `io.github.pjyqifei02.openscreen`, issue migration label `upstream-migration`.
+- 2026-06-11: Updated `takeover-map.md`, `progress.md`, `tasks.json`, `acceptance.md`, `goal-runs/openscreen-takeover/state.json`, and added `goal-runs/openscreen-takeover/handoff.md`.
+- 2026-06-11: Re-ran native Windows commands after final name confirmation; `build:native:win` failed due missing Visual Studio `vcvarsall.bat`, all WGC tests failed because `wgc-capture.exe` is absent, `test:cursor-native:win` passed.
+- 2026-06-11: Ran `npm run build-vite`: exit 0.
+- 2026-06-11: Ran `npm test`: exit 0, 31 files and 225 tests passed.
+- 2026-06-11: Static validation passed: workflow YAML parse, stale publisher identifier greps, migration script checks, `git diff --check`, `git diff upstream/main -- LICENSE`, `git diff --name-only -- electron/native`, and tracked-file secret scan.
+- 2026-06-11: Ran `node scripts/migrate-upstream-issues.mjs` dry-run: exit 0, read 29 upstream issues and listed 29 pending copies; warned that target issue detection is blocked because fork Issues are disabled. Did not run `--execute`.
