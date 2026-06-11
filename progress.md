@@ -29,6 +29,8 @@
 - 2026-06-11: Re-ran migration dry-run: exit 0, read 29 upstream issues, listed 29 pending copies, and did not execute writes.
 - 2026-06-11: Added `owner-gate-runbook.md` with exact post-approval commands for push/Actions artifact evidence, issue enablement/migration/count verification, and optional VS Build Tools native rerun.
 - 2026-06-11: Ran `npm run lint`: exit 1 because Biome sees baseline LF-vs-CRLF formatting differences on the Windows checkout (`i/lf w/crlf`); no broad line-ending rewrite was performed.
+- 2026-06-11: Rechecked after runbook commit: local `main` is ahead of `origin/main` by 3 commits, fork Issues remain disabled, fork Actions run list remains empty, and upstream open issue count remains 29.
+- 2026-06-11: No further non-owner-gated local work remains for AC3/AC4/green WGC native verification. Remaining work requires owner approval or external state change: push/workflow run, enabling Issues plus issue migration execution, or Visual Studio C++ Build Tools setup.
 
 ## Gates
 
@@ -39,6 +41,7 @@
 - No push, public release, registry submission, upstream mutation, or issue creation in this run.
 - No redo is needed for the confirmed `openscreen` identity; remaining incomplete criteria are owner-gated or environment-gated.
 - Post-approval execution path is documented in `owner-gate-runbook.md`.
+- Current blocked state is repeated and confirmed: no push, issue writes, workflow trigger, large install, release, registry publish, or upstream mutation has been performed.
 
 ## Workspace Cleanup Notes
 

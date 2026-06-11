@@ -29,6 +29,7 @@
 - AC3 real GitHub Actions artifact evidence: needs owner-approved push/workflow run.
 - AC4 migration execution: needs fork Issues enabled and owner approval for `--execute`.
 - Native WGC green build/tests: needs Visual Studio Build Tools C++ workload or valid `VCVARSALL`; install is >1 GB and owner-gated.
+- Repeated live recheck after `owner-gate-runbook.md`: local `main` remains ahead of `origin/main` by 3 commits, fork Issues remain disabled, and the fork has no Actions runs.
 
 ## Continue From Here
 

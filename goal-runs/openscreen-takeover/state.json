@@ -1,6 +1,6 @@
 {
 	"goal": "openscreen takeover baseline",
-	"status": "needs-owner-decision",
+	"status": "blocked-awaiting-owner",
 	"auditMode": "independent-subagents",
 	"baselineCommit": "71622a20e34fea4844b5bef1d092927de54bf9a9",
 	"identity": {
@@ -48,5 +48,16 @@
 		"forkIssuesEnabled": false,
 		"migrationDryRun": "exit 0, 29 pending copies, no writes",
 		"ownerGateRunbook": "owner-gate-runbook.md"
+	},
+	"blockedAudit": {
+		"date": "2026-06-11",
+		"localState": "main ahead of origin/main by 3 commits; only AGENTS.md and CLAUND.md untracked",
+		"remoteState": "fork Issues disabled; Actions run list empty; upstream open issue count 29",
+		"remainingGates": [
+			"owner-approved push and GitHub Actions build artifact evidence",
+			"owner-enabled Issues plus owner-approved issue migration execution",
+			"owner-approved Visual Studio Build Tools C++ workload or valid VCVARSALL for green WGC native rerun"
+		],
+		"decision": "No further meaningful local non-owner-gated progress remains."
 	}
 }
