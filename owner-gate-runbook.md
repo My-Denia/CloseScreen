@@ -58,14 +58,14 @@ Review the dry-run output. If the dry-run is correct and owner approval is expli
 ```powershell
 node scripts/migrate-upstream-issues.mjs --execute
 gh issue list --repo pjyqifei02/openscreen --state all --label upstream-migration --limit 200 --json number --jq 'length'
-gh issue list --repo pjyqifei02/openscreen --state all --label upstream-migration --limit 200 --json body --jq '[.[].body | contains("upstream-migration-source: https://github.com/siddharthvaddem/openscreen/issues/")] | all'
+gh issue list --repo pjyqifei02/openscreen --state all --label upstream-migration --limit 200 --json body --jq '[.[].body | contains("`https://github.com/siddharthvaddem/openscreen/issues/") and contains("upstream-migration-source: siddharthvaddem/openscreen#")] | all'
 ```
 
 Acceptance evidence to copy into `acceptance.md`:
 
 - Upstream open issue count at migration time.
 - Migrated issue count with label `upstream-migration`.
-- Source-link marker check result is `true`.
+- Source-link code span and source marker check result is `true`.
 - Any script output showing skipped existing migrated issues, if rerun.
 
 ## Gate C: Visual Studio Build Tools C++ Workload

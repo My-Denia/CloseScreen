@@ -8,6 +8,7 @@ import path from "node:path";
 const DEFAULT_SOURCE_REPO = "siddharthvaddem/openscreen";
 const DEFAULT_TARGET_REPO = "pjyqifei02/openscreen";
 const MIGRATION_LABEL = "upstream-migration";
+const ZERO_WIDTH_SPACE = String.fromCharCode(0x200b);
 
 function printHelp() {
 	console.log(`Usage:
@@ -20,6 +21,7 @@ Options:
   --source <owner/repo>   Source repo. Default: ${DEFAULT_SOURCE_REPO}
   --target <owner/repo>   Target repo. Default: ${DEFAULT_TARGET_REPO}
   --limit <n>             Maximum source issues to read. Default: 100
+  --sample-body [number]  In dry-run mode, print one sanitized body preview.
   --execute               Create missing migrated issues in the target repo.
   --help                  Show this help.
 
@@ -36,6 +38,8 @@ function parseArgs(argv) {
 		sourceRepo: DEFAULT_SOURCE_REPO,
 		targetRepo: DEFAULT_TARGET_REPO,
 		limit: 100,
+		sampleBody: false,
+		sampleIssueNumber: undefined,
 		execute: false,
 		help: false,
 	};
@@ -47,15 +51,29 @@ function parseArgs(argv) {
 		} else if (arg === "--execute") {
 			options.execute = true;
 		} else if (arg === "--source") {
-			options.sourceRepo = requireValue(argv, (index += 1), arg);
+			index += 1;
+			options.sourceRepo = requireValue(argv, index, arg);
 		} else if (arg === "--target") {
-			options.targetRepo = requireValue(argv, (index += 1), arg);
+			index += 1;
+			options.targetRepo = requireValue(argv, index, arg);
 		} else if (arg === "--limit") {
-			const value = Number(requireValue(argv, (index += 1), arg));
+			index += 1;
+			const value = Number(requireValue(argv, index, arg));
 			if (!Number.isInteger(value) || value <= 0) {
 				throw new Error(`Invalid --limit value: ${argv[index]}`);
 			}
 			options.limit = value;
+		} else if (arg === "--sample-body") {
+			options.sampleBody = true;
+			const next = argv[index + 1];
+			if (next && !next.startsWith("--")) {
+				const value = Number(next);
+				if (!Number.isInteger(value) || value <= 0) {
+					throw new Error(`Invalid --sample-body value: ${next}`);
+				}
+				options.sampleIssueNumber = value;
+				index += 1;
+			}
 		} else {
 			throw new Error(`Unknown argument: ${arg}`);
 		}
@@ -110,22 +128,60 @@ function sourceIssueUrl(sourceRepo, number) {
 	return `https://github.com/${sourceRepo}/issues/${number}`;
 }
 
+function escapeRegExp(value) {
+	return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function codeSpan(value) {
+	return `\`${value}\``;
+}
+
+function sanitizeMentions(value) {
+	return value.replace(
+		/(^|[^A-Za-z0-9_`])@([A-Za-z0-9](?:[A-Za-z0-9-]{0,37}[A-Za-z0-9])?(?:\/[A-Za-z0-9](?:[A-Za-z0-9-]{0,37}[A-Za-z0-9])?)?)/g,
+		(_match, prefix, mention) => `${prefix}@${ZERO_WIDTH_SPACE}${mention}`,
+	);
+}
+
+function sanitizeUpstreamIssueLinks(value, sourceRepo) {
+	const upstreamIssueUrlPattern = new RegExp(
+		`https://github\\.com/${escapeRegExp(sourceRepo)}/issues/\\d+`,
+		"g",
+	);
+	return value.replace(upstreamIssueUrlPattern, (url, offset, fullText) => {
+		const previous = fullText[offset - 1];
+		const next = fullText[offset + url.length];
+		if (previous === "`" && next === "`") {
+			return url;
+		}
+		return codeSpan(url);
+	});
+}
+
+function sanitizeCopiedText(value, sourceRepo) {
+	return sanitizeMentions(sanitizeUpstreamIssueLinks(value, sourceRepo));
+}
+
 function buildMigratedBody(issue, sourceRepo) {
 	const url = issue.url || sourceIssueUrl(sourceRepo, issue.number);
-	const labels = (issue.labels ?? []).map(normalizeLabelName).filter(Boolean).join(", ");
-	const originalBody = issue.body?.trim() || "_No upstream body._";
+	const labels = (issue.labels ?? [])
+		.map(normalizeLabelName)
+		.filter(Boolean)
+		.map((label) => sanitizeCopiedText(label, sourceRepo))
+		.join(", ");
+	const originalBody = sanitizeCopiedText(issue.body?.trim() || "_No upstream body._", sourceRepo);
 
 	return [
-		`Migrated from upstream OpenScreen issue: ${url}`,
+		`Migrated from upstream OpenScreen issue: ${codeSpan(url)}`,
 		"",
-		`Source: ${sourceRepo}#${issue.number}`,
+		`Source: ${codeSpan(`${sourceRepo}#${issue.number}`)}`,
 		labels ? `Upstream labels: ${labels}` : "Upstream labels: none",
 		"",
 		"---",
 		"",
 		originalBody,
 		"",
-		"<!-- upstream-migration-source: " + url + " -->",
+		"<!-- upstream-migration-source: " + sourceRepo + "#" + issue.number + " -->",
 	].join("\n");
 }
 
@@ -174,11 +230,25 @@ function existingMigrationSources(targetRepo) {
 	const sources = new Map();
 	for (const issue of issues) {
 		const body = issue.body ?? "";
-		const match = body.match(
+		const legacyUrlMatch = body.match(
 			/<!--\s*upstream-migration-source:\s*(https:\/\/github\.com\/[^/]+\/[^/]+\/issues\/\d+)\s*-->/,
 		);
-		if (match) {
-			sources.set(match[1], issue);
+		if (legacyUrlMatch) {
+			sources.set(legacyUrlMatch[1], issue);
+			continue;
+		}
+
+		const sourceRefMatch = body.match(
+			/<!--\s*upstream-migration-source:\s*([^/\s]+\/[^#\s]+)#(\d+)\s*-->/,
+		);
+		if (sourceRefMatch) {
+			sources.set(sourceIssueUrl(`${sourceRefMatch[1]}`, Number(sourceRefMatch[2])), issue);
+			continue;
+		}
+
+		const codeSpanUrlMatch = body.match(/`(https:\/\/github\.com\/[^/]+\/[^/]+\/issues\/\d+)`/);
+		if (codeSpanUrlMatch) {
+			sources.set(codeSpanUrlMatch[1], issue);
 		}
 	}
 	return sources;
@@ -191,7 +261,7 @@ function createMigratedIssue(issue, options) {
 	fs.writeFileSync(bodyPath, body, "utf8");
 
 	try {
-		const title = `[upstream #${issue.number}] ${issue.title}`;
+		const title = sanitizeMentions(`[upstream #${issue.number}] ${issue.title}`);
 		gh([
 			"issue",
 			"create",
@@ -263,6 +333,19 @@ function main() {
 	}
 
 	if (!options.execute) {
+		if (options.sampleBody) {
+			const sampleIssue =
+				toCreate.find((issue) => issue.number === options.sampleIssueNumber) ?? toCreate[0];
+			console.log("");
+			if (sampleIssue) {
+				console.log(`Sanitized dry-run body sample for upstream #${sampleIssue.number}:`);
+				console.log("-----BEGIN SANITIZED BODY-----");
+				console.log(buildMigratedBody(sampleIssue, options.sourceRepo));
+				console.log("-----END SANITIZED BODY-----");
+			} else {
+				console.log("Sanitized dry-run body sample: no pending issue available.");
+			}
+		}
 		console.log("");
 		console.log("Dry run only. Re-run with --execute after maintainer review to create issues.");
 		return;
