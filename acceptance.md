@@ -59,6 +59,10 @@ Evidence:
   - Packaging jobs do not set `GH_TOKEN`.
   - `CSC_IDENTITY_AUTO_DISCOVERY=false` is set for unsigned Windows/Linux packaging.
   - macOS is opt-in via `build_macos`; signing and notarization steps are gated on secrets and use `MAC_SIGNING_IDENTITY`, not the original signing identity.
+- First GitHub Actions build run after the approved push: `https://github.com/pjyqifei02/openscreen/actions/runs/27366037433` for head SHA `bc444f1ff0c1edfb3c1f88d5d639ec6964bc331c`.
+  - Windows job succeeded and uploaded `windows-installer` with `size_in_bytes` 386907333.
+  - Linux job failed during `.deb` packaging with `Please specify author 'email' in the application package.json`; no Linux artifact was uploaded.
+  - Local fix applied: `electron-builder.json5` now sets Linux package maintainer to `openscreen maintainers <pjyqifei02@users.noreply.github.com>`.
 - `.github/workflows/publish-winget.yml`, `.github/workflows/update-homebrew-cask.yml`, `.github/workflows/bump-nix-package.yml`, and `.github/workflows/discord.yaml` are TODO/no-op workflows and perform no external write.
 - PyYAML parsed all workflow files successfully.
 - `actionlint` and `act` are not installed locally, so no local Actions emulation was run.
@@ -69,8 +73,7 @@ Reasoning for GitHub pass:
 - Signing/notarization and publish behavior are not required for Windows/Linux artifacts and are disabled or secret-gated.
 
 Unfinished AC3:
-- No real GitHub Actions run URL or artifact list exists yet because push/workflow execution is owner-gated.
-- Acceptance criterion requiring >=1 Windows and >=1 Linux installable artifact uploaded by GitHub Actions remains pending.
+- First real run produced Windows artifact evidence but failed before Linux artifact upload; AC3 remains pending until a rerun after the Linux maintainer fix uploads both Windows and Linux artifacts.
 
 ## D. Local Build And Unit Tests
 
@@ -82,18 +85,18 @@ Evidence:
 
 ## E. Native Windows Report
 
-Status: diagnostic complete; WGC build/tests blocked by missing VS C++ workload.
+Status: diagnostic complete after approved VS Build Tools install; one WGC fixture test remains environment-blocked.
 
 Evidence:
 - `native-report.md` exists.
 - Logs are in `goal-runs/openscreen-takeover/native-logs/`.
-- `npm run build:native:win`: exit 1, failed before CMake because Visual Studio `vcvarsall.bat` was not found.
-- Every `test:wgc-*:win`: exit 1, failed because `electron/native/bin/win32-x64/wgc-capture.exe` was absent.
-- `npm run test:cursor-native:win`: exit 0.
+- Initial `npm run build:native:win`: exit 1, failed before CMake because Visual Studio `vcvarsall.bat` was not found.
+- After owner-approved Visual Studio Build Tools C++ workload install, `npm run build:native:win`: exit 0; `wgc-capture.exe` and `cursor-sampler.exe` were built/copied to `electron/native/bin/win32-x64/`.
+- After installing FFmpeg for `ffprobe`/`ffmpeg`, these commands exited 0: `test:wgc-helper:win`, `test:wgc-audio:win`, `test:wgc-mic:win`, `test:wgc-mixed-audio:win`, `test:wgc-webcam:win`, `test:wgc-full:win`, and `test:cursor-native:win`.
+- `npm run test:wgc-window:win`: exit 1; failed before capture because `mspaint.exe` is not installed on this Windows image.
 
 Unfinished AC5:
-- WGC helper build/test cannot be green on this machine until Visual Studio Build Tools with C++ are installed or a valid `VCVARSALL` path is provided.
-- No large install was performed because it is owner-gated.
+- The native helper now builds and most WGC paths pass. The only remaining failing native test is the window fixture test, blocked by missing `mspaint.exe`.
 
 ## F. Issue Migration
 
@@ -137,9 +140,8 @@ Evidence:
 
 ## Remaining Owner Gates
 
-- Enable Issues on `pjyqifei02/openscreen`, then review and approve running the migration script.
-- Approve push and GitHub Actions workflow run to collect AC3 artifact evidence.
-- Approve Visual Studio Build Tools C++ workload install if native WGC verification must run on this machine.
+- Enable Issues on `pjyqifei02/openscreen`, then confirm the sanitized dry-run sample before running the migration script.
+- Rerun GitHub Actions build after Linux maintainer fix and record Windows/Linux artifact list.
 
 Post-approval command runbook:
 - `owner-gate-runbook.md` contains exact commands for push/build artifact evidence, issue migration execution/count verification, and optional native rerun after Visual Studio C++ setup.

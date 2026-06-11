@@ -14,9 +14,9 @@
 		"preflight": "completed",
 		"takeoverMap": "completed",
 		"rebrand": "completed-local",
-		"ci": "completed-local",
+		"ci": "needs-rerun-after-linux-maintainer-fix",
 		"validation": "completed-local",
-		"native": "documented-blocked-vs-build-tools",
+		"native": "documented-mostly-green-mspaint-fixture-blocked",
 		"issues": "completed-review-ready-owner-gated",
 		"acceptance": "completed-local-pending-owner-gated-ac3-ac4",
 		"ownerGateRunbook": "completed-review-ready"
@@ -68,5 +68,31 @@
 		"criterion2PrePushGrep": "git grep stale upstream identifiers over package/build/workflow configs returned no matches",
 		"newNameDrift": "old fork-name placeholder scan returned no matches",
 		"migrationSanitization": "upstream issue links code-spanned; source marker is non-URL; @mention patterns are broken with zero-width space"
+	},
+	"latestActionsRun": {
+		"runId": 27366037433,
+		"url": "https://github.com/pjyqifei02/openscreen/actions/runs/27366037433",
+		"headSha": "bc444f1ff0c1edfb3c1f88d5d639ec6964bc331c",
+		"conclusion": "failure",
+		"windowsArtifact": "windows-installer uploaded, size_in_bytes 386907333",
+		"linuxFailure": ".deb packaging required maintainer email",
+		"localFix": "electron-builder.json5 linux.maintainer added"
+	},
+	"latestNativeVerification": {
+		"vsBuildToolsInstall": "exit 0",
+		"ffmpegInstall": "exit 0",
+		"buildNativeWin": "exit 0",
+		"passing": [
+			"test:wgc-helper:win",
+			"test:wgc-audio:win",
+			"test:wgc-mic:win",
+			"test:wgc-mixed-audio:win",
+			"test:wgc-webcam:win",
+			"test:wgc-full:win",
+			"test:cursor-native:win"
+		],
+		"failing": {
+			"test:wgc-window:win": "mspaint.exe missing"
+		}
 	}
 }

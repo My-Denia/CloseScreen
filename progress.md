@@ -34,12 +34,16 @@
 - 2026-06-11: Owner approved `git push origin main` and VS Build Tools C++ workload install. AC4 `--execute` remains paused pending sanitized dry-run sample review.
 - 2026-06-11: Renamed the misspelled Claude rule file to `CLAUDE.md` and confirmed old fork-name placeholders no longer appear in the workspace.
 - 2026-06-11: Updated `scripts/migrate-upstream-issues.mjs` so copied upstream issue body text wraps upstream issue links in code spans, uses a non-URL source marker, and breaks GitHub `@mention` patterns with a zero-width space. Dry-run sample for upstream #602 shows sanitized source and copied #275 links.
+- 2026-06-11: Pushed takeover commits to `origin/main` and triggered `build.yml`. First run URL: `https://github.com/pjyqifei02/openscreen/actions/runs/27366037433`; Windows artifact uploaded, Linux `.deb` packaging failed because maintainer email was missing.
+- 2026-06-11: Added Linux package maintainer to `electron-builder.json5`: `openscreen maintainers <pjyqifei02@users.noreply.github.com>`.
+- 2026-06-11: Installed approved Visual Studio Build Tools C++ workload; `npm run build:native:win` now exits 0 and builds/copies WGC helper binaries.
+- 2026-06-11: Installed FFmpeg to satisfy native test probe tools; WGC helper/audio/mic/mixed-audio/webcam/full and cursor-native tests pass. `test:wgc-window:win` remains failed because `mspaint.exe` is not installed.
 
 ## Gates
 
 - Issue migration script execution is owner-only and must not run before sanitized dry-run sample review confirmation.
-- Real GitHub Actions build-run evidence is approved for push/workflow execution.
-- Visual Studio Build Tools installation over ~1 GB is owner-approved.
+- Real GitHub Actions build-run evidence is partially collected; first run needs rerun after Linux maintainer fix.
+- Visual Studio Build Tools installation over ~1 GB is complete.
 - Fork Issues are currently disabled, blocking migrated issue creation/count verification.
 - No push, public release, registry submission, upstream mutation, or issue creation in this run.
 - No redo is needed for the confirmed `openscreen` identity; remaining incomplete criteria are owner-gated or environment-gated.

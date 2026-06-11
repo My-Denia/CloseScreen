@@ -44,3 +44,8 @@
 - 2026-06-11: Criterion 2 push preflight grep over package/build/workflow configs returned no stale upstream identifier matches. Old fork-name placeholder scan returned no matches.
 - 2026-06-11: Renamed `CLAUND.md` to `CLAUDE.md`.
 - 2026-06-11: Added issue migration copied-body sanitization. `node --check scripts/migrate-upstream-issues.mjs` and `node scripts/migrate-upstream-issues.mjs --sample-body 602` exited 0; dry-run sample code-spanned upstream issue URLs and did not execute writes.
+- 2026-06-11: Pushed `main` to origin after criterion 2 grep returned no stale upstream identifier matches.
+- 2026-06-11: Triggered `build.yml` run `27366037433` (`https://github.com/pjyqifei02/openscreen/actions/runs/27366037433`). Windows job succeeded and uploaded `windows-installer` size `386907333`; Linux failed in `.deb` packaging because maintainer email was missing.
+- 2026-06-11: Added `linux.maintainer` to `electron-builder.json5` for fork-owned Linux packages.
+- 2026-06-11: Installed Visual Studio Build Tools C++ workload via winget: exit 0. Installed FFmpeg via winget: exit 0.
+- 2026-06-11: Native after toolchain install: `build:native:win` exit 0; WGC helper/audio/mic/mixed-audio/webcam/full and cursor-native tests exit 0; `test:wgc-window:win` exit 1 because `mspaint.exe` is missing. Full logs are under `goal-runs/openscreen-takeover/native-logs/`.

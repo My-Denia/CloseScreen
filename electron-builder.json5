@@ -75,6 +75,7 @@
     }
   },
   "linux": {
+    "maintainer": "openscreen maintainers <pjyqifei02@users.noreply.github.com>",
     "target": [
       "AppImage",
       "deb",

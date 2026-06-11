@@ -23,6 +23,9 @@
 - `node scripts/migrate-upstream-issues.mjs` dry-run: exit 0, read 29 upstream issues, listed 29 pending copies, no writes.
 - `gh repo view pjyqifei02/openscreen --json hasIssuesEnabled`: `false`.
 - `owner-gate-runbook.md` documents exact post-approval commands for remaining owner-gated evidence.
+- First `build.yml` run after push: `https://github.com/pjyqifei02/openscreen/actions/runs/27366037433`; Windows job uploaded `windows-installer`, Linux failed on missing `.deb` maintainer email.
+- Linux maintainer fix is local: `electron-builder.json5` has `openscreen maintainers <pjyqifei02@users.noreply.github.com>`.
+- VS Build Tools C++ workload and FFmpeg are installed. `build:native:win` passes; all WGC tests except `test:wgc-window:win` pass; window test fails because `mspaint.exe` is missing.
 
 ## Blocked / Owner-Gated
 
@@ -33,7 +36,7 @@
 
 ## Continue From Here
 
-1. Push approved local commits and trigger `build.yml` with `build_macos=false`, then record run URL and Windows/Linux artifacts.
-2. Install Visual Studio Build Tools C++ workload, rerun native Windows commands, and update `native-report.md`.
+1. Commit/push the Linux maintainer and native-report updates, then rerun `build.yml` with `build_macos=false` and record Windows/Linux artifacts.
+2. Keep native status as documented unless `mspaint.exe` becomes available; do not change C++.
 3. Wait for owner confirmation of sanitized issue dry-run sample and fork Issues enablement before `node scripts/migrate-upstream-issues.mjs --execute`.
 4. Do not create releases, enable external publishing, or run issue migration without owner approval.

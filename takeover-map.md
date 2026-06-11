@@ -19,6 +19,7 @@
 - `electron-builder.json5`
   - `appId`: `io.github.pjyqifei02.openscreen`
   - `productName`: `openscreen`
+  - Linux package maintainer: `openscreen maintainers <pjyqifei02@users.noreply.github.com>`
   - mac/linux artifact names derive from `${productName}`.
   - mac permission strings use `openscreen`.
 - Runtime/UI/i18n display strings containing the product name use `openscreen`.
