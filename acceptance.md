@@ -4,7 +4,7 @@ Date: 2026-06-11
 Workspace: `C:\Files\openscreen`
 Baseline: `71622a20e34fea4844b5bef1d092927de54bf9a9`
 Fork remote: `https://github.com/My-Denia/openscreen.git`
-Upstream fetch remote: `https://github.com/siddharthvaddem/openscreen.git`
+Upstream remote: removed after issue migration completion; future read-only checks should use explicit upstream repository URLs
 Confirmed identity: name/package/product `openscreen`, appId `io.github.My-Denia.openscreen`
 
 ## Summary
@@ -24,6 +24,12 @@ Follow-up live recheck after handoff:
 - Post-execute `node scripts/migrate-upstream-issues.mjs`: exit 0 dry-run, read 29 upstream issues, detected 29 existing migrated issues, and listed 0 pending copies.
 - GitHub Actions build run `https://github.com/My-Denia/openscreen/actions/runs/27367183706`: conclusion `success`; uploaded `windows-installer` and `linux-installer`.
 - Approved Visual Studio Build Tools C++ workload and FFmpeg installs completed; `npm run build:native:win` exits 0.
+- De-mac pass local validation and PR-branch Actions evidence are complete.
+- Post-migration cleanup: `scripts/migrate-upstream-issues.mjs` is deleted and `git remote -v` now shows `origin` only.
+- Final post-cleanup validation: `npm run build-vite` exit 0; `npm test` exit 0 with 31 test files and 225 tests.
+- PR evidence: `https://github.com/My-Denia/openscreen/pull/30` is open from `chore/demac-personalization` to `main`; PR CI checks Lint, Type Check, Test, and Build passed.
+- Trimmed build workflow evidence: `https://github.com/My-Denia/openscreen/actions/runs/27371559635` concluded `success` on head `146cbbabb6503dcbedafa140df40c2fc61916329`.
+- Artifact evidence for run `27371559635`: `windows-installer` size 386907134, `linux-installer` size 851792127.
 
 ## A. Takeover Map
 
@@ -31,10 +37,8 @@ Status: complete.
 
 Evidence:
 - `takeover-map.md` exists and maps product name, appId, publisher IDs, update feeds, signing steps, publish jobs, native requirements, and attribution state.
-- `git remote -v` shows:
+- `git remote -v` now shows:
   - `origin` -> `https://github.com/My-Denia/openscreen.git`
-  - `upstream` fetch -> `https://github.com/siddharthvaddem/openscreen.git`
-  - `upstream` push -> `DISABLED`
 
 ## B. Rebrand / Identifier Cleanup
 
@@ -52,19 +56,19 @@ Evidence:
 
 Intentional remaining references:
 - README attribution links to `https://github.com/siddharthvaddem/openscreen`.
-- `scripts/migrate-upstream-issues.mjs` defaults source repo to `siddharthvaddem/openscreen` and describes migrated upstream OpenScreen issues.
+- Historical migrated issues link back to `siddharthvaddem/openscreen`; the local migration script is removed after completion.
 - `.openscreen` project extension, native helper names, temp/log prefixes, and storage keys remain for compatibility.
 
 ## C. CI Workflow
 
-Status: complete for Windows/Linux unsigned installable artifacts.
+Status: complete for takeover baseline; de-mac trimmed workflow is pending a new GitHub Actions run.
 
 Evidence:
 - `.github/workflows/build.yml`
   - Windows and Linux jobs use `.nvmrc`, `npm ci`, `npm run build-vite`, and `npx electron-builder ... --publish never`.
   - Packaging jobs do not set `GH_TOKEN`.
   - `CSC_IDENTITY_AUTO_DISCOVERY=false` is set for unsigned Windows/Linux packaging.
-  - macOS is opt-in via `build_macos`; signing and notarization steps are gated on secrets and use `MAC_SIGNING_IDENTITY`, not the original signing identity.
+  - Current de-mac pass removes the macOS job, signing, notarization, and macOS workflow-dispatch inputs.
 - First GitHub Actions build run after the approved push: `https://github.com/My-Denia/openscreen/actions/runs/27366037433` for head SHA `bc444f1ff0c1edfb3c1f88d5d639ec6964bc331c`.
   - Windows job succeeded and uploaded `windows-installer` with `size_in_bytes` 386907333.
   - Linux job failed during `.deb` packaging with `Please specify author 'email' in the application package.json`; no Linux artifact was uploaded.
@@ -73,16 +77,15 @@ Evidence:
   - Run conclusion: `success`.
   - `build-windows`: success; uploaded `windows-installer`, `size_in_bytes` 386907191, not expired.
   - `build-linux`: success; uploaded `linux-installer`, `size_in_bytes` 851775419, not expired.
-  - `build-macos`: skipped because `build_macos=false`.
 - `gh secret list --repo My-Denia/openscreen`: exit 0 with no output, so no original signing/notarization secrets are configured on the fork.
-- `.github/workflows/publish-winget.yml`, `.github/workflows/update-homebrew-cask.yml`, `.github/workflows/bump-nix-package.yml`, and `.github/workflows/discord.yaml` are TODO/no-op workflows and perform no external write.
+- Current de-mac pass deletes `.github/workflows/publish-winget.yml`, `.github/workflows/update-homebrew-cask.yml`, `.github/workflows/bump-nix-package.yml`, and `.github/workflows/discord.yaml` outright.
 - PyYAML parsed all workflow files successfully.
 - `actionlint` and `act` are not installed locally, so no local Actions emulation was run.
 
 Reasoning for GitHub pass:
 - Linux packaging uses GitHub-hosted Ubuntu with `libarchive-tools` installed before `electron-builder --linux`.
 - Windows packaging builds native helpers first, then runs Vite and `electron-builder --win --publish never`.
-- Signing/notarization and publish behavior are not required for Windows/Linux artifacts and are disabled or secret-gated.
+- Signing/notarization and external publish behavior are not required for Windows/Linux artifacts; macOS signing/notarization material is removed in the de-mac pass.
 
 ## D. Local Build And Unit Tests
 
@@ -106,12 +109,10 @@ Evidence:
 
 ## F. Issue Migration
 
-Status: complete.
+Status: complete; helper removed after execution.
 
 Evidence:
-- `scripts/migrate-upstream-issues.mjs` exists.
-- `node --check scripts/migrate-upstream-issues.mjs`: exit 0.
-- `node scripts/migrate-upstream-issues.mjs --help`: exit 0.
+- Historical pre-removal checks: `node --check scripts/migrate-upstream-issues.mjs` exit 0 and `node scripts/migrate-upstream-issues.mjs --help` exit 0.
 - Pre-execute `node scripts/migrate-upstream-issues.mjs`: exit 0 in dry-run mode, read 29 upstream issues, detected 0 existing migrated issues, and listed 29 pending issue copies with source links.
 - Script uses label `upstream-migration` and marker `upstream-migration-source`.
 - Copied issue bodies are sanitized before creation:
@@ -128,13 +129,14 @@ Evidence:
 - Post-execute dry-run: `node scripts/migrate-upstream-issues.mjs` returned `Existing migrated issues detected: 29` and `Issues to create: 0`.
 - Body verification over all 29 migrated issues returned no missing `upstream-migration-source` markers, no missing code-spanned upstream issue URLs, no live unwrapped source URLs, and no plain mentions outside code.
 - Example migrated issue: `https://github.com/My-Denia/openscreen/issues/19` for upstream #602 starts with code-spanned source URL and `Source: ` code span.
+- Post-completion cleanup: `scripts/migrate-upstream-issues.mjs` is removed from the working tree because migration has completed and post-execute dry-run showed 0 pending copies.
 
 ## G. LICENSE And Attribution
 
 Status: complete.
 
 Evidence:
-- `git diff upstream/main -- LICENSE` produced no output.
+- `git diff -- LICENSE` produced no output.
 - README first screen states maintained-fork status.
 - README attribution section still names Siddharth Vaddem's OpenScreen and MIT.
 
@@ -145,6 +147,23 @@ Evidence:
 - Secret scan for common token/private-key patterns over tracked files: no matches.
 - `npm run lint`: exit 1. Biome reported 250 formatting errors dominated by LF-vs-CRLF differences on baseline checkout files; `git ls-files --eol biome.json components.json electron/globalShortcut.ts tsconfig.json vitest.config.ts` showed `i/lf w/crlf`. This was not fixed because broad repository line-ending normalization is outside the takeover baseline.
 
+## H. De-mac And Personalization Pass
+
+Status: local validation complete; AC5 pending owner-approved branch push/PR.
+
+Evidence so far:
+- AC1: `.github/workflows/publish-winget.yml`, `.github/workflows/update-homebrew-cask.yml`, `.github/workflows/bump-nix-package.yml`, and `.github/workflows/discord.yaml` are deleted in the working tree.
+- AC2: `rg -n -i "MAC_CERTIFICATE|APPLE_|notarytool|macos|screencapturekit|entitlements" .github/workflows package.json electron-builder.json5 README.md` returned no matches.
+- AC3: `macos.entitlements` and tracked Swift helper files under `electron/native/screencapturekit` are deleted; the empty directory was removed from the worktree.
+- Scope cleanup: `scripts/build_macos.sh`, `scripts/build-macos-screencapturekit-helper.mjs`, package `build:native:mac` and `build:mac` scripts, and `electron-builder.json5` mac config were removed.
+- Owner clarification: `.gitignore` now ignores `AGENTS.md` and `/goal-runs/`; previously tracked `goal-runs/openscreen-takeover/*` agent artifacts are removed from the repository.
+- Stop condition check: macOS helper references in TypeScript are platform-gated runtime paths/strings, not imports of deleted Swift source files; `npm run build-vite` remains the binary validation before completion.
+- AC4: final post-AC6 `npm run build-vite` exit 0; final post-AC6 `npm test` exit 0 with 31 files and 225 tests.
+- Additional static checks: workflow YAML parse exit 0; `git diff --check` exit 0; `git diff --name-only -- electron/native/wgc-capture` returned no output; `tasks.json` and `package.json` parsed.
+- AC5: `build.yml` run `https://github.com/My-Denia/openscreen/actions/runs/27371559635` concluded `success` on the trimmed workflow branch and uploaded `windows-installer` size 386907134 plus `linux-installer` size 851792127.
+- AC6: `scripts/migrate-upstream-issues.mjs` is deleted; `git remote -v` shows `origin` only; README attribution line remains and `LICENSE` has no diff.
+
 ## Remaining Owner Gates
 
-- None for the takeover baseline. No public release, registry submission, or upstream mutation was performed.
+- Main-branch merge of PR #30 remains owner-gated.
+- No public release, registry submission, or upstream mutation was performed.
