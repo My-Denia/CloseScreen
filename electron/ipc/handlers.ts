@@ -5,15 +5,7 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import type { DesktopCapturerSource } from "electron";
-import {
-	app,
-	BrowserWindow,
-	desktopCapturer,
-	dialog,
-	ipcMain,
-	screen,
-	shell,
-} from "electron";
+import { app, BrowserWindow, desktopCapturer, dialog, ipcMain, screen, shell } from "electron";
 import type { NativeWindowsRecordingRequest } from "../../src/lib/nativeWindowsRecording";
 import {
 	type CursorCaptureMode,

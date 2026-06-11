@@ -1,15 +1,7 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import {
-	app,
-	BrowserWindow,
-	ipcMain,
-	Menu,
-	nativeImage,
-	session,
-	Tray,
-} from "electron";
+import { app, BrowserWindow, ipcMain, Menu, nativeImage, session, Tray } from "electron";
 import { ShortcutBinding } from "../src/lib/shortcuts";
 import {
 	loadAndRegisterGlobalShortcut,
