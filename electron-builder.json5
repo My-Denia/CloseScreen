@@ -1,13 +1,13 @@
 // @see - https://www.electron.build/configuration/configuration
 {
   "$schema": "https://raw.githubusercontent.com/electron-userland/electron-builder/master/packages/app-builder-lib/scheme.json",
-  "appId": "io.github.pjyqifei02.openscreen",
+  "appId": "io.github.pjyqifei02.closescreen",
   "asar": true,
   // .node binaries can't be dlopen'd from inside an asar — must live unpacked.
   "asarUnpack": [
     "**/*.node"
   ],
-  "productName": "openscreen",
+  "productName": "CloseScreen",
   // Fetch the auto-caption model + ORT wasm into caption-assets/ before packaging (idempotent).
   "beforePack": "scripts/before-pack.cjs",
   "npmRebuild": true,
@@ -47,7 +47,7 @@
   ],
 
   "linux": {
-    "maintainer": "openscreen maintainers <pjyqifei02@users.noreply.github.com>",
+    "maintainer": "CloseScreen maintainers <pjyqifei02@users.noreply.github.com>",
     "target": [
       "AppImage",
       "deb",

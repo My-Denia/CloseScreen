@@ -31,7 +31,7 @@
 		"zoomOut": "تصغير",
 		"toggleFullScreen": "ملء الشاشة",
 		"recordingStatus": "جاري التسجيل: {{source}}",
-		"about": "حول openscreen"
+		"about": "حول CloseScreen"
 	},
 	"playback": {
 		"play": "تشغيل",

@@ -65,12 +65,12 @@
 		"saveGif": "Сохранить экспортированный GIF",
 		"saveVideo": "Сохранить экспортированное видео",
 		"selectVideo": "Выбрать видеофайл",
-		"saveProject": "Сохранить проект openscreen",
-		"openProject": "Открыть проект openscreen",
+		"saveProject": "Сохранить проект CloseScreen",
+		"openProject": "Открыть проект CloseScreen",
 		"gifImage": "GIF изображение",
 		"mp4Video": "MP4 видео",
 		"videoFiles": "Видеофайлы",
-		"openscreenProject": "Проект openscreen",
+		"closescreenProject": "Проект CloseScreen",
 		"allFiles": "Все файлы"
 	}
 }

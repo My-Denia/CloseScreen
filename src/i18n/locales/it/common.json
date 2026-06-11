@@ -31,7 +31,7 @@
 		"zoomOut": "Riduci",
 		"toggleFullScreen": "Attiva/disattiva schermo intero",
 		"recordingStatus": "Registrazione: {{source}}",
-		"about": "Info su openscreen"
+		"about": "Info su CloseScreen"
 	},
 	"playback": {
 		"play": "Riproduci",

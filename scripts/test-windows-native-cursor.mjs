@@ -24,7 +24,7 @@ const SCREEN_FRAME_INTERVAL_MS = readPositiveIntEnv("CURSOR_TEST_SCREEN_FRAME_IN
 const READY_TIMEOUT_MS = readPositiveIntEnv("CURSOR_TEST_READY_TIMEOUT_MS", 5000);
 const OUTPUT_DIR =
 	process.env.CURSOR_TEST_OUTPUT_DIR ??
-	path.join(os.tmpdir(), `openscreen-cursor-native-${Date.now()}`);
+	path.join(os.tmpdir(), `closescreen-cursor-native-${Date.now()}`);
 
 if (process.platform !== "win32") {
 	console.error("This diagnostic is Windows-only.");
@@ -82,7 +82,7 @@ function runPowerShell(script) {
 function spawnPowerShell(script, { onStdout, onStderr } = {}) {
 	const scriptPath = path.join(
 		os.tmpdir(),
-		`openscreen-powershell-${process.pid}-${Date.now()}-${Math.random().toString(16).slice(2)}.ps1`,
+		`closescreen-powershell-${process.pid}-${Date.now()}-${Math.random().toString(16).slice(2)}.ps1`,
 	);
 	fs.writeFileSync(scriptPath, script, "utf8");
 	const child = spawn(
@@ -129,7 +129,7 @@ using System;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
 
-public static class openscreenCursorDiagnosticInterop {
+public static class closescreenCursorDiagnosticInterop {
     private const int WH_MOUSE_LL = 14;
     private const int WM_LBUTTONDOWN = 0x0201;
     private const int WM_LBUTTONUP = 0x0202;
@@ -251,20 +251,20 @@ public static class openscreenCursorDiagnosticInterop {
 Add-Type -TypeDefinition $source
 
 $standardCursors = @{
-    arrow = [openscreenCursorDiagnosticInterop]::LoadCursor([IntPtr]::Zero, [IntPtr]::new(32512))
-    text = [openscreenCursorDiagnosticInterop]::LoadCursor([IntPtr]::Zero, [IntPtr]::new(32513))
-    wait = [openscreenCursorDiagnosticInterop]::LoadCursor([IntPtr]::Zero, [IntPtr]::new(32514))
-    crosshair = [openscreenCursorDiagnosticInterop]::LoadCursor([IntPtr]::Zero, [IntPtr]::new(32515))
-    'up-arrow' = [openscreenCursorDiagnosticInterop]::LoadCursor([IntPtr]::Zero, [IntPtr]::new(32516))
-    'resize-nwse' = [openscreenCursorDiagnosticInterop]::LoadCursor([IntPtr]::Zero, [IntPtr]::new(32642))
-    'resize-nesw' = [openscreenCursorDiagnosticInterop]::LoadCursor([IntPtr]::Zero, [IntPtr]::new(32643))
-    'resize-ew' = [openscreenCursorDiagnosticInterop]::LoadCursor([IntPtr]::Zero, [IntPtr]::new(32644))
-    'resize-ns' = [openscreenCursorDiagnosticInterop]::LoadCursor([IntPtr]::Zero, [IntPtr]::new(32645))
-    move = [openscreenCursorDiagnosticInterop]::LoadCursor([IntPtr]::Zero, [IntPtr]::new(32646))
-    'not-allowed' = [openscreenCursorDiagnosticInterop]::LoadCursor([IntPtr]::Zero, [IntPtr]::new(32648))
-    pointer = [openscreenCursorDiagnosticInterop]::LoadCursor([IntPtr]::Zero, [IntPtr]::new(32649))
-    'app-starting' = [openscreenCursorDiagnosticInterop]::LoadCursor([IntPtr]::Zero, [IntPtr]::new(32650))
-    help = [openscreenCursorDiagnosticInterop]::LoadCursor([IntPtr]::Zero, [IntPtr]::new(32651))
+    arrow = [closescreenCursorDiagnosticInterop]::LoadCursor([IntPtr]::Zero, [IntPtr]::new(32512))
+    text = [closescreenCursorDiagnosticInterop]::LoadCursor([IntPtr]::Zero, [IntPtr]::new(32513))
+    wait = [closescreenCursorDiagnosticInterop]::LoadCursor([IntPtr]::Zero, [IntPtr]::new(32514))
+    crosshair = [closescreenCursorDiagnosticInterop]::LoadCursor([IntPtr]::Zero, [IntPtr]::new(32515))
+    'up-arrow' = [closescreenCursorDiagnosticInterop]::LoadCursor([IntPtr]::Zero, [IntPtr]::new(32516))
+    'resize-nwse' = [closescreenCursorDiagnosticInterop]::LoadCursor([IntPtr]::Zero, [IntPtr]::new(32642))
+    'resize-nesw' = [closescreenCursorDiagnosticInterop]::LoadCursor([IntPtr]::Zero, [IntPtr]::new(32643))
+    'resize-ew' = [closescreenCursorDiagnosticInterop]::LoadCursor([IntPtr]::Zero, [IntPtr]::new(32644))
+    'resize-ns' = [closescreenCursorDiagnosticInterop]::LoadCursor([IntPtr]::Zero, [IntPtr]::new(32645))
+    move = [closescreenCursorDiagnosticInterop]::LoadCursor([IntPtr]::Zero, [IntPtr]::new(32646))
+    'not-allowed' = [closescreenCursorDiagnosticInterop]::LoadCursor([IntPtr]::Zero, [IntPtr]::new(32648))
+    pointer = [closescreenCursorDiagnosticInterop]::LoadCursor([IntPtr]::Zero, [IntPtr]::new(32649))
+    'app-starting' = [closescreenCursorDiagnosticInterop]::LoadCursor([IntPtr]::Zero, [IntPtr]::new(32650))
+    help = [closescreenCursorDiagnosticInterop]::LoadCursor([IntPtr]::Zero, [IntPtr]::new(32651))
 }
 
 function Get-StandardCursorType($cursorHandle) {
@@ -342,13 +342,13 @@ function Get-CustomCursorType($bitmap, $hotspotX, $hotspotY) {
 }
 
 function Get-CursorAsset($cursorHandle, $cursorId) {
-    $copiedHandle = [openscreenCursorDiagnosticInterop]::CopyIcon($cursorHandle)
+    $copiedHandle = [closescreenCursorDiagnosticInterop]::CopyIcon($cursorHandle)
     if ($copiedHandle -eq [IntPtr]::Zero) {
         return $null
     }
 
-    $iconInfo = New-Object openscreenCursorDiagnosticInterop+ICONINFO
-    $hasIconInfo = [openscreenCursorDiagnosticInterop]::GetIconInfo($copiedHandle, [ref]$iconInfo)
+    $iconInfo = New-Object closescreenCursorDiagnosticInterop+ICONINFO
+    $hasIconInfo = [closescreenCursorDiagnosticInterop]::GetIconInfo($copiedHandle, [ref]$iconInfo)
 
     try {
         $icon = [System.Drawing.Icon]::FromHandle($copiedHandle)
@@ -385,29 +385,29 @@ function Get-CursorAsset($cursorHandle, $cursorId) {
     finally {
         if ($hasIconInfo) {
             if ($iconInfo.hbmMask -ne [IntPtr]::Zero) {
-                [openscreenCursorDiagnosticInterop]::DeleteObject($iconInfo.hbmMask) | Out-Null
+                [closescreenCursorDiagnosticInterop]::DeleteObject($iconInfo.hbmMask) | Out-Null
             }
             if ($iconInfo.hbmColor -ne [IntPtr]::Zero) {
-                [openscreenCursorDiagnosticInterop]::DeleteObject($iconInfo.hbmColor) | Out-Null
+                [closescreenCursorDiagnosticInterop]::DeleteObject($iconInfo.hbmColor) | Out-Null
             }
         }
-        [openscreenCursorDiagnosticInterop]::DestroyIcon($copiedHandle) | Out-Null
+        [closescreenCursorDiagnosticInterop]::DestroyIcon($copiedHandle) | Out-Null
     }
 }
 
-[openscreenCursorDiagnosticInterop]::InstallMouseHook() | Out-Null
-[openscreenCursorDiagnosticInterop]::GetAsyncKeyState(0x01) | Out-Null
+[closescreenCursorDiagnosticInterop]::InstallMouseHook() | Out-Null
+[closescreenCursorDiagnosticInterop]::GetAsyncKeyState(0x01) | Out-Null
 Write-JsonLine @{ type = 'ready'; timestampMs = [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds() }
 
 $lastCursorId = $null
 $screenBounds = [System.Windows.Forms.Screen]::PrimaryScreen.Bounds
 while ($true) {
     [System.Windows.Forms.Application]::DoEvents()
-    $mouseEvents = [openscreenCursorDiagnosticInterop]::ConsumeMouseButtonEvents()
-    $cursorInfo = New-Object openscreenCursorDiagnosticInterop+CURSORINFO
-    $cursorInfo.cbSize = [Runtime.InteropServices.Marshal]::SizeOf([type][openscreenCursorDiagnosticInterop+CURSORINFO])
+    $mouseEvents = [closescreenCursorDiagnosticInterop]::ConsumeMouseButtonEvents()
+    $cursorInfo = New-Object closescreenCursorDiagnosticInterop+CURSORINFO
+    $cursorInfo.cbSize = [Runtime.InteropServices.Marshal]::SizeOf([type][closescreenCursorDiagnosticInterop+CURSORINFO])
 
-    if (-not [openscreenCursorDiagnosticInterop]::GetCursorInfo([ref]$cursorInfo)) {
+    if (-not [closescreenCursorDiagnosticInterop]::GetCursorInfo([ref]$cursorInfo)) {
         Write-JsonLine @{ type = 'error'; timestampMs = [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds(); message = 'GetCursorInfo failed' }
         Start-Sleep -Milliseconds ${SAMPLE_INTERVAL_MS}
         continue
@@ -416,7 +416,7 @@ while ($true) {
     $visible = ($cursorInfo.flags -band 1) -ne 0
     $cursorId = if ($cursorInfo.hCursor -eq [IntPtr]::Zero) { $null } else { ('0x{0:X}' -f $cursorInfo.hCursor.ToInt64()) }
     $cursorType = Get-StandardCursorType $cursorInfo.hCursor
-    $leftButtonState = [openscreenCursorDiagnosticInterop]::GetAsyncKeyState(0x01)
+    $leftButtonState = [closescreenCursorDiagnosticInterop]::GetAsyncKeyState(0x01)
     $leftButtonDown = ($leftButtonState -band 0x8000) -ne 0
     $leftButtonPressed = ($mouseEvents.LeftDownCount -gt 0) -or (($leftButtonState -band 0x0001) -ne 0)
     $leftButtonReleased = $mouseEvents.LeftUpCount -gt 0
@@ -469,7 +469,7 @@ $source = @"
 using System.Runtime.InteropServices;
 using System;
 
-public static class openscreenMouseDiagnosticInterop {
+public static class closescreenMouseDiagnosticInterop {
     [DllImport("user32.dll")]
     [return: MarshalAs(UnmanagedType.Bool)]
     public static extern bool SetCursorPos(int X, int Y);
@@ -493,11 +493,11 @@ for ($i = 0; $i -lt ${steps}; $i++) {
 
 for ($i = 0; $i -lt $points.Count; $i++) {
     $point = $points[$i]
-    [openscreenMouseDiagnosticInterop]::SetCursorPos($point.x, $point.y) | Out-Null
+    [closescreenMouseDiagnosticInterop]::SetCursorPos($point.x, $point.y) | Out-Null
     if ($i -eq [int]([Math]::Floor($points.Count / 2))) {
-        [openscreenMouseDiagnosticInterop]::mouse_event(0x0002, 0, 0, 0, [UIntPtr]::Zero)
+        [closescreenMouseDiagnosticInterop]::mouse_event(0x0002, 0, 0, 0, [UIntPtr]::Zero)
         Start-Sleep -Milliseconds 12
-        [openscreenMouseDiagnosticInterop]::mouse_event(0x0004, 0, 0, 0, [UIntPtr]::Zero)
+        [closescreenMouseDiagnosticInterop]::mouse_event(0x0004, 0, 0, 0, [UIntPtr]::Zero)
     }
     Start-Sleep -Milliseconds ${stepMs}
 }
@@ -669,7 +669,7 @@ function buildVisualReportHtml(report, recordingData) {
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>openscreen native cursor diagnostic</title>
+<title>CloseScreen native cursor diagnostic</title>
 <style>
 body { margin: 0; background: #111; color: #eee; font-family: Arial, sans-serif; }
 main { max-width: 1180px; margin: 0 auto; padding: 24px; }
@@ -686,7 +686,7 @@ canvas { width: 100%; height: auto; background: #181818; border: 1px solid #333;
 </head>
 <body>
 <main>
-<h1>openscreen native cursor diagnostic</h1>
+<h1>CloseScreen native cursor diagnostic</h1>
 <div class="metrics">
 <div class="metric"><b>${report.sampleCount}</b>samples</div>
 <div class="metric"><b>${report.assetCount}</b>assets</div>
@@ -918,7 +918,7 @@ function buildRealCaptureHtml(report, recordingData, screenFrames) {
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>openscreen native cursor real capture diagnostic</title>
+<title>CloseScreen native cursor real capture diagnostic</title>
 <style>
 body { margin: 0; background: #080808; color: #eee; font-family: Arial, sans-serif; }
 main { max-width: 1180px; margin: 0 auto; padding: 20px; }

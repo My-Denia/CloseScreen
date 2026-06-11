@@ -31,7 +31,7 @@
 		"zoomOut": "Diminuir Zoom",
 		"toggleFullScreen": "Tela Cheia",
 		"recordingStatus": "Gravando: {{source}}",
-		"about": "Sobre o openscreen"
+		"about": "Sobre o CloseScreen"
 	},
 	"playback": {
 		"play": "Play",

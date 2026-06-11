@@ -21,7 +21,7 @@ vi.mock("@/contexts/I18nContext", () => ({
 				return "Reload this picker if the available screens or windows changed.";
 			}
 			if (key === "sourceSelector.loadFailedDescription") {
-				return "openscreen could not load capture sources. Reload this picker and try again.";
+				return "CloseScreen could not load capture sources. Reload this picker and try again.";
 			}
 			if (key === "sourceSelector.screens") return `Screens (${vars?.count ?? "0"})`;
 			if (key === "sourceSelector.windows") return `Windows (${vars?.count ?? "0"})`;

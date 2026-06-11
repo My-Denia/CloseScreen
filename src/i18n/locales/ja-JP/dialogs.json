@@ -42,7 +42,6 @@
 		"step1Title": "1. 削除範囲を追加",
 		"step1DescriptionBefore": "キーボードの",
 		"step1DescriptionAfter": "、またはハサミのアイコンをクリックして、削除したい範囲を指定します。",
-
 		"step2Title": "2. 範囲を調整",
 		"step2Description": "赤い領域の両端をドラッグして、削除したい範囲を正確に調整します。"
 	},
@@ -66,12 +65,12 @@
 		"saveGif": "エクスポートしたGIFを保存",
 		"saveVideo": "エクスポートした動画を保存",
 		"selectVideo": "動画ファイルを選択",
-		"saveProject": "openscreen プロジェクトを保存",
-		"openProject": "openscreen プロジェクトを開く",
+		"saveProject": "CloseScreen プロジェクトを保存",
+		"openProject": "CloseScreen プロジェクトを開く",
 		"gifImage": "GIF 画像",
 		"mp4Video": "MP4 動画",
 		"videoFiles": "動画ファイル",
-		"openscreenProject": "openscreen プロジェクト",
+		"closescreenProject": "CloseScreen プロジェクト",
 		"allFiles": "すべてのファイル"
 	}
 }

@@ -31,7 +31,7 @@
 		"zoomOut": "Uzaklaştır",
 		"toggleFullScreen": "Tam Ekranı Aç/Kapat",
 		"recordingStatus": "Kaydediliyor: {{source}}",
-		"about": "openscreen Hakkında"
+		"about": "CloseScreen Hakkında"
 	},
 	"playback": {
 		"play": "Oynat",

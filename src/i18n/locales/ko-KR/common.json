@@ -31,7 +31,7 @@
 		"zoomOut": "축소",
 		"toggleFullScreen": "전체 화면 전환",
 		"recordingStatus": "녹화 중: {{source}}",
-		"about": "openscreen 정보"
+		"about": "CloseScreen 정보"
 	},
 	"playback": {
 		"play": "재생",

@@ -1,11 +1,11 @@
-# NixOS module for openscreen
+# NixOS module for CloseScreen
 # Usage in flake-based NixOS config:
 #
-#   inputs.openscreen.url = "github:pjyqifei02/openscreen";
+#   inputs.closescreen.url = "github:pjyqifei02/CloseScreen";
 #
 #   { inputs, ... }: {
-#     imports = [ inputs.openscreen.nixosModules.default ];
-#     programs.openscreen.enable = true;
+#     imports = [ inputs.closescreen.nixosModules.default ];
+#     programs.closescreen.enable = true;
 #   }
 self:
 {
@@ -16,17 +16,17 @@ self:
 }:
 
 let
-  cfg = config.programs.openscreen;
+  cfg = config.programs.closescreen;
 in
 {
-  options.programs.openscreen = {
-    enable = lib.mkEnableOption "openscreen screen recorder";
+  options.programs.closescreen = {
+    enable = lib.mkEnableOption "CloseScreen screen recorder";
 
     package = lib.mkOption {
       type = lib.types.package;
-      default = self.packages.${pkgs.stdenv.hostPlatform.system}.openscreen;
-      defaultText = lib.literalExpression "inputs.openscreen.packages.\${pkgs.stdenv.hostPlatform.system}.openscreen";
-      description = "The openscreen package to use.";
+      default = self.packages.${pkgs.stdenv.hostPlatform.system}.closescreen;
+      defaultText = lib.literalExpression "inputs.closescreen.packages.\${pkgs.stdenv.hostPlatform.system}.closescreen";
+      description = "The CloseScreen package to use.";
     };
   };
 

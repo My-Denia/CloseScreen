@@ -71,7 +71,7 @@ let selectedSourceName = "";
 const trayIconSize = 24;
 
 // Tray Icons
-const defaultTrayIcon = getTrayIcon("openscreen.png", trayIconSize);
+const defaultTrayIcon = getTrayIcon("closescreen.png", trayIconSize);
 const recordingTrayIcon = getTrayIcon("rec-button.png", trayIconSize);
 
 function createWindow() {
@@ -246,7 +246,7 @@ function updateTrayMenu(recording: boolean = false) {
 		? mainT("common", "actions.recordingStatus", {
 				source: selectedSourceName,
 			}) || `Recording: ${selectedSourceName}`
-		: "openscreen";
+		: "CloseScreen";
 	const menuTemplate = recording
 		? [
 				{

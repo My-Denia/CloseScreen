@@ -31,7 +31,7 @@
 		"zoomOut": "Zoom Out",
 		"toggleFullScreen": "Toggle Full Screen",
 		"recordingStatus": "Recording: {{source}}",
-		"about": "About openscreen"
+		"about": "About CloseScreen"
 	},
 	"playback": {
 		"play": "Play",

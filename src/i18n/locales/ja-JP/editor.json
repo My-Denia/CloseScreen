@@ -64,15 +64,15 @@
 	},
 	"emptyState": {
 		"title": "プロジェクトが開かれていません",
-		"description": "動画をインポートして編集を開始するか、既存の openscreen プロジェクトを読み込んでください。",
+		"description": "動画をインポートして編集を開始するか、既存の CloseScreen プロジェクトを読み込んでください。",
 		"importVideoButton": "動画ファイルをインポート…",
 		"loadProjectButton": "プロジェクトを読み込む…",
 		"supportedFormats": "対応フォーマット：MP4、MOV、WebM、MKV、AVI、M4V、WMV",
-		"dragDropHint": ".openscreen プロジェクトファイルをここにドラッグ＆ドロップ",
+		"dragDropHint": ".closescreen プロジェクトファイルをここにドラッグ＆ドロップ",
 		"dropOverlay": "プロジェクトファイルをドロップして開く",
 		"dropErrors": {
 			"unsupportedFormatTitle": "非対応フォーマット",
-			"unsupportedFormatMessage": "ここにドロップできるのは .openscreen プロジェクトファイルのみです。動画をインポートするには「動画ファイルをインポート...」ボタンをご使用ください。",
+			"unsupportedFormatMessage": "ここにドロップできるのは .closescreen プロジェクトファイルのみです。動画をインポートするには「動画ファイルをインポート...」ボタンをご使用ください。",
 			"couldNotOpenTitle": "ファイルを開けませんでした",
 			"couldNotOpenMessage": "プロジェクトファイルを開けませんでした。参照している動画が移動または削除された可能性があります。"
 		}

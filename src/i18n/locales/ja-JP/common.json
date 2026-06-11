@@ -31,7 +31,7 @@
 		"zoomOut": "縮小",
 		"toggleFullScreen": "フルスクリーンを切り替え",
 		"recordingStatus": "録画中: {{source}}",
-		"about": "openscreenについて"
+		"about": "CloseScreenについて"
 	},
 	"playback": {
 		"play": "再生",
