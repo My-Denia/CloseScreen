@@ -37,3 +37,5 @@
 - 2026-06-11: Rechecked after handoff and latest goal file: `npm install` exit 0; `npx npm@10.9.4 install` exit 0 after npm 11 lockfile metadata noise; `npm run build-vite` exit 0; `npm test` exit 0 with 31 files and 225 tests.
 - 2026-06-11: Read-only GitHub checks: `gh auth status` logged in as `pjyqifei02`; `gh repo view pjyqifei02/openscreen --json hasIssuesEnabled` returned `false`; upstream open issue count returned 29.
 - 2026-06-11: Re-ran `node scripts/migrate-upstream-issues.mjs` dry-run: exit 0, read 29 upstream issues, listed 29 pending copies, and performed no writes.
+- 2026-06-11: Added `owner-gate-runbook.md` with exact owner-approved commands for remote Actions artifact evidence, issue migration/count verification, and optional native rerun after VS C++ setup. Did not run any write commands.
+- 2026-06-11: Ran `npm run lint`: exit 1. Biome reported 250 formatting errors dominated by LF-vs-CRLF differences; `git ls-files --eol` on representative files showed `i/lf w/crlf`. No broad formatting or line-ending rewrite was applied.
