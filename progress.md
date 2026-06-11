@@ -7,7 +7,7 @@
 - Fork remote: `https://github.com/My-Denia/openscreen.git`
 - Upstream fetch remote: `https://github.com/siddharthvaddem/openscreen.git`
 - Baseline commit: `71622a20e34fea4844b5bef1d092927de54bf9a9`
-- Local project rule files present and untracked: `AGENTS.md`, `CLAUND.md`
+- Local project rule files present: `AGENTS.md` remains untracked; `CLAUND.md` was renamed to `CLAUDE.md`
 - Goal contract: `goal-openscreen-takeover.md`
 - Confirmed fork name: `openscreen`
 
@@ -31,12 +31,15 @@
 - 2026-06-11: Ran `npm run lint`: exit 1 because Biome sees baseline LF-vs-CRLF formatting differences on the Windows checkout (`i/lf w/crlf`); no broad line-ending rewrite was performed.
 - 2026-06-11: Rechecked after runbook commit: local `main` is ahead of `origin/main` by 3 commits, fork Issues remain disabled, fork Actions run list remains empty, and upstream open issue count remains 29.
 - 2026-06-11: No further non-owner-gated local work remains for AC3/AC4/green WGC native verification. Remaining work requires owner approval or external state change: push/workflow run, enabling Issues plus issue migration execution, or Visual Studio C++ Build Tools setup.
+- 2026-06-11: Owner approved `git push origin main` and VS Build Tools C++ workload install. AC4 `--execute` remains paused pending sanitized dry-run sample review.
+- 2026-06-11: Renamed the misspelled Claude rule file to `CLAUDE.md` and confirmed old fork-name placeholders no longer appear in the workspace.
+- 2026-06-11: Updated `scripts/migrate-upstream-issues.mjs` so copied upstream issue body text wraps upstream issue links in code spans, uses a non-URL source marker, and breaks GitHub `@mention` patterns with a zero-width space. Dry-run sample for upstream #602 shows sanitized source and copied #275 links.
 
 ## Gates
 
-- Issue migration script execution is owner-only and must not run before review.
-- Real GitHub Actions build-run evidence requires pushing workflow changes and running the workflow on GitHub; this is owner/public remote state and remains owner-gated.
-- Visual Studio Build Tools installation over ~1 GB is owner-only.
+- Issue migration script execution is owner-only and must not run before sanitized dry-run sample review confirmation.
+- Real GitHub Actions build-run evidence is approved for push/workflow execution.
+- Visual Studio Build Tools installation over ~1 GB is owner-approved.
 - Fork Issues are currently disabled, blocking migrated issue creation/count verification.
 - No push, public release, registry submission, upstream mutation, or issue creation in this run.
 - No redo is needed for the confirmed `openscreen` identity; remaining incomplete criteria are owner-gated or environment-gated.

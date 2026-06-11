@@ -40,6 +40,8 @@ Evidence:
 - `electron-builder.json5`: `productName` is `openscreen`; `appId` is `io.github.My-Denia.openscreen`.
 - README first screen states maintained-fork status and keeps prominent attribution to Siddharth Vaddem's OpenScreen (MIT).
 - `git grep -n -E 'com\.siddharthvaddem\.openscreen|SiddharthVaddem\.OpenScreen|homebrew-openscreen|Samir Patil|N26FZ4GW28|svaddem@asu\.edu' -- package.json package-lock.json electron-builder.json5 .github/workflows` returned no matches.
+- Push preflight criterion 2 check: the same stale upstream identifier grep returned exit 1 with no output before the approved push, meaning no matches were present in package/build/workflow configs.
+- Old placeholder drift check returned no matches across the workspace.
 - `git grep -n 'Siddharth Vaddem' -- README.md LICENSE` confirms attribution remains.
 
 Intentional remaining references:
@@ -95,7 +97,7 @@ Unfinished AC5:
 
 ## F. Issue Migration
 
-Status: script ready for review; execution blocked.
+Status: sanitized script ready for review; execution remains blocked pending owner confirmation.
 
 Evidence:
 - `scripts/migrate-upstream-issues.mjs` exists.
@@ -103,13 +105,19 @@ Evidence:
 - `node scripts/migrate-upstream-issues.mjs --help`: exit 0.
 - `node scripts/migrate-upstream-issues.mjs`: exit 0 in dry-run mode, read 29 upstream issues, listed 29 pending issue copies with source links, and warned that existing target issue detection could not run because fork Issues are disabled.
 - Script uses label `upstream-migration` and marker `upstream-migration-source`.
+- Copied issue bodies are sanitized before creation:
+  - upstream issue links in copied/header text are wrapped in code spans;
+  - source marker uses `siddharthvaddem/openscreen#<number>` instead of a live URL;
+  - GitHub `@mention` patterns are broken with a zero-width space;
+  - issue titles are mention-sanitized before creation.
+- `node scripts/migrate-upstream-issues.mjs --sample-body 602`: exit 0, printed a sanitized dry-run body where both `https://github.com/siddharthvaddem/openscreen/issues/602` and the copied `#275` upstream issue URL were code-spanned.
 - `gh auth status`: logged in as `My-Denia`.
 - Read-only upstream count: `gh issue list --repo siddharthvaddem/openscreen --state open --limit 100 --json number --jq 'length'` returned `29`.
 
 Unfinished AC4:
 - The migration script was not executed.
 - `gh issue list --repo My-Denia/openscreen --state all --label upstream-migration --limit 200 --json number --jq 'length'` failed with: `the 'My-Denia/openscreen' repository has disabled issues`.
-- The fork must have Issues enabled before migrated issues can be created or counted.
+- The fork must have Issues enabled and the sanitized sample must be owner-confirmed before migrated issues can be created or counted.
 
 ## G. LICENSE And Attribution
 

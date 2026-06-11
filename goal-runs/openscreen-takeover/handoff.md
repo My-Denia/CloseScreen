@@ -26,14 +26,14 @@
 
 ## Blocked / Owner-Gated
 
-- AC3 real GitHub Actions artifact evidence: needs owner-approved push/workflow run.
-- AC4 migration execution: needs fork Issues enabled and owner approval for `--execute`.
-- Native WGC green build/tests: needs Visual Studio Build Tools C++ workload or valid `VCVARSALL`; install is >1 GB and owner-gated.
+- AC3 real GitHub Actions artifact evidence: owner approved push/workflow run; execution pending.
+- AC4 migration execution: sanitized script is ready, but `--execute` remains paused until owner confirms the sanitized dry-run sample and fork Issues are enabled.
+- Native WGC green build/tests: owner approved Visual Studio Build Tools C++ workload install; install/rerun pending.
 - Repeated live recheck after `owner-gate-runbook.md`: local `main` remains ahead of `origin/main` by 3 commits, fork Issues remain disabled, and the fork has no Actions runs.
 
 ## Continue From Here
 
-1. Owner enables Issues on `My-Denia/openscreen`.
-2. Owner approves push/workflow run if AC3 artifact evidence should be collected now.
-3. Owner reviews `scripts/migrate-upstream-issues.mjs` and explicitly approves `--execute`.
-4. Do not push, create releases, enable external publishing, or run issue migration without owner approval.
+1. Push approved local commits and trigger `build.yml` with `build_macos=false`, then record run URL and Windows/Linux artifacts.
+2. Install Visual Studio Build Tools C++ workload, rerun native Windows commands, and update `native-report.md`.
+3. Wait for owner confirmation of sanitized issue dry-run sample and fork Issues enablement before `node scripts/migrate-upstream-issues.mjs --execute`.
+4. Do not create releases, enable external publishing, or run issue migration without owner approval.

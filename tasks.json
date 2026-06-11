@@ -17,18 +17,18 @@
 	"ownerGates": [
 		{
 			"id": "issue-migration-execution",
-			"status": "blocked",
-			"reason": "owner must review and approve the script before it runs with --execute; fork Issues remain disabled"
+			"status": "paused",
+			"reason": "script body sanitization added; owner must confirm sanitized dry-run sample before --execute; fork Issues must be enabled"
 		},
 		{
 			"id": "remote-github-actions-evidence",
-			"status": "blocked",
-			"reason": "requires owner-approved push/workflow execution; origin has no takeover commits or Actions runs"
+			"status": "approved",
+			"reason": "owner approved git push origin main and first Actions artifact run"
 		},
 		{
 			"id": "large-install",
-			"status": "blocked-unless-approved",
-			"reason": "Visual Studio Build Tools C++ workload may exceed 1 GB"
+			"status": "approved",
+			"reason": "owner approved Visual Studio Build Tools C++ workload install"
 		},
 		{
 			"id": "fork-issues-disabled",
@@ -118,14 +118,32 @@
 		{
 			"id": 9,
 			"name": "Repeated owner-gate blocked audit",
-			"status": "blocked-awaiting-owner",
+			"status": "resumed-owner-approved-partial",
 			"evidence": [
 				"git status --short --branch => main...origin/main [ahead 3]",
 				"gh repo view My-Denia/openscreen --json hasIssuesEnabled => false",
 				"gh run list --repo My-Denia/openscreen --limit 5 => []",
 				"gh issue list --repo siddharthvaddem/openscreen --state open --limit 100 => 29",
-				"no safe non-owner-gated local work remains"
+				"owner approved push and VS Build Tools install; AC4 --execute remains paused"
 			]
+		},
+		{
+			"id": 10,
+			"name": "Issue migration body sanitization",
+			"status": "completed-review-ready",
+			"evidence": [
+				"scripts/migrate-upstream-issues.mjs",
+				"node --check scripts/migrate-upstream-issues.mjs => exit 0",
+				"node scripts/migrate-upstream-issues.mjs --sample-body 602 => exit 0",
+				"sample body code-spans upstream issue URLs and uses non-URL source marker",
+				"@mention sanitizer added for copied body, labels, and title"
+			]
+		},
+		{
+			"id": 11,
+			"name": "Project rule filename cleanup and goal drift removal",
+			"status": "completed-local",
+			"evidence": ["CLAUND.md renamed to CLAUDE.md", "old fork-name placeholder scan => no matches"]
 		}
 	]
 }
