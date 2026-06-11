@@ -39,3 +39,4 @@
 - 2026-06-11: Re-ran `node scripts/migrate-upstream-issues.mjs` dry-run: exit 0, read 29 upstream issues, listed 29 pending copies, and performed no writes.
 - 2026-06-11: Added `owner-gate-runbook.md` with exact owner-approved commands for remote Actions artifact evidence, issue migration/count verification, and optional native rerun after VS C++ setup. Did not run any write commands.
 - 2026-06-11: Ran `npm run lint`: exit 1. Biome reported 250 formatting errors dominated by LF-vs-CRLF differences; `git ls-files --eol` on representative files showed `i/lf w/crlf`. No broad formatting or line-ending rewrite was applied.
+- 2026-06-11: Rechecked blocked state: `git status --short --branch` showed `main...origin/main [ahead 3]`; `gh repo view pjyqifei02/openscreen --json hasIssuesEnabled` returned `false`; `gh run list --repo pjyqifei02/openscreen --limit 5` returned `[]`; upstream open issue count returned `29`. No further non-owner-gated local work remains.

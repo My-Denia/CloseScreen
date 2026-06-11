@@ -18,12 +18,12 @@
 		{
 			"id": "issue-migration-execution",
 			"status": "blocked",
-			"reason": "owner must review and approve the script before it runs with --execute"
+			"reason": "owner must review and approve the script before it runs with --execute; fork Issues remain disabled"
 		},
 		{
 			"id": "remote-github-actions-evidence",
 			"status": "blocked",
-			"reason": "requires owner-approved push/workflow execution"
+			"reason": "requires owner-approved push/workflow execution; origin has no takeover commits or Actions runs"
 		},
 		{
 			"id": "large-install",
@@ -113,6 +113,18 @@
 				"push/workflow artifact commands documented but not executed",
 				"issue migration execute/count commands documented but not executed",
 				"VS Build Tools native rerun commands documented but not executed"
+			]
+		},
+		{
+			"id": 9,
+			"name": "Repeated owner-gate blocked audit",
+			"status": "blocked-awaiting-owner",
+			"evidence": [
+				"git status --short --branch => main...origin/main [ahead 3]",
+				"gh repo view pjyqifei02/openscreen --json hasIssuesEnabled => false",
+				"gh run list --repo pjyqifei02/openscreen --limit 5 => []",
+				"gh issue list --repo siddharthvaddem/openscreen --state open --limit 100 => 29",
+				"no safe non-owner-gated local work remains"
 			]
 		}
 	]
