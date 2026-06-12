@@ -18,10 +18,10 @@ jobs:
     runs-on: windows-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version-file: .nvmrc
           cache: npm
@@ -30,7 +30,7 @@ jobs:
         run: npm ci
 
       - name: Cache caption assets
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: caption-assets
           key: caption-assets-${{ hashFiles('scripts/fetch-caption-model.mjs') }}
@@ -47,7 +47,7 @@ jobs:
           CSC_IDENTITY_AUTO_DISCOVERY: "false"
 
       - name: Upload Windows installer
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: windows-installer
           path: release/**/*Setup*.exe
@@ -59,10 +59,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version-file: .nvmrc
           cache: npm
@@ -74,7 +74,7 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y libarchive-tools
 
       - name: Cache caption assets
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: caption-assets
           key: caption-assets-${{ hashFiles('scripts/fetch-caption-model.mjs') }}
@@ -88,7 +88,7 @@ jobs:
           CSC_IDENTITY_AUTO_DISCOVERY: "false"
 
       - name: Upload Linux installers
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: linux-installers
           path: |
@@ -109,12 +109,12 @@ jobs:
       contents: write
     steps:
       - name: Download installers
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           path: artifacts
 
       - name: Publish release assets
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           generate_release_notes: true
           prerelease: false
