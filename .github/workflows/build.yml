@@ -8,10 +8,10 @@ jobs:
     runs-on: windows-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version-file: .nvmrc
           cache: npm
@@ -21,7 +21,7 @@ jobs:
 
       # Cache the downloaded caption model so we don't re-fetch from HuggingFace every run.
       - name: Cache caption assets
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: caption-assets
           key: caption-assets-${{ hashFiles('scripts/fetch-caption-model.mjs') }}
@@ -38,7 +38,7 @@ jobs:
           CSC_IDENTITY_AUTO_DISCOVERY: "false"
 
       - name: Upload Windows build
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: windows-installer
           path: release/**/*.exe
@@ -49,10 +49,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version-file: .nvmrc
           cache: npm
@@ -65,7 +65,7 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y libarchive-tools
 
       - name: Cache caption assets
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: caption-assets
           key: caption-assets-${{ hashFiles('scripts/fetch-caption-model.mjs') }}
@@ -79,7 +79,7 @@ jobs:
           CSC_IDENTITY_AUTO_DISCOVERY: "false"
 
       - name: Upload Linux build
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: linux-installer
           path: |
