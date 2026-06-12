@@ -11,6 +11,8 @@ lerna-debug.log*
 AGENTS.md
 CLAUDE.md
 /goal-runs/
+/progress.md
+/tasks.json
 
 node_modules
 dist
