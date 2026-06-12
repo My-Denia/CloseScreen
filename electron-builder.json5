@@ -1,7 +1,7 @@
 // @see - https://www.electron.build/configuration/configuration
 {
   "$schema": "https://raw.githubusercontent.com/electron-userland/electron-builder/master/packages/app-builder-lib/scheme.json",
-  "appId": "io.github.My-Denia.closescreen",
+  "appId": "io.github.my-denia.closescreen",
   "asar": true,
   // .node binaries can't be dlopen'd from inside an asar — must live unpacked.
   "asarUnpack": [
@@ -47,7 +47,7 @@
   ],
 
   "linux": {
-    "maintainer": "CloseScreen maintainers <176143450+My-Denia@users.noreply.github.com>",
+    "maintainer": "CloseScreen maintainers <My-Denia@users.noreply.github.com>",
     "target": [
       "AppImage",
       "deb",
