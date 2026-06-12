@@ -116,7 +116,7 @@ buildNpmPackage {
 
   meta = {
     description = "Desktop screen recorder with built-in editor";
-    homepage = "https://github.com/pjyqifei02/CloseScreen";
+    homepage = "https://github.com/My-Denia/CloseScreen";
     license = lib.licenses.mit;
     mainProgram = "closescreen";
     platforms = lib.platforms.linux;

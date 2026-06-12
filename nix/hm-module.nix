@@ -1,7 +1,7 @@
 # Home Manager module for CloseScreen
 # Usage in flake-based Home Manager config:
 #
-#   inputs.closescreen.url = "github:pjyqifei02/CloseScreen";
+#   inputs.closescreen.url = "github:My-Denia/CloseScreen";
 #
 #   { inputs, ... }: {
 #     imports = [ inputs.closescreen.homeManagerModules.default ];

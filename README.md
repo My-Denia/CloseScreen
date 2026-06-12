@@ -9,7 +9,7 @@ This project is based on [Siddharth Vaddem's OpenScreen](https://github.com/sidd
 ## Project Status
 
 - Maintained fork: active takeover and CI hardening are in progress.
-- Product identity: confirmed as `CloseScreen` with package slug `closescreen` and appId `io.github.pjyqifei02.closescreen`.
+- Product identity: confirmed as `CloseScreen` with package slug `closescreen` and appId `io.github.my-denia.closescreen`.
 - Distribution status: GitHub Actions builds unsigned Windows and Linux installable artifacts from this fork for GitHub Releases. External channel automation is removed until the maintainer explicitly reintroduces it with new identifiers and tokens.
 - Native status: Windows WGC/WASAPI/MediaFoundation verification is tracked in `native-report.md`.
 

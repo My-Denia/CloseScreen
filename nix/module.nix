@@ -1,7 +1,7 @@
 # NixOS module for CloseScreen
 # Usage in flake-based NixOS config:
 #
-#   inputs.closescreen.url = "github:pjyqifei02/CloseScreen";
+#   inputs.closescreen.url = "github:My-Denia/CloseScreen";
 #
 #   { inputs, ... }: {
 #     imports = [ inputs.closescreen.nixosModules.default ];
