@@ -13,6 +13,14 @@ CLAUDE.md
 /goal-runs/
 /progress.md
 /tasks.json
+/acceptance.md
+/runbook.md
+/goal.md
+/goal-contract.md
+/report.md
+/native-report.md
+/*-report.md
+/*-report.json
 
 node_modules
 dist
