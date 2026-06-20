@@ -13,6 +13,7 @@
 #include <condition_variable>
 #include <cctype>
 #include <cstdint>
+#include <cstdlib>
 #include <functional>
 #include <iostream>
 #include <memory>
@@ -547,6 +548,15 @@ int main(int argc, char* argv[]) {
     uint64_t latestWebcamSequence = 0;
     bool hasVisibleWebcamFrame = false;
 
+    // Shutdown coordination for the video writer thread (issue #14). The writer
+    // sets videoWriterDone via an RAII guard on exit; stopVideoWriter waits on it
+    // with a timeout so a wedged first-frame WriteSample cannot block shutdown
+    // forever. Uses its OWN mutex/cv — never the capture `mutex` above — to avoid
+    // contending with the writer's frame lock.
+    std::atomic<bool> videoWriterDone{false};
+    std::mutex videoWriterDoneMutex;
+    std::condition_variable videoWriterDoneCv;
+
     session.setFrameCallback([&](ID3D11Texture2D* texture, int64_t timestampHns) {
         if (control.stopRequested || control.paused) {
             return;
@@ -575,6 +585,23 @@ int main(int argc, char* argv[]) {
     });
 
     auto writeVideoFrames = [&]() {
+        // Signal completion on ANY exit from this thread (normal stop or encode
+        // error). If the thread wedges inside encoder.writeFrame() (issue #14),
+        // this guard never runs, so videoWriterDone stays false and
+        // stopVideoWriter's timed wait detects the wedge.
+        struct DoneSignal {
+            std::atomic<bool>& done;
+            std::mutex& m;
+            std::condition_variable& cv;
+            ~DoneSignal() {
+                {
+                    std::scoped_lock lock(m);
+                    done.store(true);
+                }
+                cv.notify_all();
+            }
+        } doneSignal{videoWriterDone, videoWriterDoneMutex, videoWriterDoneCv};
+
         const auto frameDuration = std::chrono::duration_cast<std::chrono::steady_clock::duration>(
             std::chrono::duration<double>(1.0 / config.fps));
         uint64_t frameIndex = 0;
@@ -660,10 +687,24 @@ int main(int argc, char* argv[]) {
 
     std::thread videoWriterThread;
 
-    auto stopVideoWriter = [&]() {
-        if (videoWriterThread.joinable()) {
-            videoWriterThread.join();
+    auto stopVideoWriter = [&]() -> bool {
+        if (!videoWriterThread.joinable()) {
+            return false;
         }
+        {
+            std::unique_lock<std::mutex> lock(videoWriterDoneMutex);
+            if (videoWriterDoneCv.wait_for(lock, std::chrono::seconds(5),
+                                           [&] { return videoWriterDone.load(); })) {
+                lock.unlock();
+                videoWriterThread.join();
+                return false;
+            }
+        }
+        // Timed out: the writer is wedged (e.g. a hung first-frame WriteSample on
+        // certain GPU/driver configs — issue #14). Detach it so shutdown can
+        // proceed; the thread is reclaimed when the process exits.
+        videoWriterThread.detach();
+        return true;
     };
 
     auto startVideoWriter = [&]() {
@@ -816,11 +857,13 @@ int main(int argc, char* argv[]) {
     std::cout << "{\"event\":\"recording-started\",\"schemaVersion\":2}" << std::endl;
     std::cout << "Recording started" << std::endl;
 
-    {
-        std::unique_lock lock(mutex);
-        control.cv.wait(lock, [&] {
-            return control.stopRequested.load();
-        });
+    // Wait for the stop signal WITHOUT holding the capture mutex. The video
+    // writer thread holds `mutex` across encoder.writeFrame() (see line ~600);
+    // if that call is wedged (issue #14), blocking here to acquire `mutex` would
+    // deadlock shutdown BEFORE stopVideoWriter's bounded wait can detach the
+    // wedged thread. Polling the atomic stop flag avoids that ordering hazard.
+    while (!control.stopRequested.load()) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(20));
     }
 
     microphoneCapture.stop();
@@ -829,7 +872,24 @@ int main(int argc, char* argv[]) {
     if (audioMixer) {
         audioMixer->stop();
     }
-    stopVideoWriter();
+    const bool videoWriterWedged = stopVideoWriter();
+    if (videoWriterWedged) {
+        // The video writer is stuck inside a blocking encoder call (issue #14:
+        // first-frame WriteSample hang). Both encoder.finalize() (which takes the
+        // writerMutex_ the wedged thread still holds) and session.stop() (which
+        // resets the D3D device that thread is still using) would deadlock or
+        // race, so report and force-exit immediately without touching either. The
+        // mp4 is left non-finalized (unplayable) — a wedged recording is already
+        // lost. Exit code 1, same as other failures; the Node side treats it as a
+        // failed recording.
+        std::cerr << "ERROR: video writer wedged during shutdown; forcing exit" << std::endl;
+        std::cout
+            << "{\"event\":\"recording-failed\",\"schemaVersion\":2,\"reason\":\"video-writer-wedged\"}"
+            << std::endl;
+        std::cout.flush();
+        std::cerr.flush();
+        std::_Exit(1);
+    }
     session.stop();
     {
         std::scoped_lock lock(mutex);

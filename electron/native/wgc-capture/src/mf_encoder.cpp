@@ -7,8 +7,11 @@
 #include <propvarutil.h>
 
 #include <algorithm>
+#include <chrono>
+#include <cstdlib>
 #include <cstring>
 #include <iostream>
+#include <thread>
 
 namespace {
 
@@ -295,6 +298,19 @@ bool MFEncoder::copyBgraFrameToBuffer(const BgraFrameView& frame, BYTE* destinat
 
 bool MFEncoder::writeFrame(ID3D11Texture2D* texture, int64_t timestampHns, const BgraFrameView* webcamFrame) {
     std::scoped_lock writerLock(writerMutex_);
+    // Synthetic fault injection (test-only, env-gated): reproduce issue #14 by
+    // blocking forever on the first writeFrame while holding writerMutex_, just
+    // like a hung sinkWriter_->WriteSample(). Lets the shutdown hardening be
+    // verified on hardware that does not naturally wedge the MF encoder.
+    static const bool faultHangWriteFrame = [] {
+        const char* v = std::getenv("CLOSESCREEN_WGC_FAULT_HANG_FIRST_FRAME");
+        return v != nullptr && std::strcmp(v, "1") == 0;
+    }();
+    if (faultHangWriteFrame) {
+        std::cerr << "[fault] CLOSESCREEN_WGC_FAULT_HANG_FIRST_FRAME set; blocking writeFrame forever"
+                  << std::endl;
+        std::this_thread::sleep_for(std::chrono::hours(24));
+    }
     if (!sinkWriter_ || finalized_) {
         return false;
     }
