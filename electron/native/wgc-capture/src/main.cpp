@@ -866,22 +866,20 @@ int main(int argc, char* argv[]) {
         std::this_thread::sleep_for(std::chrono::milliseconds(20));
     }
 
-    microphoneCapture.stop();
-    loopbackCapture.stop();
-    webcamCapture.stop();
-    if (audioMixer) {
-        audioMixer->stop();
-    }
+    // Detect a wedged video writer BEFORE stopping audio. AudioMixer::stop() joins
+    // the mixer thread, which calls encoder.writeAudio() — taking the same
+    // writerMutex_ a wedged writeFrame() holds forever — so stopping audio first
+    // would deadlock here before we could force-exit (issue #14, Codex review).
     const bool videoWriterWedged = stopVideoWriter();
     if (videoWriterWedged) {
         // The video writer is stuck inside a blocking encoder call (issue #14:
-        // first-frame WriteSample hang). Both encoder.finalize() (which takes the
-        // writerMutex_ the wedged thread still holds) and session.stop() (which
-        // resets the D3D device that thread is still using) would deadlock or
-        // race, so report and force-exit immediately without touching either. The
-        // mp4 is left non-finalized (unplayable) — a wedged recording is already
-        // lost. Exit code 1, same as other failures; the Node side treats it as a
-        // failed recording.
+        // first-frame WriteSample hang). encoder.finalize() and encoder.writeAudio()
+        // both take the writerMutex_ the wedged thread holds, and session.stop()
+        // resets the D3D device that thread is still using — all would deadlock or
+        // race. Force-exit immediately without touching any of them (including the
+        // audio stops below). The mp4 is left non-finalized (unplayable) — a wedged
+        // recording is already lost. Exit code 1, same as other failures; the Node
+        // side treats it as a failed recording.
         std::cerr << "ERROR: video writer wedged during shutdown; forcing exit" << std::endl;
         std::cout
             << "{\"event\":\"recording-failed\",\"schemaVersion\":2,\"reason\":\"video-writer-wedged\"}"
@@ -889,6 +887,12 @@ int main(int argc, char* argv[]) {
         std::cout.flush();
         std::cerr.flush();
         std::_Exit(1);
+    }
+    microphoneCapture.stop();
+    loopbackCapture.stop();
+    webcamCapture.stop();
+    if (audioMixer) {
+        audioMixer->stop();
     }
     session.stop();
     {
