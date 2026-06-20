@@ -9,7 +9,7 @@ import {
 	unregisterAllGlobalShortcuts,
 } from "./globalShortcut";
 import { mainT, setMainLocale } from "./i18n";
-import { registerIpcHandlers, resolveDisplayMediaVideoSource } from "./ipc/handlers";
+import { getSelectedDesktopSource, registerIpcHandlers } from "./ipc/handlers";
 import {
 	createCountdownOverlayWindow,
 	createEditorWindow,
@@ -401,13 +401,15 @@ app.whenReady().then(async () => {
 	});
 
 	session.defaultSession.setDisplayMediaRequestHandler(
-		async (request, callback) => {
-			// Resolve a valid video source (selected, else primary screen) so we
-			// never pass callback({}) for a pending video request — that makes
-			// Electron throw an unhandled main-process exception (issue #35).
-			const source = request.videoRequested ? await resolveDisplayMediaVideoSource() : null;
+		(request, callback) => {
+			const source = getSelectedDesktopSource();
 			if (!request.videoRequested || !source) {
-				callback({});
+				// Deny the request without auto-granting an arbitrary screen. Passing
+				// callback({}) — an empty streams object — for a pending video request
+				// makes Electron throw an unhandled main-process exception (the crash
+				// in #35); calling back with no streams at all denies cleanly and
+				// preserves the "no source selected ⇒ no capture" behavior.
+				(callback as (streams?: Electron.Streams) => void)();
 				return;
 			}
 
