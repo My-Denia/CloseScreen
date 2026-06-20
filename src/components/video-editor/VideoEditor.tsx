@@ -114,6 +114,7 @@ import {
 } from "./types";
 import { UnsavedChangesDialog } from "./UnsavedChangesDialog";
 import VideoPlayback, { VideoPlaybackRef } from "./VideoPlayback";
+import { clampResumeTime } from "./videoPlayback/previewFrameRestore";
 
 /** Single Sonner slot so auto-caption phases update in place instead of stacking. */
 const AUTO_CAPTION_PROGRESS_TOAST_ID = "auto-caption-progress";
@@ -1847,6 +1848,9 @@ export default function VideoEditor() {
 			}
 			const targetPath = pickResult.path;
 
+			// Capture the preview playhead so it can be restored after the export.
+			const resumeTime = video.currentTime;
+
 			setIsExporting(true);
 			setExportProgress(null);
 			setExportError(null);
@@ -2083,6 +2087,22 @@ export default function VideoEditor() {
 				// otherwise wouldn't show the save dialog).
 				setShowExportDialog(false);
 				setExportProgress(null);
+
+				// Restore the editor preview after the export. The preview shows the
+				// video as a paused PixiJS VideoSource sprite; while paused, PixiJS halts
+				// texture auto-update, so a long export can leave the sprite showing a
+				// stale/blank frame (only the background layer remains). Seek back to the
+				// pre-export playhead and force the VideoSource to re-upload its frame.
+				const playback = videoPlaybackRef.current;
+				const previewVideo = playback?.video;
+				if (previewVideo) {
+					try {
+						previewVideo.currentTime = clampResumeTime(resumeTime, previewVideo.duration);
+					} catch {
+						// Ignore seek failures (e.g. the element is not seekable yet).
+					}
+				}
+				playback?.refreshFrame();
 			}
 		},
 		[
