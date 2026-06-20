@@ -404,7 +404,12 @@ app.whenReady().then(async () => {
 		(request, callback) => {
 			const source = getSelectedDesktopSource();
 			if (!request.videoRequested || !source) {
-				callback({});
+				// Deny the request without auto-granting an arbitrary screen. Passing
+				// callback({}) — an empty streams object — for a pending video request
+				// makes Electron throw an unhandled main-process exception (the crash
+				// in #35); calling back with no streams at all denies cleanly and
+				// preserves the "no source selected ⇒ no capture" behavior.
+				(callback as (streams?: Electron.Streams) => void)();
 				return;
 			}
 
