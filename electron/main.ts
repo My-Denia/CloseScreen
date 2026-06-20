@@ -9,7 +9,7 @@ import {
 	unregisterAllGlobalShortcuts,
 } from "./globalShortcut";
 import { mainT, setMainLocale } from "./i18n";
-import { getSelectedDesktopSource, registerIpcHandlers } from "./ipc/handlers";
+import { registerIpcHandlers, resolveDisplayMediaVideoSource } from "./ipc/handlers";
 import {
 	createCountdownOverlayWindow,
 	createEditorWindow,
@@ -401,8 +401,11 @@ app.whenReady().then(async () => {
 	});
 
 	session.defaultSession.setDisplayMediaRequestHandler(
-		(request, callback) => {
-			const source = getSelectedDesktopSource();
+		async (request, callback) => {
+			// Resolve a valid video source (selected, else primary screen) so we
+			// never pass callback({}) for a pending video request — that makes
+			// Electron throw an unhandled main-process exception (issue #35).
+			const source = request.videoRequested ? await resolveDisplayMediaVideoSource() : null;
 			if (!request.videoRequested || !source) {
 				callback({});
 				return;

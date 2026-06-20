@@ -255,6 +255,27 @@ let currentRecordingSession: RecordingSession | null = null;
 export function getSelectedDesktopSource(): DesktopCapturerSource | null {
 	return selectedDesktopSource;
 }
+
+// Resolve the video source for a display-media request (issue #35). Prefers the
+// user's explicitly selected source; if none was selected (e.g. a record path
+// reached getDisplayMedia before any selection, or a fallback from native
+// capture), returns the primary screen. This guarantees the
+// setDisplayMediaRequestHandler callback in main.ts always has a valid video
+// source when one is requested — passing callback({}) for a pending video
+// request makes Electron throw "Video was requested, but no video stream was
+// provided" as an unhandled main-process exception (the crash dialog in #35).
+export async function resolveDisplayMediaVideoSource(): Promise<DesktopCapturerSource | null> {
+	const selected = getSelectedDesktopSource();
+	if (selected) {
+		return selected;
+	}
+	try {
+		const screens = await desktopCapturer.getSources({ types: ["screen"] });
+		return screens[0] ?? null;
+	} catch {
+		return null;
+	}
+}
 let currentVideoPath: string | null = null;
 
 function normalizePath(filePath: string) {
