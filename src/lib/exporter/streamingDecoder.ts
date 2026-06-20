@@ -47,6 +47,113 @@ function buildAV1CodecString(description?: BufferSource): string {
 	return `av01.${profile}.${levelStr}${tierChar}.${bitdepthStr}`;
 }
 
+/**
+ * Build a full WebCodecs-compatible VP9 codec string (`vp09.PP.LL.DD`).
+ *
+ * web-demuxer can return a bare "vp09" (or "vp9"). On Linux Electron the bare
+ * forms are rejected by VideoDecoder: isConfigSupported() returns false and a
+ * later configure() fails asynchronously with "Unknown or ambiguous codec name",
+ * surfacing as a generic export "decoding error" (issue #8 / upstream #661).
+ * macOS/Windows happen to accept the bare name, so the breakage is Linux-only.
+ *
+ * Parses the VPCodecConfigurationRecord ('vpcC') when present, otherwise returns
+ * a safe profile-0 / level-1.0 / 8-bit default that Chromium/Electron accepts.
+ *
+ * @see https://www.webmproject.org/vp9/mp4/#codecs-parameter-string
+ */
+function buildVP9CodecString(description?: BufferSource): string {
+	const fallback = "vp09.00.10.08";
+
+	if (!description) return fallback;
+
+	const bytes =
+		description instanceof ArrayBuffer
+			? new Uint8Array(description)
+			: new Uint8Array(description.buffer, description.byteOffset, description.byteLength);
+
+	// VPCodecConfigurationRecord: byte 0 = profile, byte 1 = level,
+	// byte 2 high nibble = bitDepth.
+	if (bytes.length < 3) return fallback;
+
+	const profile = bytes[0];
+	const level = bytes[1];
+	const bitDepth = (bytes[2] >> 4) & 0x0f;
+
+	const knownLevels = [10, 11, 20, 21, 30, 31, 40, 41, 50, 51, 52, 60, 61, 62];
+	if (profile > 3 || !knownLevels.includes(level) || ![8, 10, 12].includes(bitDepth)) {
+		return fallback;
+	}
+
+	const profileStr = profile.toString().padStart(2, "0");
+	const levelStr = level.toString().padStart(2, "0");
+	const bitDepthStr = bitDepth.toString().padStart(2, "0");
+
+	return `vp09.${profileStr}.${levelStr}.${bitDepthStr}`;
+}
+
+/**
+ * Normalize a demuxed decoder config into one this platform can actually decode.
+ *
+ * web-demuxer can hand back bare fourcc codec strings ("av01", "vp08", "vp09",
+ * "avc1", "h264") that WebCodecs rejects. We expand those to fully-formed codec
+ * strings, then probe candidate configs (software-preferred first for AV1/VP9,
+ * which lack reliable hardware paths on Linux) and return the first the platform
+ * reports as supported. If nothing is supported we throw a clear, codec-named
+ * error instead of letting an unsupported config slip into configure() and fail
+ * later with an opaque, generic "decoding error".
+ */
+export async function resolveDecoderConfig(
+	decoderConfig: VideoDecoderConfig,
+	isConfigSupported: (config: VideoDecoderConfig) => Promise<VideoDecoderSupport>,
+): Promise<VideoDecoderConfig> {
+	const originalCodec = decoderConfig.codec;
+	const config: VideoDecoderConfig = { ...decoderConfig };
+
+	if (/^av01$/i.test(config.codec)) {
+		config.codec = buildAV1CodecString(config.description as BufferSource | undefined);
+	}
+	if (/^vp09$/i.test(config.codec) || /^vp9$/i.test(config.codec)) {
+		config.codec = buildVP9CodecString(config.description as BufferSource | undefined);
+	}
+	if (/^vp08$/i.test(config.codec)) {
+		config.codec = "vp8";
+	}
+	if (/^avc1$/i.test(config.codec) || /^h264$/i.test(config.codec)) {
+		config.codec = "avc1.640033";
+	}
+
+	const codec = config.codec.toLowerCase();
+	const preferSoftware =
+		codec.includes("av01") ||
+		codec.includes("av1") ||
+		codec.includes("vp09") ||
+		codec.includes("vp9");
+
+	const candidates: VideoDecoderConfig[] = [];
+	if (preferSoftware) {
+		candidates.push({ ...config, hardwareAcceleration: "prefer-software" });
+	}
+	candidates.push(config);
+	// Last-resort fallback for H.264 streams whose specific profile/level string
+	// the platform won't accept: retry with a broadly-supported high-profile string.
+	if (codec.startsWith("avc1") && codec !== "avc1.640033") {
+		candidates.push({ ...config, codec: "avc1.640033" });
+	}
+
+	for (const candidate of candidates) {
+		try {
+			const support = await isConfigSupported(candidate);
+			if (support?.supported) return candidate;
+		} catch {
+			// isConfigSupported can throw on a malformed config; try the next candidate.
+		}
+	}
+
+	throw new Error(
+		`This video uses a codec (${originalCodec}) that this system can't decode for export.`,
+	);
+}
+
 export interface DecodedVideoInfo {
 	width: number;
 	height: number;
@@ -320,33 +427,16 @@ export class StreamingVideoDecoder {
 		console.log("[StreamingVideoDecoder] decoderConfig.description:", decoderConfig.description);
 
 		// web-demuxer can return bare fourcc strings ("av01", "vp08", "vp09", "avc1")
-		// that WebCodecs rejects; normalize to forms VideoDecoder accepts.
-		if (/^av01$/i.test(decoderConfig.codec)) {
-			decoderConfig.codec = buildAV1CodecString(
-				decoderConfig.description as BufferSource | undefined,
-			);
-		}
+		// that WebCodecs rejects; resolve to a fully-formed config this platform
+		// actually supports, or throw a clear, codec-named error (issue #8).
+		const resolvedConfig = await resolveDecoderConfig(decoderConfig, (config) =>
+			VideoDecoder.isConfigSupported(config),
+		);
+		console.log(
+			`[StreamingVideoDecoder] resolved codec "${decoderConfig.codec}" -> ` +
+				`"${resolvedConfig.codec}" (${resolvedConfig.hardwareAcceleration ?? "default"})`,
+		);
 
-		if (/^vp08$/i.test(decoderConfig.codec)) {
-			decoderConfig.codec = "vp8";
-		}
-		if (/^vp09$/i.test(decoderConfig.codec)) {
-			decoderConfig.codec = "vp9";
-		}
-
-		if (/^avc1$/i.test(decoderConfig.codec)) {
-			decoderConfig.codec = "avc1.640033";
-		}
-		if (/^h264$/i.test(decoderConfig.codec)) {
-			decoderConfig.codec = "avc1.640033";
-		}
-
-		const codec = decoderConfig.codec.toLowerCase();
-		const shouldPreferSoftwareDecode =
-			codec.includes("av01") ||
-			codec.includes("av1") ||
-			codec.includes("vp09") ||
-			codec.includes("vp9");
 		const segments = this.splitBySpeed(
 			this.computeSegments(this.metadata.duration, trimRegions),
 			speedRegions,
@@ -378,7 +468,7 @@ export class StreamingVideoDecoder {
 			},
 			error: (e: DOMException) => {
 				console.warn(
-					`[StreamingVideoDecoder] decoder error for codec "${decoderConfig.codec}":`,
+					`[StreamingVideoDecoder] decoder error for codec "${resolvedConfig.codec}":`,
 					e.message,
 				);
 				decodeError = new Error(`VideoDecoder error: ${e.message}`);
@@ -389,37 +479,7 @@ export class StreamingVideoDecoder {
 				}
 			},
 		});
-		const preferredDecoderConfig = shouldPreferSoftwareDecode
-			? {
-					...decoderConfig,
-					hardwareAcceleration: "prefer-software" as const,
-				}
-			: decoderConfig;
-
-		try {
-			const support = await VideoDecoder.isConfigSupported(preferredDecoderConfig);
-			console.log(
-				`[StreamingVideoDecoder] isConfigSupported for "${preferredDecoderConfig.codec}":`,
-				support.supported,
-			);
-			if (!support.supported) {
-				throw new Error(`Unsupported codec: ${preferredDecoderConfig.codec}`);
-			}
-			this.decoder.configure(preferredDecoderConfig);
-		} catch (error) {
-			if (shouldPreferSoftwareDecode) {
-				this.decoder.configure(decoderConfig);
-			} else if (/^avc1/i.test(codec)) {
-				const fallback = { ...decoderConfig, codec: "avc1.640033" };
-				console.warn(
-					`[StreamingVideoDecoder] codec "${codec}" unsupported, ` +
-						`falling back to "${fallback.codec}"`,
-				);
-				this.decoder.configure(fallback);
-			} else {
-				throw error;
-			}
-		}
+		this.decoder.configure(resolvedConfig);
 
 		const getNextFrame = (): Promise<VideoFrame | null> => {
 			if (decodeError) throw decodeError;
