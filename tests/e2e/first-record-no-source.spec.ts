@@ -161,26 +161,35 @@ test.describe("issue #35 — first record before source selection (empirical pro
 					bad_types_number: { types: [1, 2] },
 					bad_thumbnail: { types: ["screen"], thumbnailSize: "big" },
 				};
-				const settle = (p: Promise<unknown>, ms: number) =>
+				// fn is a thunk (not an already-evaluated promise) so a SYNCHRONOUS
+				// throw from desktopCapturer.getSources — Electron's native argument
+				// conversion can fail before a Promise is returned — is captured here
+				// instead of rejecting the whole app.evaluate block and aborting the
+				// probe before it reaches the no-source getDisplayMedia path.
+				const settle = (fn: () => Promise<unknown>, ms: number) =>
 					Promise.race([
-						p.then(
-							(v) => ({
-								threw: false,
-								count: Array.isArray(v) ? (v as unknown[]).length : -1,
-							}),
-							(e: unknown) => ({
-								threw: true,
-								message: e instanceof Error ? e.message : String(e),
-							}),
-						),
+						(async () => {
+							try {
+								const v = await fn();
+								return {
+									threw: false,
+									count: Array.isArray(v) ? (v as unknown[]).length : -1,
+								};
+							} catch (e) {
+								return { threw: true, message: e instanceof Error ? e.message : String(e) };
+							}
+						})(),
 						new Promise<{ threw: boolean; timedOut: boolean }>((res) =>
 							setTimeout(() => res({ threw: false, timedOut: true }), ms),
 						),
 					]);
 				const out: Record<string, unknown> = {};
 				for (const [name, opts] of Object.entries(optsList)) {
-					// @ts-expect-error intentionally passing malformed opts to probe the binding
-					out[name] = await settle(desktopCapturer.getSources(opts), 5_000);
+					out[name] = await settle(
+						// @ts-expect-error intentionally passing malformed opts to probe the binding
+						() => desktopCapturer.getSources(opts),
+						5_000,
+					);
 				}
 				return out;
 			});
