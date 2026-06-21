@@ -8,26 +8,41 @@ import {
 } from "./audioEncoder";
 
 describe("normalizeAudioDecoderConfig", () => {
-	it("expands the bare 'mp4a' tag web-demuxer emits into a WebCodecs AAC string (issue #7)", () => {
-		const config: AudioDecoderConfig = { codec: "mp4a", sampleRate: 48000, numberOfChannels: 2 };
-		expect(normalizeAudioDecoderConfig(config).codec).toBe("mp4a.40.2");
-	});
-
-	it("derives the AAC object type from the AudioSpecificConfig description", () => {
-		// AudioSpecificConfig byte 0 = 0b00101_000: top 5 bits = object type 5 (HE-AAC/SBR).
-		const description = new Uint8Array([0x28, 0x00]).buffer;
+	it("expands the bare 'mp4a' tag into a WebCodecs AAC string when an ASC is present (issue #7)", () => {
+		// AudioSpecificConfig byte 0 = 0x12 = 0b00010_010: top 5 bits = object type 2 (AAC-LC).
+		const description = new Uint8Array([0x12, 0x10]).buffer;
 		const config: AudioDecoderConfig = {
 			codec: "mp4a",
 			description,
 			sampleRate: 48000,
 			numberOfChannels: 2,
 		};
+		expect(normalizeAudioDecoderConfig(config).codec).toBe("mp4a.40.2");
+	});
+
+	it("derives the AAC object type from the AudioSpecificConfig description", () => {
+		// byte 0 = 0b00101_000: top 5 bits = object type 5 (HE-AAC/SBR).
+		const description = new Uint8Array([0x28, 0x00]).buffer;
+		const config: AudioDecoderConfig = { codec: "mp4a", description };
 		expect(normalizeAudioDecoderConfig(config).codec).toBe("mp4a.40.5");
 	});
 
-	it("falls back to AAC-LC for unconfirmed object types", () => {
-		// byte 0 = 0b00001_000: object type 1 (AAC Main), which we down-map to LC.
-		expect(buildAacCodecString(new Uint8Array([0x08]).buffer)).toBe("mp4a.40.2");
+	it("preserves a non-LC object type (xHE-AAC/USAC) instead of down-mapping it to LC", () => {
+		// Escape-coded ASC for object type 42: byte0=0xF9, byte1=0x40 => 32 + 10 = 42.
+		expect(buildAacCodecString(new Uint8Array([0xf9, 0x40]).buffer)).toBe("mp4a.40.42");
+	});
+
+	it("leaves the bare 'mp4a' tag untouched when there is no AudioSpecificConfig", () => {
+		// Without an ASC, WebCodecs would treat the config as ADTS; keep it bare so
+		// isConfigSupported rejects it and the track is cleanly skipped rather than mis-decoded.
+		const config: AudioDecoderConfig = { codec: "mp4a", sampleRate: 48000, numberOfChannels: 2 };
+		expect(normalizeAudioDecoderConfig(config).codec).toBe("mp4a");
+	});
+
+	it("falls back to AAC-LC for a malformed (out-of-range) object type", () => {
+		// byte 0 = 0x00: object type 0, outside the valid MPEG-4 range.
+		expect(buildAacCodecString(new Uint8Array([0x00]).buffer)).toBe("mp4a.40.2");
+		expect(buildAacCodecString()).toBe("mp4a.40.2");
 	});
 
 	it("leaves already-qualified and valid bare codecs untouched", () => {
@@ -37,7 +52,10 @@ describe("normalizeAudioDecoderConfig", () => {
 	});
 
 	it("does not mutate the caller's config object", () => {
-		const input: AudioDecoderConfig = { codec: "mp4a" };
+		const input: AudioDecoderConfig = {
+			codec: "mp4a",
+			description: new Uint8Array([0x12, 0x10]).buffer,
+		};
 		normalizeAudioDecoderConfig(input);
 		expect(input.codec).toBe("mp4a");
 	});
@@ -65,6 +83,7 @@ describe("AudioProcessor.selectSupportedExportCodecForSource", () => {
 		const demuxer = {
 			getDecoderConfig: vi.fn(async () => ({
 				codec: "mp4a",
+				description: new Uint8Array([0x12, 0x10]).buffer, // AAC-LC AudioSpecificConfig
 				sampleRate: 48000,
 				numberOfChannels: 2,
 			})),
