@@ -1,6 +1,10 @@
 import { contextBridge, ipcRenderer, webUtils } from "electron";
 import type { NativeWindowsRecordingRequest } from "../src/lib/nativeWindowsRecording";
-import type { RecordingSession, StoreRecordedSessionInput } from "../src/lib/recordingSession";
+import type {
+	AttachWebcamToScreenRecordingInput,
+	RecordingSession,
+	StoreRecordedSessionInput,
+} from "../src/lib/recordingSession";
 import type { ShortcutBinding } from "../src/lib/shortcuts";
 import { NATIVE_BRIDGE_CHANNEL, type NativeBridgeRequest } from "../src/native/contracts";
 
@@ -60,6 +64,9 @@ contextBridge.exposeInMainWorld("electronAPI", {
 	},
 	storeRecordedSession: (payload: StoreRecordedSessionInput) => {
 		return ipcRenderer.invoke("store-recorded-session", payload);
+	},
+	attachWebcamToScreenRecording: (payload: AttachWebcamToScreenRecordingInput) => {
+		return ipcRenderer.invoke("attach-webcam-to-screen-recording", payload);
 	},
 	openRecordingStream: (fileName: string) => {
 		return ipcRenderer.invoke("open-recording-stream", fileName);

@@ -8,6 +8,7 @@ import type { DesktopCapturerSource } from "electron";
 import { app, BrowserWindow, desktopCapturer, dialog, ipcMain, screen, shell } from "electron";
 import type { NativeWindowsRecordingRequest } from "../../src/lib/nativeWindowsRecording";
 import {
+	type AttachWebcamToScreenRecordingInput,
 	type CursorCaptureMode,
 	normalizeCursorCaptureMode,
 	normalizeProjectMedia,
@@ -1434,6 +1435,16 @@ export function registerIpcHandlers(
 			screenVideoPath,
 			payload.screen.videoData,
 		);
+		// Native Windows capture writes the screen MP4 straight to its final path, so the
+		// renderer attaches the webcam without shipping the multi-GB screen bytes back over
+		// IPC (#1/#2). With no streamed chunks and no buffer, the file must already exist.
+		if (!screenStreamed && !payload.screen.videoData) {
+			try {
+				await fs.access(screenVideoPath, fsConstants.F_OK);
+			} catch {
+				throw new Error(`Screen recording file not found: ${payload.screen.fileName}`);
+			}
+		}
 
 		let webcamVideoPath: string | undefined;
 		let webcamStreamed = false;
@@ -1487,6 +1498,31 @@ export function registerIpcHandlers(
 			message: "Recording session stored successfully",
 		};
 	}
+
+	// Attach a webcam sidecar to a native screen recording already on disk. The screen file
+	// is referenced by name only; the main process owns the merge so the renderer never
+	// reads the multi-GB screen back over IPC (#1/#2).
+	ipcMain.handle(
+		"attach-webcam-to-screen-recording",
+		async (_, payload: AttachWebcamToScreenRecordingInput) => {
+			try {
+				return await storeRecordedSessionFiles({
+					screen: { fileName: payload.screenFileName },
+					...(payload.webcam ? { webcam: payload.webcam } : {}),
+					...(typeof payload.createdAt === "number" ? { createdAt: payload.createdAt } : {}),
+					...(payload.cursorCaptureMode ? { cursorCaptureMode: payload.cursorCaptureMode } : {}),
+					...(typeof payload.durationMs === "number" ? { durationMs: payload.durationMs } : {}),
+				});
+			} catch (error) {
+				console.error("Failed to attach webcam to screen recording:", error);
+				return {
+					success: false,
+					message: "Failed to attach webcam to screen recording",
+					error: String(error),
+				};
+			}
+		},
+	);
 
 	ipcMain.handle("store-recorded-video", async (_, videoData: ArrayBuffer, fileName: string) => {
 		try {
