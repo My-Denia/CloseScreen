@@ -1,5 +1,101 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { AudioProcessor, downmixPlanarChannelsForExport } from "./audioEncoder";
+import type { WebDemuxer } from "web-demuxer";
+import {
+	AudioProcessor,
+	buildAacCodecString,
+	downmixPlanarChannelsForExport,
+	normalizeAudioDecoderConfig,
+} from "./audioEncoder";
+
+describe("normalizeAudioDecoderConfig", () => {
+	it("expands the bare 'mp4a' tag web-demuxer emits into a WebCodecs AAC string (issue #7)", () => {
+		const config: AudioDecoderConfig = { codec: "mp4a", sampleRate: 48000, numberOfChannels: 2 };
+		expect(normalizeAudioDecoderConfig(config).codec).toBe("mp4a.40.2");
+	});
+
+	it("derives the AAC object type from the AudioSpecificConfig description", () => {
+		// AudioSpecificConfig byte 0 = 0b00101_000: top 5 bits = object type 5 (HE-AAC/SBR).
+		const description = new Uint8Array([0x28, 0x00]).buffer;
+		const config: AudioDecoderConfig = {
+			codec: "mp4a",
+			description,
+			sampleRate: 48000,
+			numberOfChannels: 2,
+		};
+		expect(normalizeAudioDecoderConfig(config).codec).toBe("mp4a.40.5");
+	});
+
+	it("falls back to AAC-LC for unconfirmed object types", () => {
+		// byte 0 = 0b00001_000: object type 1 (AAC Main), which we down-map to LC.
+		expect(buildAacCodecString(new Uint8Array([0x08]).buffer)).toBe("mp4a.40.2");
+	});
+
+	it("leaves already-qualified and valid bare codecs untouched", () => {
+		expect(normalizeAudioDecoderConfig({ codec: "mp4a.40.2" }).codec).toBe("mp4a.40.2");
+		expect(normalizeAudioDecoderConfig({ codec: "opus" }).codec).toBe("opus");
+		expect(normalizeAudioDecoderConfig({ codec: "mp3" }).codec).toBe("mp3");
+	});
+
+	it("does not mutate the caller's config object", () => {
+		const input: AudioDecoderConfig = { codec: "mp4a" };
+		normalizeAudioDecoderConfig(input);
+		expect(input.codec).toBe("mp4a");
+	});
+});
+
+describe("AudioProcessor.selectSupportedExportCodecForSource", () => {
+	afterEach(() => {
+		vi.unstubAllGlobals();
+	});
+
+	it("selects Opus for an AAC source on Linux Electron (bare mp4a rejected, no AAC encoder)", async () => {
+		// Mirrors the real Linux Electron probe: bare "mp4a" decode is rejected, the full
+		// "mp4a.40.2" string decodes, and only Opus can be encoded.
+		const decoderSupport = vi.fn(async (config: AudioDecoderConfig) => ({
+			config,
+			supported: config.codec === "mp4a.40.2",
+		}));
+		const encoderSupport = vi.fn(async (config: AudioEncoderConfig) => ({
+			config,
+			supported: config.codec === "opus",
+		}));
+		vi.stubGlobal("AudioDecoder", { isConfigSupported: decoderSupport });
+		vi.stubGlobal("AudioEncoder", { isConfigSupported: encoderSupport });
+
+		const demuxer = {
+			getDecoderConfig: vi.fn(async () => ({
+				codec: "mp4a",
+				sampleRate: 48000,
+				numberOfChannels: 2,
+			})),
+		} as unknown as WebDemuxer;
+
+		const codec = await AudioProcessor.selectSupportedExportCodecForSource(demuxer);
+
+		expect(codec).toMatchObject({ encoderCodec: "opus", muxerCodec: "opus" });
+		// The decode probe must run against the normalized string, never the bare tag.
+		expect(decoderSupport).toHaveBeenCalledWith(expect.objectContaining({ codec: "mp4a.40.2" }));
+		expect(decoderSupport).not.toHaveBeenCalledWith(expect.objectContaining({ codec: "mp4a" }));
+	});
+
+	it("returns null only when the source truly cannot be decoded", async () => {
+		vi.stubGlobal("AudioDecoder", {
+			isConfigSupported: vi.fn(async (config: AudioDecoderConfig) => ({
+				config,
+				supported: false,
+			})),
+		});
+		const demuxer = {
+			getDecoderConfig: vi.fn(async () => ({
+				codec: "ac-3",
+				sampleRate: 48000,
+				numberOfChannels: 6,
+			})),
+		} as unknown as WebDemuxer;
+
+		expect(await AudioProcessor.selectSupportedExportCodecForSource(demuxer)).toBeNull();
+	});
+});
 
 describe("AudioProcessor.selectSupportedExportCodec", () => {
 	afterEach(() => {
