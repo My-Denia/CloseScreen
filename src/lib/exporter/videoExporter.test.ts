@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+	audioDroppedWarning,
 	getSourceCopyFastPathBlockers,
 	isSourceCopyFastPathEligible,
 	type VideoExporterConfig,
@@ -117,5 +118,22 @@ describe("getSourceCopyFastPathBlockers", () => {
 				height: 1032,
 			}),
 		).toContain("output-size 1920x1080 differs from source 1920x1032");
+	});
+});
+
+describe("audioDroppedWarning", () => {
+	it("warns when the source has audio but no export codec was found", () => {
+		const warning = audioDroppedWarning(true, false);
+		expect(warning).toBeTruthy();
+		expect(warning).toMatch(/without sound/i);
+	});
+
+	it("is silent when the audio was included in the export", () => {
+		expect(audioDroppedWarning(true, true)).toBeNull();
+	});
+
+	it("is silent when the source has no audio track", () => {
+		expect(audioDroppedWarning(false, false)).toBeNull();
+		expect(audioDroppedWarning(false, true)).toBeNull();
 	});
 });
