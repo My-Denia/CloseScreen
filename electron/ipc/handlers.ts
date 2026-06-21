@@ -30,6 +30,7 @@ import type { CursorRecordingSession } from "../native-bridge/cursor/recording/s
 import { patchWebmDurationOnDisk } from "../recording/webm-duration";
 import { registerNativeBridgeHandlers } from "./nativeBridge";
 import { RecordingStreamRegistry, registerRecordingStreamHandlers } from "./recordingStream";
+import { describeSaveError } from "./saveError";
 
 const PROJECT_FILE_EXTENSION = "closescreen";
 export const SHORTCUTS_FILE = path.join(app.getPath("userData"), "shortcuts.json");
@@ -1648,7 +1649,7 @@ export function registerIpcHandlers(
 			console.error("Failed to write exported video:", error);
 			return {
 				success: false,
-				message: "Failed to save exported video",
+				message: describeSaveError(error),
 				error: String(error),
 			};
 		}
