@@ -123,6 +123,22 @@ export function getSourceCopyFastPathBlockers(
 	return blockers;
 }
 
+/**
+ * When the source has an audio track but no supported export codec could be
+ * found, the export proceeds video-only. Returns a user-facing warning for that
+ * case so a silent (sound-less) export is not a surprise, or null when audio is
+ * included or the source has none. See issue #7.
+ */
+export function audioDroppedWarning(
+	sourceHasAudio: boolean,
+	audioIncluded: boolean,
+): string | null {
+	if (sourceHasAudio && !audioIncluded) {
+		return "Audio could not be included: the source audio format is not supported for export, so the video was exported without sound.";
+	}
+	return null;
+}
+
 function isMp4Source(videoUrl: string, blob: Blob) {
 	if (blob.type.toLowerCase().includes("mp4")) {
 		return true;
@@ -274,11 +290,12 @@ export class VideoExporter {
 				videoInfo.hasAudio && sourceDemuxer
 					? await AudioProcessor.selectSupportedExportCodecForSource(sourceDemuxer)
 					: null;
-			if (videoInfo.hasAudio && !audioExportCodec) {
-				console.warn("[VideoExporter] No supported audio export codec, exporting video-only.");
-			}
-
 			const hasAudio = Boolean(audioExportCodec);
+			const audioWarning = audioDroppedWarning(videoInfo.hasAudio, hasAudio);
+			if (audioWarning) {
+				console.warn("[VideoExporter] No supported audio export codec, exporting video-only.");
+				onWarning(audioWarning);
+			}
 			const muxer = new VideoMuxer(this.config, hasAudio, audioExportCodec?.muxerCodec);
 			this.muxer = muxer;
 			await muxer.initialize();
