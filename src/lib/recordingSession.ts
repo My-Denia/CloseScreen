@@ -15,8 +15,19 @@ export interface RecordedVideoAssetInput {
 	videoData: ArrayBuffer;
 }
 
+/**
+ * Screen asset for a stored session. `videoData` is omitted when the screen file is
+ * already on disk — native Windows capture writes the MP4 straight to its final path,
+ * so the renderer attaches the webcam without marshaling the multi-GB screen bytes back
+ * over IPC (issue #1/#2).
+ */
+export interface StoredScreenAssetInput {
+	fileName: string;
+	videoData?: ArrayBuffer;
+}
+
 export interface StoreRecordedSessionInput {
-	screen: RecordedVideoAssetInput;
+	screen: StoredScreenAssetInput;
 	webcam?: RecordedVideoAssetInput;
 	createdAt?: number;
 	cursorCaptureMode?: CursorCaptureMode;
@@ -26,6 +37,19 @@ export interface StoreRecordedSessionInput {
 	 * MediaRecorder writes no/zero duration, which breaks the editor seek bar and
 	 * timeline for anything that took the streaming path.
 	 */
+	durationMs?: number;
+}
+
+/**
+ * Input for attaching a webcam sidecar to a native screen recording that is already on
+ * disk. Unlike {@link StoreRecordedSessionInput} it cannot carry screen bytes, so the
+ * renderer can never read the multi-GB screen file back into memory (issue #1/#2).
+ */
+export interface AttachWebcamToScreenRecordingInput {
+	screenFileName: string;
+	webcam?: RecordedVideoAssetInput;
+	createdAt?: number;
+	cursorCaptureMode?: CursorCaptureMode;
 	durationMs?: number;
 }
 

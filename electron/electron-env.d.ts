@@ -63,6 +63,15 @@ interface Window {
 			message?: string;
 			error?: string;
 		}>;
+		attachWebcamToScreenRecording: (
+			payload: import("../src/lib/recordingSession").AttachWebcamToScreenRecordingInput,
+		) => Promise<{
+			success: boolean;
+			path?: string;
+			session?: import("../src/lib/recordingSession").RecordingSession;
+			message?: string;
+			error?: string;
+		}>;
 		openRecordingStream: (fileName: string) => Promise<{ success: boolean; error?: string }>;
 		appendRecordingChunk: (
 			fileName: string,

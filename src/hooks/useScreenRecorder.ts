@@ -455,18 +455,16 @@ export function useScreenRecorder(): UseScreenRecorderReturn {
 				let storedSession = result.session;
 				if (activeWebcamRecorder && nativeScreenPath) {
 					const webcamBlob = await activeWebcamRecorder.recordedBlobPromise.catch(() => null);
-					const screenRead = await window.electronAPI.readBinaryFile(nativeScreenPath);
-					if (webcamBlob && webcamBlob.size > 0 && screenRead.success && screenRead.data) {
+					if (webcamBlob && webcamBlob.size > 0) {
 						const fixedWebcamBlob = await fixWebmDuration(webcamBlob, duration);
 						const nativeScreenFileName =
 							nativeScreenPath.split(/[\\/]/).pop() ??
 							`${RECORDING_FILE_PREFIX}${activeNativeRecording.recordingId}.mp4`;
 						const webcamFileName = `${RECORDING_FILE_PREFIX}${activeNativeRecording.recordingId}${WEBCAM_FILE_SUFFIX}${VIDEO_FILE_EXTENSION}`;
-						const stored = await window.electronAPI.storeRecordedSession({
-							screen: {
-								videoData: screenRead.data,
-								fileName: nativeScreenFileName,
-							},
+						// The native screen MP4 is already on disk; attach the small webcam sidecar in
+						// the main process instead of reading the multi-GB screen back over IPC (#1/#2).
+						const stored = await window.electronAPI.attachWebcamToScreenRecording({
+							screenFileName: nativeScreenFileName,
 							webcam: {
 								videoData: await fixedWebcamBlob.arrayBuffer(),
 								fileName: webcamFileName,
