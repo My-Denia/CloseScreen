@@ -22,6 +22,55 @@ const EXPORT_AUDIO_CODECS: ExportAudioCodecCandidate[] = [
 	{ encoderCodec: "opus", muxerCodec: "opus", label: "Opus" },
 ];
 
+/**
+ * Build a fully-qualified WebCodecs AAC codec string ("mp4a.40.<objectType>") from an
+ * AudioSpecificConfig (the decoder `description`). web-demuxer's FFmpeg WASM reports only the
+ * bare MP4 sample-entry tag "mp4a", which WebCodecs rejects as ambiguous, so the audio track was
+ * silently dropped from exports on Linux Electron (issue #7) — the same class of bug as the bare
+ * "vp09" video codec in issue #8.
+ *
+ * The real object type is preserved (not down-mapped): emitting e.g. "mp4a.40.42" for
+ * xHE-AAC/USAC lets AudioDecoder.isConfigSupported gate it correctly on platforms that can't
+ * decode it, instead of masquerading as AAC-LC and failing the actual decode later.
+ */
+export function buildAacCodecString(description?: BufferSource): string {
+	const fallback = "mp4a.40.2"; // AAC-LC, the overwhelmingly common case.
+	if (!description) return fallback;
+	const bytes =
+		description instanceof ArrayBuffer
+			? new Uint8Array(description)
+			: new Uint8Array(description.buffer, description.byteOffset, description.byteLength);
+	if (bytes.length < 1) return fallback;
+	// AudioSpecificConfig: the 5-bit audio object type sits in the top bits of byte 0.
+	let audioObjectType = (bytes[0] >> 3) & 0x1f;
+	if (audioObjectType === 31 && bytes.length >= 2) {
+		// Escape value: the real object type is 32 + the following 6 bits.
+		audioObjectType = 32 + (((bytes[0] & 0x07) << 3) | ((bytes[1] >> 5) & 0x07));
+	}
+	// Outside the valid MPEG-4 audio object-type range means a malformed ASC; fall back to LC.
+	if (audioObjectType < 1 || audioObjectType > 42) return fallback;
+	return `mp4a.40.${audioObjectType}`;
+}
+
+/**
+ * Normalize a demuxer-produced AudioDecoderConfig so WebCodecs accepts it. Only AAC ("mp4a")
+ * currently needs expanding; "opus"/"vorbis"/"flac"/"mp3" are already valid WebCodecs strings.
+ *
+ * The bare tag is expanded only when an AudioSpecificConfig (`description`) is present: WebCodecs
+ * treats an AAC config without a `description` as ADTS framing, but MP4/MOV chunks are raw access
+ * units, so expanding without an ASC would declare phantom audio support and then fail to decode.
+ * Leaving the bare "mp4a" in place makes isConfigSupported reject it so the audio track is cleanly
+ * skipped instead. Returns a new object — the caller's config is never mutated.
+ */
+export function normalizeAudioDecoderConfig(config: AudioDecoderConfig): AudioDecoderConfig {
+	if (/^mp4a$/i.test(config.codec)) {
+		const description = config.description as BufferSource | undefined;
+		if (!description) return config;
+		return { ...config, codec: buildAacCodecString(description) };
+	}
+	return config;
+}
+
 function averageChannels(sourcePlanes: Float32Array[], frame: number) {
 	let mixed = 0;
 	for (const plane of sourcePlanes) {
@@ -192,7 +241,7 @@ export class AudioProcessor {
 	): Promise<ExportAudioCodec | null> {
 		let audioConfig: AudioDecoderConfig;
 		try {
-			audioConfig = await demuxer.getDecoderConfig("audio");
+			audioConfig = normalizeAudioDecoderConfig(await demuxer.getDecoderConfig("audio"));
 		} catch {
 			return null;
 		}
@@ -261,7 +310,7 @@ export class AudioProcessor {
 	): Promise<void> {
 		let audioConfig: AudioDecoderConfig;
 		try {
-			audioConfig = await demuxer.getDecoderConfig("audio");
+			audioConfig = normalizeAudioDecoderConfig(await demuxer.getDecoderConfig("audio"));
 		} catch {
 			console.warn("[AudioProcessor] No audio track found, skipping");
 			return;
