@@ -79,6 +79,10 @@ import { clampFocusToScale } from "./videoPlayback/focusUtils";
 import { layoutVideoContent as layoutVideoContentUtil } from "./videoPlayback/layoutUtils";
 import { clamp01 } from "./videoPlayback/mathUtils";
 import { updateOverlayIndicator } from "./videoPlayback/overlayUtils";
+import {
+	type RefreshableTextureSource,
+	refreshVideoSourceFrame,
+} from "./videoPlayback/previewFrameRestore";
 import { createVideoEventHandlers } from "./videoPlayback/videoEventHandlers";
 import { findDominantRegion } from "./videoPlayback/zoomRegionUtils";
 import { createZoomSpringState, resetZoomSpring, stepZoomSpring } from "./videoPlayback/zoomSpring";
@@ -158,6 +162,12 @@ export interface VideoPlaybackRef {
 	containerRef: React.RefObject<HTMLDivElement>;
 	play: () => Promise<void>;
 	pause: () => void;
+	/**
+	 * Force the preview to re-upload the current video frame to its PixiJS
+	 * texture. Used after an export to recover a paused preview whose sprite was
+	 * left showing a stale/blank frame (only the background layer visible).
+	 */
+	refreshFrame: () => void;
 }
 
 function getResolvedVideoDuration(video: HTMLVideoElement): number | null {
@@ -648,6 +658,15 @@ const VideoPlayback = forwardRef<VideoPlaybackRef, VideoPlaybackProps>(
 				}
 				video.pause();
 				supplementalAudioRef.current?.pause();
+			},
+			refreshFrame: () => {
+				// A paused VideoSource halts PixiJS auto-update, so after an export the
+				// sprite can be left showing a stale/blank frame. Re-upload the current
+				// frame from the live <video> element.
+				const source = videoSpriteRef.current?.texture?.source as
+					| RefreshableTextureSource
+					| undefined;
+				refreshVideoSourceFrame(source);
 			},
 		}));
 
@@ -1919,6 +1938,7 @@ const VideoPlayback = forwardRef<VideoPlaybackRef, VideoPlaybackProps>(
 				>
 					<div
 						ref={containerRef}
+						data-testid="testId-preview-stage"
 						className="absolute inset-0"
 						style={{
 							filter:

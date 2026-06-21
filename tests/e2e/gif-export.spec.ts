@@ -3,14 +3,20 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { _electron as electron, expect, test } from "@playwright/test";
+import { _electron as electron, expect, type Page, test } from "@playwright/test";
+import { PNG } from "pngjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.join(__dirname, "../..");
 const MAIN_JS = path.join(ROOT, "dist-electron/main.js");
 const TEST_VIDEO = path.join(__dirname, "../fixtures/sample.webm");
 
-async function exportFromLoadedVideo(format: "gif" | "mp4"): Promise<Buffer> {
+interface ExportHooks {
+	onBeforeExport?: (editorWindow: Page) => Promise<void>;
+	onAfterExport?: (editorWindow: Page) => Promise<void>;
+}
+
+async function exportFromLoadedVideo(format: "gif" | "mp4", hooks?: ExportHooks): Promise<Buffer> {
 	const outputPath = path.join(os.tmpdir(), `test-${format}-export-${Date.now()}.${format}`);
 	let testVideoInRecordings = "";
 
@@ -96,6 +102,10 @@ async function exportFromLoadedVideo(format: "gif" | "mp4"): Promise<Buffer> {
 			timeout: 15_000,
 		});
 
+		if (hooks?.onBeforeExport) {
+			await hooks.onBeforeExport(editorWindow);
+		}
+
 		await editorWindow.getByTestId("testId-export-panel-button").click();
 		await editorWindow.getByTestId(`testId-${format}-format-button`).click();
 		await editorWindow.getByTestId("testId-export-button").click();
@@ -118,6 +128,11 @@ async function exportFromLoadedVideo(format: "gif" | "mp4"): Promise<Buffer> {
 		);
 		const stats = fs.statSync(outputPath);
 		expect(stats.size).toBeGreaterThan(1024);
+
+		if (hooks?.onAfterExport) {
+			await hooks.onAfterExport(editorWindow);
+		}
+
 		return fs.readFileSync(outputPath);
 	} finally {
 		await app
@@ -155,4 +170,60 @@ test("exports a GIF from a loaded video", async () => {
 	const exported = await exportFromLoadedVideo("gif");
 
 	expect(exported.subarray(0, 6).toString("ascii")).toMatch(/^GIF8[79]a/);
+});
+
+/**
+ * Measure how much real video content a preview-canvas screenshot shows.
+ * A healthy preview renders the opaque, multi-colored video sprite; a regressed
+ * preview (issue #20) is blank/transparent and collapses to ~one color.
+ */
+function analyzePreviewShot(buffer: Buffer): { opaqueFraction: number; distinctColors: number } {
+	const png = PNG.sync.read(buffer);
+	const { data, width, height } = png;
+	const total = width * height;
+	let opaque = 0;
+	const colors = new Set<number>();
+	for (let i = 0; i < data.length; i += 4) {
+		if (data[i + 3] > 16) {
+			opaque += 1;
+			// Quantize to ~5 bits/channel so anti-aliasing noise doesn't inflate the count.
+			colors.add(((data[i] >> 3) << 10) | ((data[i + 1] >> 3) << 5) | (data[i + 2] >> 3));
+		}
+	}
+	return { opaqueFraction: total === 0 ? 0 : opaque / total, distinctColors: colors.size };
+}
+
+test("keeps the video visible in the editor preview after exporting (issue #20)", async () => {
+	const shots: { before?: Buffer; after?: Buffer } = {};
+
+	const captureStage = async (editorWindow: Page): Promise<Buffer> => {
+		const stage = editorWindow.getByTestId("testId-preview-stage").locator("canvas").first();
+		await expect(stage).toBeVisible({ timeout: 15_000 });
+		return stage.screenshot();
+	};
+
+	await exportFromLoadedVideo("mp4", {
+		onBeforeExport: async (editorWindow) => {
+			shots.before = await captureStage(editorWindow);
+		},
+		onAfterExport: async (editorWindow) => {
+			// Allow the post-export preview restore to re-upload the frame.
+			await editorWindow.waitForTimeout(500);
+			shots.after = await captureStage(editorWindow);
+		},
+	});
+
+	expect(shots.before, "preview screenshot before export").toBeDefined();
+	expect(shots.after, "preview screenshot after export").toBeDefined();
+
+	// Sanity: the preview showed the video before exporting.
+	const before = analyzePreviewShot(shots.before as Buffer);
+	expect(before.opaqueFraction).toBeGreaterThan(0.3);
+	expect(before.distinctColors).toBeGreaterThan(2);
+
+	// Regression guard for #20: the video must still be visible after exporting,
+	// not collapsed to a blank/transparent canvas (only the background remaining).
+	const after = analyzePreviewShot(shots.after as Buffer);
+	expect(after.opaqueFraction).toBeGreaterThan(0.3);
+	expect(after.distinctColors).toBeGreaterThan(2);
 });
