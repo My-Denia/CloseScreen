@@ -284,6 +284,7 @@ interface SettingsPanelProps {
 	videoElement?: HTMLVideoElement | null;
 	exportQuality?: ExportQuality;
 	onExportQualityChange?: (quality: ExportQuality) => void;
+	estimatedExportSize?: string;
 	// Export format settings
 	exportFormat?: ExportFormat;
 	onExportFormatChange?: (format: ExportFormat) => void;
@@ -425,6 +426,7 @@ export function SettingsPanel({
 	videoElement,
 	exportQuality = DEFAULT_EXPORT_SETTINGS.quality,
 	onExportQualityChange,
+	estimatedExportSize,
 	exportFormat = DEFAULT_EXPORT_SETTINGS.format,
 	onExportFormatChange,
 	gifFrameRate = DEFAULT_GIF_SETTINGS.frameRate,
@@ -2102,6 +2104,12 @@ export function SettingsPanel({
 										)}
 									</button>
 								</div>
+								{estimatedExportSize && (
+									<div className="flex items-center justify-between px-0.5 text-[10px] leading-none text-slate-500">
+										<span>Est. size</span>
+										<span className="text-slate-400">≈ {estimatedExportSize}</span>
+									</div>
+								)}
 							</div>
 						)}
 

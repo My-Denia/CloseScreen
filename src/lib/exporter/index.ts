@@ -1,3 +1,8 @@
+export {
+	estimateEffectiveDurationSec,
+	estimateVideoExportBytes,
+	formatEstimatedFileSize,
+} from "./exportSizeEstimate";
 export { FrameRenderer } from "./frameRenderer";
 export { calculateOutputDimensions, GifExporter } from "./gifExporter";
 export {
