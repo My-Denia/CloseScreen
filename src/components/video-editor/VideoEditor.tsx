@@ -43,6 +43,9 @@ import {
 	type ExportProgress,
 	type ExportQuality,
 	type ExportSettings,
+	estimateEffectiveDurationSec,
+	estimateVideoExportBytes,
+	formatEstimatedFileSize,
 	GIF_SIZE_PRESETS,
 	GifExporter,
 	type GifFrameRate,
@@ -223,6 +226,12 @@ export default function VideoEditor() {
 	const [isPlaying, setIsPlaying] = useState(false);
 	const [currentTime, setCurrentTime] = useState(0);
 	const [duration, setDuration] = useState(0);
+	// Source video pixel dimensions, captured reactively at metadata load so the export size
+	// estimate updates when the loaded clip changes (rather than reading a mutable player ref).
+	const [sourceVideoDimensions, setSourceVideoDimensions] = useState<{
+		width: number;
+		height: number;
+	} | null>(null);
 	const currentTimeRef = useRef(currentTime);
 	currentTimeRef.current = currentTime;
 	const durationRef = useRef(duration);
@@ -1821,6 +1830,61 @@ export default function VideoEditor() {
 		}
 	}, [unsavedExport, handleExportSaved]);
 
+	// Track duration and source dimensions together: when metadata loads (or the clip ends),
+	// VideoPlayback reports the duration and the player ref holds the new element's pixel size.
+	const handleDurationChange = useCallback((nextDuration: number) => {
+		setDuration(nextDuration);
+		const video = videoPlaybackRef.current?.video;
+		if (video && video.videoWidth > 0 && video.videoHeight > 0) {
+			setSourceVideoDimensions((prev) =>
+				prev && prev.width === video.videoWidth && prev.height === video.videoHeight
+					? prev
+					: { width: video.videoWidth, height: video.videoHeight },
+			);
+		}
+	}, []);
+
+	// Estimated output size for the currently selected MP4 quality, shown in the export settings
+	// so users can compare quality presets before exporting (issue #4). Mirrors the bitrate the
+	// real export uses (calculateMp4ExportSettings) and the trim/speed-aware timeline duration.
+	//
+	// This is an upper-bound estimate ("≈"): the editor timeline `duration` can exceed the
+	// exporter's validated (packet-scanned) duration for recordings with inflated container
+	// metadata, and the MP4 source-copy fast path may copy a smaller original instead of
+	// re-encoding at this bitrate. Source dimensions come from reactive state captured at metadata
+	// load (handleDurationChange), not the player ref, so swapping the loaded clip updates it.
+	const estimatedExportSize = useMemo(() => {
+		if (exportFormat !== "mp4" || !sourceVideoDimensions) return undefined;
+		const { width: sourceWidth, height: sourceHeight } = sourceVideoDimensions;
+		const effectiveSource = calculateEffectiveSourceDimensions(
+			sourceWidth,
+			sourceHeight,
+			cropRegion,
+		);
+		const aspectRatioValue =
+			aspectRatio === "native"
+				? getNativeAspectRatioValue(sourceWidth, sourceHeight, cropRegion)
+				: getAspectRatioValue(aspectRatio);
+		const { bitrate } = calculateMp4ExportSettings({
+			quality: exportQuality,
+			sourceWidth: effectiveSource.width,
+			sourceHeight: effectiveSource.height,
+			aspectRatioValue,
+		});
+		const effectiveDuration = estimateEffectiveDurationSec(duration, trimRegions, speedRegions);
+		const bytes = estimateVideoExportBytes(bitrate, effectiveDuration);
+		return bytes > 0 ? formatEstimatedFileSize(bytes) : undefined;
+	}, [
+		exportFormat,
+		exportQuality,
+		aspectRatio,
+		cropRegion,
+		duration,
+		trimRegions,
+		speedRegions,
+		sourceVideoDimensions,
+	]);
+
 	const handleExport = useCallback(
 		async (settings: ExportSettings) => {
 			if (!videoPath) {
@@ -2615,7 +2679,7 @@ export default function VideoEditor() {
 													webcamPosition={webcamPosition}
 													onWebcamPositionChange={(pos) => updateState({ webcamPosition: pos })}
 													onWebcamPositionDragEnd={commitState}
-													onDurationChange={setDuration}
+													onDurationChange={handleDurationChange}
 													onTimeUpdate={setCurrentTime}
 													currentTime={currentTime}
 													onPlayStateChange={setIsPlaying}
@@ -2768,6 +2832,7 @@ export default function VideoEditor() {
 										videoElement={videoPlaybackRef.current?.video || null}
 										exportQuality={exportQuality}
 										onExportQualityChange={setExportQuality}
+										estimatedExportSize={estimatedExportSize}
 										exportFormat={exportFormat}
 										onExportFormatChange={setExportFormat}
 										gifFrameRate={gifFrameRate}
