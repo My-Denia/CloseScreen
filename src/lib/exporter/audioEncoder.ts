@@ -322,11 +322,78 @@ export class AudioProcessor {
 			return;
 		}
 
-		// Phase 1: decode, skipping trimmed regions.
-		const decodedFrames: AudioData[] = [];
+		// Determine the encoder config up front: it depends only on the decoder
+		// config and the selected export codec, both known before any audio is
+		// decoded. That lets us pipeline decode -> encode -> mux so neither the
+		// decoded frames nor the encoded chunks are buffered for the whole track
+		// (the previous two-phase approach held both arrays, risking OOM on long/4K
+		// exports).
+		const sampleRate = audioConfig.sampleRate || 48000;
+		const channels = audioConfig.numberOfChannels || 2;
+		const selectedCodec =
+			exportCodec ?? (await AudioProcessor.selectSupportedExportCodec(sampleRate, channels));
+		if (!selectedCodec) {
+			console.warn("[AudioProcessor] No supported audio export codec, skipping audio");
+			return;
+		}
 
+		const outputSampleRate = selectedCodec.sampleRate || sampleRate;
+		const outputChannels = selectedCodec.numberOfChannels || channels;
+		const encodeConfig: AudioEncoderConfig = {
+			codec: selectedCodec.encoderCodec,
+			sampleRate: outputSampleRate,
+			numberOfChannels: outputChannels,
+			bitrate: AUDIO_BITRATE,
+		};
+
+		const encodeSupport = await AudioEncoder.isConfigSupported(encodeConfig);
+		if (!encodeSupport.supported) {
+			console.warn(
+				`[AudioProcessor] ${selectedCodec.label} encoding not supported, skipping audio`,
+			);
+			return;
+		}
+
+		// Chain muxer writes so encoded chunks reach the muxer in encode order,
+		// matching the previous sequential flush. Audio runs as a discrete phase
+		// after all video chunks, so streaming the writes here does not change
+		// audio/video interleaving.
+		let muxChain: Promise<void> = Promise.resolve();
+		let encodedCount = 0;
+		const encoder = new AudioEncoder({
+			output: (chunk: EncodedAudioChunk, meta?: EncodedAudioChunkMetadata) => {
+				if (this.cancelled) return;
+				encodedCount++;
+				muxChain = muxChain
+					.then(() => muxer.addAudioChunk(chunk, meta))
+					.catch((e) => console.error("[AudioProcessor] Mux error:", e));
+			},
+			error: (e: DOMException) => console.error("[AudioProcessor] Encode error:", e),
+		});
+		encoder.configure(encodeConfig);
+
+		// Decode straight into the encoder: each decoded frame is timestamp-adjusted
+		// for trim gaps, encoded, and closed immediately (no whole-track array).
+		let decodedCount = 0;
 		const decoder = new AudioDecoder({
-			output: (data: AudioData) => decodedFrames.push(data),
+			output: (data: AudioData) => {
+				if (this.cancelled) {
+					data.close();
+					return;
+				}
+				decodedCount++;
+				const timestampMs = data.timestamp / 1000;
+				const trimOffsetMs = this.computeTrimOffset(timestampMs, sortedTrims);
+				const adjustedTimestampUs = data.timestamp - trimOffsetMs * 1000;
+				const adjusted = this.cloneForEncoding(
+					data,
+					Math.max(0, adjustedTimestampUs),
+					outputChannels,
+				);
+				data.close();
+				encoder.encode(adjusted);
+				adjusted.close();
+			},
 			error: (e: DOMException) => console.error("[AudioProcessor] Decode error:", e),
 		});
 		decoder.configure(audioConfig);
@@ -351,7 +418,12 @@ export class AudioProcessor {
 
 				decoder.decode(chunk);
 
-				while (decoder.decodeQueueSize > DECODE_BACKPRESSURE_LIMIT && !this.cancelled) {
+				// Pipelined, so bound both the decode and the encode queues.
+				while (
+					(decoder.decodeQueueSize > DECODE_BACKPRESSURE_LIMIT ||
+						encoder.encodeQueueSize > DECODE_BACKPRESSURE_LIMIT) &&
+					!this.cancelled
+				) {
 					await new Promise((resolve) => setTimeout(resolve, 1));
 				}
 			}
@@ -363,90 +435,21 @@ export class AudioProcessor {
 			}
 		}
 
+		// Drain in order: decoder.flush emits the last frames (which encode), then
+		// encoder.flush emits the last chunks (which chain onto muxChain), then wait
+		// for every queued muxer write to finish.
 		if (decoder.state === "configured") {
 			await decoder.flush();
 			decoder.close();
 		}
-
-		if (this.cancelled || decodedFrames.length === 0) {
-			for (const frame of decodedFrames) frame.close();
-			return;
-		}
-
-		// Phase 2: re-encode with timestamps adjusted for trim gaps.
-		const encodedChunks: { chunk: EncodedAudioChunk; meta?: EncodedAudioChunkMetadata }[] = [];
-
-		const encoder = new AudioEncoder({
-			output: (chunk: EncodedAudioChunk, meta?: EncodedAudioChunkMetadata) => {
-				encodedChunks.push({ chunk, meta });
-			},
-			error: (e: DOMException) => console.error("[AudioProcessor] Encode error:", e),
-		});
-
-		const sampleRate = audioConfig.sampleRate || 48000;
-		const channels = audioConfig.numberOfChannels || 2;
-		const selectedCodec =
-			exportCodec ?? (await AudioProcessor.selectSupportedExportCodec(sampleRate, channels));
-		if (!selectedCodec) {
-			console.warn("[AudioProcessor] No supported audio export codec, skipping audio");
-			for (const frame of decodedFrames) frame.close();
-			return;
-		}
-
-		const outputSampleRate = selectedCodec.sampleRate || sampleRate;
-		const outputChannels = selectedCodec.numberOfChannels || channels;
-		const encodeConfig: AudioEncoderConfig = {
-			codec: selectedCodec.encoderCodec,
-			sampleRate: outputSampleRate,
-			numberOfChannels: outputChannels,
-			bitrate: AUDIO_BITRATE,
-		};
-
-		const encodeSupport = await AudioEncoder.isConfigSupported(encodeConfig);
-		if (!encodeSupport.supported) {
-			console.warn(
-				`[AudioProcessor] ${selectedCodec.label} encoding not supported, skipping audio`,
-			);
-			for (const frame of decodedFrames) frame.close();
-			return;
-		}
-
-		encoder.configure(encodeConfig);
-
-		for (const audioData of decodedFrames) {
-			if (this.cancelled) {
-				audioData.close();
-				continue;
-			}
-
-			const timestampMs = audioData.timestamp / 1000;
-			const trimOffsetMs = this.computeTrimOffset(timestampMs, sortedTrims);
-			const adjustedTimestampUs = audioData.timestamp - trimOffsetMs * 1000;
-
-			const adjusted = this.cloneForEncoding(
-				audioData,
-				Math.max(0, adjustedTimestampUs),
-				outputChannels,
-			);
-			audioData.close();
-
-			encoder.encode(adjusted);
-			adjusted.close();
-		}
-
 		if (encoder.state === "configured") {
 			await encoder.flush();
 			encoder.close();
 		}
-
-		// Phase 3: flush encoded chunks to muxer.
-		for (const { chunk, meta } of encodedChunks) {
-			if (this.cancelled) break;
-			await muxer.addAudioChunk(chunk, meta);
-		}
+		await muxChain;
 
 		console.log(
-			`[AudioProcessor] Processed ${decodedFrames.length} audio frames, encoded ${encodedChunks.length} chunks`,
+			`[AudioProcessor] Processed ${decodedCount} audio frames, encoded ${encodedCount} chunks`,
 		);
 	}
 
