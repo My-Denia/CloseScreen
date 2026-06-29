@@ -5,6 +5,8 @@
 		"cancel": "Annuler",
 		"confirm": "Confirmer"
 	},
+	"loadingVideo": "Chargement de la vidéo...",
+	"loadingEditor": "Chargement de l'éditeur...",
 	"errors": {
 		"noVideoLoaded": "Aucune vidéo chargée",
 		"videoNotReady": "Vidéo non prête",
@@ -41,8 +43,6 @@
 		"cameraNotFound": "Caméra introuvable.",
 		"permissionDenied": "Permission d'enregistrement refusée. Veuillez autoriser l'enregistrement d'écran."
 	},
-	"loadingVideo": "Chargement de la vidéo...",
-	"loadingEditor": "Chargement de l'éditeur...",
 	"autoCaptions": {
 		"button": "Sous-titres automatiques",
 		"dialogTitle": "Sous-titres automatiques",

@@ -1,4 +1,12 @@
 {
+	"newRecording": {
+		"title": "Volver a la grabadora",
+		"description": "Tu sesión actual ha sido guardada.",
+		"cancel": "Cancelar",
+		"confirm": "Confirmar"
+	},
+	"loadingVideo": "Cargando video...",
+	"loadingEditor": "Cargando editor...",
 	"errors": {
 		"noVideoLoaded": "No hay video cargado",
 		"videoNotReady": "El video no está listo",
@@ -34,14 +42,6 @@
 		"cameraDisconnected": "Cámara web desconectada.",
 		"cameraNotFound": "Cámara no encontrada.",
 		"permissionDenied": "Permiso de grabación denegado. Por favor permite la grabación de pantalla."
-	},
-	"loadingVideo": "Cargando video...",
-	"loadingEditor": "Cargando editor...",
-	"newRecording": {
-		"title": "Volver a la grabadora",
-		"description": "Tu sesión actual ha sido guardada.",
-		"cancel": "Cancelar",
-		"confirm": "Confirmar"
 	},
 	"autoCaptions": {
 		"button": "Subtítulos automáticos",

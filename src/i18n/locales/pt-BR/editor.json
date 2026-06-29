@@ -6,6 +6,7 @@
 		"confirm": "Confirmar"
 	},
 	"loadingVideo": "Carregando vídeo...",
+	"loadingEditor": "Loading editor...",
 	"errors": {
 		"noVideoLoaded": "Nenhum vídeo carregado",
 		"videoNotReady": "Vídeo não está pronto",
@@ -60,5 +61,20 @@
 		"noAudio": "Este vídeo não tem áudio utilizável para transcrição.",
 		"failed": "Não foi possível gerar as legendas.",
 		"truncated": "Apenas os primeiros {{minutes}} minutos foram transcritos."
+	},
+	"emptyState": {
+		"title": "No project open",
+		"description": "Import a video to start editing, or load an existing CloseScreen project.",
+		"importVideoButton": "Import Video File…",
+		"loadProjectButton": "Load Project…",
+		"supportedFormats": "Supported formats: MP4, MOV, WebM, MKV, AVI, M4V, WMV",
+		"dragDropHint": "or drag & drop a .closescreen project file here",
+		"dropOverlay": "Drop project file to open",
+		"dropErrors": {
+			"unsupportedFormatTitle": "Unsupported Format",
+			"unsupportedFormatMessage": "Only .closescreen project files can be dropped here. To import a video file, use the \"Import Video File…\" button on this screen.",
+			"couldNotOpenTitle": "Could Not Open File",
+			"couldNotOpenMessage": "The project file could not be opened. The video it references may have been moved or deleted."
+		}
 	}
 }
