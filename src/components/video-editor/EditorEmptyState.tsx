@@ -3,6 +3,7 @@ import { useCallback, useRef, useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useScopedT } from "@/contexts/I18nContext";
 import { getProjectFolder, parentDirectoryOf, saveUserPreferences } from "@/lib/userPreferences";
+import { isVideoFile } from "@/lib/videoFile";
 import { nativeBridgeClient } from "@/native";
 
 interface EditorEmptyStateProps {
@@ -68,40 +69,64 @@ export function EditorEmptyState({ onVideoImported, onProjectOpened }: EditorEmp
 			const files = Array.from(e.dataTransfer.files);
 			if (files.length === 0) return;
 
-			const projectFile = files.find((f) => f.name.endsWith(".closescreen"));
-			if (!projectFile) {
-				setDropError("unsupported-format");
-				return;
-			}
-
 			// Use Electron's webUtils.getPathForFile; File.path was removed in Electron 32+
-			let filePath: string;
-			try {
-				filePath = window.electronAPI.getPathForFile(projectFile);
-			} catch {
-				setDropError("load-failed");
-				return;
-			}
-			if (!filePath) {
-				setDropError("load-failed");
+			const projectFile = files.find((f) => f.name.endsWith(".closescreen"));
+			if (projectFile) {
+				let filePath: string;
+				try {
+					filePath = window.electronAPI.getPathForFile(projectFile);
+				} catch {
+					setDropError("load-failed");
+					return;
+				}
+				if (!filePath) {
+					setDropError("load-failed");
+					return;
+				}
+
+				let result: Awaited<ReturnType<typeof window.electronAPI.loadProjectFileFromPath>>;
+				try {
+					result = await window.electronAPI.loadProjectFileFromPath(filePath);
+				} catch {
+					setDropError("load-failed");
+					return;
+				}
+				if (!result.success || !result.project) {
+					setDropError("load-failed");
+					return;
+				}
+
+				onProjectOpened(result.project, result.path ?? null);
 				return;
 			}
 
-			let result: Awaited<ReturnType<typeof window.electronAPI.loadProjectFileFromPath>>;
-			try {
-				result = await window.electronAPI.loadProjectFileFromPath(filePath);
-			} catch {
-				setDropError("load-failed");
-				return;
-			}
-			if (!result.success || !result.project) {
-				setDropError("load-failed");
+			const videoFile = files.find((f) => isVideoFile(f));
+			if (videoFile) {
+				let filePath: string;
+				try {
+					filePath = window.electronAPI.getPathForFile(videoFile);
+				} catch {
+					setDropError("load-failed");
+					return;
+				}
+				if (!filePath) {
+					setDropError("load-failed");
+					return;
+				}
+
+				const setResult = await nativeBridgeClient.project.setCurrentVideoPath(filePath);
+				if (!setResult.success) {
+					setDropError("load-failed");
+					return;
+				}
+
+				onVideoImported(filePath);
 				return;
 			}
 
-			onProjectOpened(result.project, result.path ?? null);
+			setDropError("unsupported-format");
 		},
-		[onProjectOpened],
+		[onProjectOpened, onVideoImported],
 	);
 
 	return (
