@@ -13,8 +13,25 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  verify-version:
+    name: Verify tag matches version
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+      - name: Check tag matches package.json version
+        run: |
+          TAG="${GITHUB_REF_NAME#v}"
+          PKG="$(node -p "require('./package.json').version")"
+          if [ "$TAG" != "$PKG" ]; then
+            echo "::error::Tag $GITHUB_REF_NAME ($TAG) does not match package.json version ($PKG)"
+            exit 1
+          fi
+          echo "Tag matches package.json version: $PKG"
+
   build-windows:
     name: Build Windows Installer
+    needs: verify-version
     runs-on: windows-latest
     steps:
       - name: Checkout code
@@ -56,6 +73,7 @@ jobs:
 
   build-linux:
     name: Build Linux Installers
+    needs: verify-version
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
