@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { useScopedT } from "@/contexts/I18nContext";
 import type { ExportProgress } from "@/lib/exporter";
+import { basename } from "@/lib/pathBasename";
 
 interface ExportDialogProps {
 	isOpen: boolean;
@@ -117,7 +118,7 @@ export function ExportDialog({
 									)}
 									{exportedFilePath && (
 										<span className="text-xs text-slate-500 break-all max-w-xs mt-1">
-											{exportedFilePath.split("/").pop()}
+											{basename(exportedFilePath)}
 										</span>
 									)}
 								</div>
