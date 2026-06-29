@@ -419,7 +419,12 @@ const VideoPlayback = forwardRef<VideoPlaybackRef, VideoPlaybackProps>(
 				isResolvingDurationRef.current = true;
 				const previousMuted = video.muted;
 
+				let finalized = false;
 				const finalize = () => {
+					if (finalized) {
+						return;
+					}
+					finalized = true;
 					video.removeEventListener("durationchange", handleProgress);
 					video.removeEventListener("timeupdate", handleProgress);
 					video.removeEventListener("loadeddata", handleProgress);
@@ -820,10 +825,6 @@ const VideoPlayback = forwardRef<VideoPlaybackRef, VideoPlaybackProps>(
 		useEffect(() => {
 			motionBlurAmountRef.current = motionBlurAmount;
 		}, [motionBlurAmount]);
-
-		useEffect(() => {
-			cursorTelemetryRef.current = cursorTelemetry;
-		}, [cursorTelemetry]);
 
 		useEffect(() => {
 			showCursorRef.current = showCursor;
