@@ -29,6 +29,7 @@ import { RECORDINGS_DIR } from "../main";
 import { createCursorRecordingSession } from "../native-bridge/cursor/recording/factory";
 import type { CursorRecordingSession } from "../native-bridge/cursor/recording/session";
 import { patchWebmDurationOnDisk } from "../recording/webm-duration";
+import { isAllowedExternalUrl } from "./externalUrl";
 import { registerNativeBridgeHandlers } from "./nativeBridge";
 import { RecordingStreamRegistry, registerRecordingStreamHandlers } from "./recordingStream";
 import { describeSaveError } from "./saveError";
@@ -1595,6 +1596,10 @@ export function registerIpcHandlers(
 	});
 
 	ipcMain.handle("open-external-url", async (_, url: string) => {
+		if (!isAllowedExternalUrl(url)) {
+			console.warn("Refused to open external URL with a disallowed scheme");
+			return { success: false, error: "Disallowed URL scheme" };
+		}
 		try {
 			await shell.openExternal(url);
 			return { success: true };
