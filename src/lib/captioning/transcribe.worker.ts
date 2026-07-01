@@ -72,6 +72,12 @@ async function loadTranscriber(opts: {
 		const transcriber = (await pipeline("automatic-speech-recognition", "Xenova/whisper-tiny", {
 			// v4 defaults to fp32 weights (not bundled); pin q8 to match the quantized ONNX we ship.
 			dtype: "q8",
+			// The bundled Xenova/whisper-tiny quantized ONNX was exported for older ORT. The new ORT's
+			// EXTENDED graph-optimization pass (TransposeDQWeightsForMatMulNBits) rejects it —
+			// "Missing required scale: model.decoder.embed_tokens.weight_merged_0_scale" — so session
+			// creation fails offline and no captions are ever produced. Cap optimization at BASIC to
+			// skip that pass; tiny-model inference cost is unaffected in practice.
+			session_options: { graphOptimizationLevel: "basic" },
 		})) as unknown as TranscriberFn;
 		return transcriber;
 	});
