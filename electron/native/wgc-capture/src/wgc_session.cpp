@@ -187,6 +187,7 @@ bool WgcSession::applySessionOptions(bool captureCursor) {
 }
 
 bool WgcSession::initialize(HMONITOR monitor, int fps, bool captureCursor) {
+    stopping_.store(false);
     fps_ = fps > 0 ? fps : 60;
     if (!createD3DDevice()) {
         return false;
@@ -211,6 +212,7 @@ bool WgcSession::initialize(HMONITOR monitor, int fps, bool captureCursor) {
 }
 
 bool WgcSession::initialize(HWND window, int fps, bool captureCursor) {
+    stopping_.store(false);
     fps_ = fps > 0 ? fps : 60;
     if (!createD3DDevice()) {
         return false;
@@ -252,9 +254,25 @@ bool WgcSession::start() {
 }
 
 void WgcSession::stop() {
+    // Signal teardown BEFORE revoking the event so a handler that starts during the
+    // revoke sees stopping_ and no-ops instead of touching state we are freeing.
+    stopping_.store(true);
+
     if (framePool_) {
         framePool_.FrameArrived(frameArrivedToken_);
     }
+
+    // Barrier: onFrameArrived holds callbackMutex_ for its whole body, so acquiring
+    // it here waits for any in-flight handler to finish before we tear down the
+    // device / frame pool it uses. Drop the user callback under the same lock. The
+    // lock is released before the WinRT Close()/Reset() calls below: those can join
+    // the frame-pool thread, and holding callbackMutex_ across them could deadlock a
+    // handler blocked on the lock.
+    {
+        std::scoped_lock lock(callbackMutex_);
+        frameCallback_ = nullptr;
+    }
+
     if (session_) {
         session_.Close();
         session_ = nullptr;
@@ -273,6 +291,18 @@ void WgcSession::stop() {
 void WgcSession::onFrameArrived(
     wgcap::Direct3D11CaptureFramePool const& sender,
     wf::IInspectable const&) {
+    // Hold callbackMutex_ across the whole handler so stop() can use it as a barrier:
+    // once stop() acquires this lock it knows no handler is mid-flight touching the
+    // frame pool / D3D device it is about to free. stop() sets stopping_ before
+    // acquiring the lock, so a handler that starts during teardown early-returns here.
+    // The user callback (set via setFrameCallback) must not re-enter stop()/
+    // setFrameCallback, and takes only its own unrelated lock — so it is safe to run
+    // under this lock. stop() never holds callbackMutex_ across a frame-pool Close().
+    std::scoped_lock lock(callbackMutex_);
+    if (stopping_) {
+        return;
+    }
+
     auto frame = sender.TryGetNextFrame();
     if (!frame) {
         return;
@@ -286,14 +316,8 @@ void WgcSession::onFrameArrived(
         return;
     }
 
-    FrameCallback callback;
-    {
-        std::scoped_lock lock(callbackMutex_);
-        callback = frameCallback_;
-    }
-
-    if (callback) {
-        callback(texture.Get(), timeSpanToHns(frame.SystemRelativeTime()));
+    if (frameCallback_) {
+        frameCallback_(texture.Get(), timeSpanToHns(frame.SystemRelativeTime()));
     }
     frame.Close();
 }
