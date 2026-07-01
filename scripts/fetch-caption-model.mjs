@@ -3,13 +3,14 @@
 //
 //   caption-assets/
 //     models/Xenova/whisper-tiny/...   ← downloaded from HuggingFace (config + quantized ONNX)
+//     ort/ort-wasm-simd-threaded.asyncify.mjs                ← copied from onnxruntime-web/dist
 //     ort/ort-wasm-simd-threaded.asyncify.wasm               ← copied from onnxruntime-web/dist
 //
 // Idempotent: existing non-empty files are left alone, so re-runs and CI cache hits are no-ops.
 // `caption-assets/` is gitignored and shipped via electron-builder `extraResources`.
 
 import { createWriteStream, existsSync } from "node:fs";
-import { copyFile, mkdir, stat } from "node:fs/promises";
+import { copyFile, mkdir, readdir, stat } from "node:fs/promises";
 import path from "node:path";
 import { Readable } from "node:stream";
 import { pipeline } from "node:stream/promises";
@@ -139,24 +140,34 @@ function resolveOrtDistDir() {
 	return found;
 }
 
+// onnxruntime-web's webgpu bundle (imported by @huggingface/transformers) loads the asyncify build.
+// Under file:// with numThreads=1, ORT dynamically imports the .mjs GLUE MODULE from the wasmPaths
+// prefix FIRST, and the glue then instantiates the sibling .wasm. If only the .wasm ships, backend
+// init fails offline with "no available backend found" (Failed to fetch ...asyncify.mjs) and no
+// captions are ever produced. Copy EVERY asyncify.* sibling rather than a hardcoded pair so an ORT
+// version bump can't silently drop a required file. Assert both the glue and the wasm are present.
+const ORT_ASYNCIFY_PREFIX = "ort-wasm-simd-threaded.asyncify.";
+
 async function copyOrtWasm() {
 	const distDir = resolveOrtDistDir();
-	// onnxruntime-web's webgpu bundle (imported by @huggingface/transformers) loads the asyncify
-	// wasm build; under file:// with numThreads=1 the worker requests exactly this file.
-	const wasm = ["ort-wasm-simd-threaded.asyncify.wasm"];
+	const names = (await readdir(distDir)).filter((n) => n.startsWith(ORT_ASYNCIFY_PREFIX));
+	const hasGlue = names.some((n) => n.endsWith(".mjs"));
+	const hasWasm = names.some((n) => n.endsWith(".wasm"));
+	if (!hasGlue || !hasWasm) {
+		throw new Error(
+			`Expected ${ORT_ASYNCIFY_PREFIX}{mjs,wasm} in ${distDir}, found: ${names.join(", ") || "(none)"}. ` +
+				"Is @huggingface/transformers installed? Run npm ci first.",
+		);
+	}
 	const ortOut = path.join(OUT, "ort");
 	await mkdir(ortOut, { recursive: true });
-	for (const name of wasm) {
-		const src = path.join(distDir, name);
+	for (const name of names) {
 		const dest = path.join(ortOut, name);
-		if (!(await exists(src))) {
-			throw new Error(`Missing ${src} — is @huggingface/transformers installed? Run npm ci first.`);
-		}
 		if (await exists(dest)) {
 			console.log(`  ✓ cached  ort/${name}`);
 			continue;
 		}
-		await copyFile(src, dest);
+		await copyFile(path.join(distDir, name), dest);
 		console.log(`  + copied ort/${name}`);
 	}
 }
