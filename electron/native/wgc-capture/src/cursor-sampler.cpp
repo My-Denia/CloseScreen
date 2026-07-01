@@ -8,6 +8,7 @@
 #include <cinttypes>
 #include <cstdint>
 #include <cstdio>
+#include <cstdlib>
 #include <cstring>
 #include <iostream>
 #include <mutex>
@@ -407,12 +408,93 @@ static void runSamplingLoop(int intervalMs, HWND targetWindow, const CLSID& pngC
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// GDI object-count regression test (issue 13-B)
+//
+// buildAssetJson allocates GDI objects (GetIconInfo bitmaps, a copied icon, a DC, a
+// DIB section) and frees them on every return path. Loop it over the standard system
+// cursors and assert the process-wide GDI/USER object counts stay flat, proving there
+// is no per-sample GDI leak. Run: cursor-sampler --gdi-leak-test [iterations]
+// Exit 0 = flat (no leak); exit 2 = counts grew past tolerance (leak).
+// ─────────────────────────────────────────────────────────────────────────────
+static int runGdiLeakTest(int argc, char* argv[]) {
+    const int iters = argc >= 3 ? std::max(1, std::atoi(argv[2])) : 5000;
+
+    Gdiplus::GdiplusStartupInput gdipInput{};
+    ULONG_PTR gdipToken = 0;
+    if (Gdiplus::GdiplusStartup(&gdipToken, &gdipInput, nullptr) != Gdiplus::Ok) {
+        std::cerr << "GDI+ init failed" << std::endl;
+        return 1;
+    }
+    CLSID pngClsid{};
+    if (!getPngClsid(pngClsid)) {
+        std::cerr << "PNG encoder not found" << std::endl;
+        Gdiplus::GdiplusShutdown(gdipToken);
+        return 1;
+    }
+
+    static const WORD kCursorIds[] = {
+        32512, 32513, 32514, 32515, 32516, 32642, 32643,
+        32644, 32645, 32646, 32648, 32649, 32650, 32651,
+    };
+    static constexpr int kNumCursors = static_cast<int>(sizeof(kCursorIds) / sizeof(kCursorIds[0]));
+
+    // Warm-up: first-touch of each shared system cursor and the GDI+ PNG codec can
+    // lazily allocate one-time objects that are NOT per-sample leaks. Take the
+    // baseline after warm-up so the test isolates buildAssetJson's own alloc/free.
+    for (int i = 0; i < kNumCursors; ++i) {
+        if (HCURSOR hc = LoadCursor(nullptr, MAKEINTRESOURCE(kCursorIds[i]))) {
+            const char* ct = nullptr;
+            buildAssetJson(hc, "warmup", pngClsid, &ct);
+        }
+    }
+
+    const DWORD gdiBefore = GetGuiResources(GetCurrentProcess(), GR_GDIOBJECTS);
+    const DWORD userBefore = GetGuiResources(GetCurrentProcess(), GR_USEROBJECTS);
+
+    for (int i = 0; i < iters; ++i) {
+        HCURSOR hc = LoadCursor(nullptr, MAKEINTRESOURCE(kCursorIds[i % kNumCursors]));
+        if (!hc) {
+            continue;
+        }
+        const char* ct = nullptr;
+        const std::string json = buildAssetJson(hc, "test", pngClsid, &ct);
+        (void)json;
+    }
+
+    const DWORD gdiAfter = GetGuiResources(GetCurrentProcess(), GR_GDIOBJECTS);
+    const DWORD userAfter = GetGuiResources(GetCurrentProcess(), GR_USEROBJECTS);
+    const long gdiDelta = static_cast<long>(gdiAfter) - static_cast<long>(gdiBefore);
+    const long userDelta = static_cast<long>(userAfter) - static_cast<long>(userBefore);
+    const long gdiAbs = gdiDelta < 0 ? -gdiDelta : gdiDelta;
+    const long userAbs = userDelta < 0 ? -userDelta : userDelta;
+
+    std::printf(
+        "{\"type\":\"gdi-leak-test\",\"iterations\":%d,\"gdiBefore\":%lu,\"gdiAfter\":%lu,"
+        "\"gdiDelta\":%ld,\"userBefore\":%lu,\"userAfter\":%lu,\"userDelta\":%ld}\n",
+        iters,
+        static_cast<unsigned long>(gdiBefore), static_cast<unsigned long>(gdiAfter), gdiDelta,
+        static_cast<unsigned long>(userBefore), static_cast<unsigned long>(userAfter), userDelta);
+    std::fflush(stdout);
+
+    Gdiplus::GdiplusShutdown(gdipToken);
+
+    // Tolerance for one-time lazy allocations that slip past warm-up; a real
+    // per-sample leak scales with `iters` and dwarfs this.
+    constexpr long kTolerance = 8;
+    return (gdiAbs <= kTolerance && userAbs <= kTolerance) ? 0 : 2;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // main
 // ─────────────────────────────────────────────────────────────────────────────
 int main(int argc, char* argv[]) {
     if (argc < 2) {
         std::cerr << "Usage: cursor-sampler <intervalMs> [windowHandle]" << std::endl;
         return 1;
+    }
+
+    if (std::string(argv[1]) == "--gdi-leak-test") {
+        return runGdiLeakTest(argc, argv);
     }
 
     const int intervalMs = std::max(1, std::atoi(argv[1]));

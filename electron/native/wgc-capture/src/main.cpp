@@ -558,6 +558,11 @@ int main(int argc, char* argv[]) {
     std::condition_variable videoWriterDoneCv;
 
     session.setFrameCallback([&](ID3D11Texture2D* texture, int64_t timestampHns) {
+        // LOAD-BEARING for shutdown: keep this early-return above anything that takes
+        // `mutex` or calls the encoder. WgcSession::stop() holds callbackMutex_ as a
+        // teardown barrier while this callback runs, and control.stopRequested is set
+        // before every stop(); returning here keeps that barrier from blocking behind a
+        // wedged encoder.writeFrame() (issue #14). Don't move heavy work above this.
         if (control.stopRequested || control.paused) {
             return;
         }
@@ -834,6 +839,11 @@ int main(int argc, char* argv[]) {
         if (!started || !firstFrameWritten) {
             control.stopRequested = true;
             control.cv.notify_all();
+            // Release `mutex` before session.stop(). stop()'s teardown barrier takes
+            // callbackMutex_, and an in-flight onFrameArrived holds callbackMutex_
+            // while its frame callback waits on `mutex`; calling stop() while holding
+            // `mutex` here could deadlock stop() <-> callback (WGC shutdown race).
+            lock.unlock();
             if (stdinThread.joinable()) {
                 stdinThread.detach();
             }

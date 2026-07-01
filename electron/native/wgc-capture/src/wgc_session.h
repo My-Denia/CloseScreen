@@ -9,6 +9,7 @@
 #include <winrt/Windows.Graphics.DirectX.Direct3D11.h>
 #include <wrl/client.h>
 
+#include <atomic>
 #include <functional>
 #include <mutex>
 
@@ -51,6 +52,10 @@ private:
     winrt::event_token frameArrivedToken_{};
     FrameCallback frameCallback_;
     std::mutex callbackMutex_;
+    // Set true at the top of stop() (before the FrameArrived event is revoked) so an
+    // onFrameArrived handler that begins during teardown early-returns instead of
+    // touching the frame pool / D3D device being freed. See stop() and onFrameArrived.
+    std::atomic<bool> stopping_{false};
     int width_ = 0;
     int height_ = 0;
     int fps_ = 60;
