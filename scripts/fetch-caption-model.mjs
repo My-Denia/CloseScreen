@@ -3,12 +3,12 @@
 //
 //   caption-assets/
 //     models/Xenova/whisper-tiny/...   ← downloaded from HuggingFace (config + quantized ONNX)
-//     ort/ort-wasm*.wasm               ← copied from @xenova/transformers/dist
+//     ort/ort-wasm-simd-threaded.asyncify.wasm               ← copied from onnxruntime-web/dist
 //
 // Idempotent: existing non-empty files are left alone, so re-runs and CI cache hits are no-ops.
 // `caption-assets/` is gitignored and shipped via electron-builder `extraResources`.
 
-import { createWriteStream } from "node:fs";
+import { createWriteStream, existsSync } from "node:fs";
 import { copyFile, mkdir, stat } from "node:fs/promises";
 import path from "node:path";
 import { Readable } from "node:stream";
@@ -114,18 +114,43 @@ async function download(url, dest) {
 	console.log(`  ↓ ${path.relative(OUT, dest)} (${mb} MB)`);
 }
 
+// onnxruntime-web ships under @huggingface/transformers' own node_modules (it pins an exact dev
+// build), so resolve the real dist dir instead of assuming a hoisted top-level install.
+function resolveOrtDistDir() {
+	const candidates = [
+		path.join(
+			ROOT,
+			"node_modules",
+			"@huggingface",
+			"transformers",
+			"node_modules",
+			"onnxruntime-web",
+			"dist",
+		),
+		path.join(ROOT, "node_modules", "onnxruntime-web", "dist"),
+	];
+	const found = candidates.find((dir) => existsSync(dir));
+	if (!found) {
+		throw new Error(
+			`onnxruntime-web/dist not found (looked in: ${candidates.join(", ")}). ` +
+				"Is @huggingface/transformers installed? Run npm ci first.",
+		);
+	}
+	return found;
+}
+
 async function copyOrtWasm() {
-	const distDir = path.join(ROOT, "node_modules", "@xenova", "transformers", "dist");
-	// Non-threaded variants only: the worker runs ORT with numThreads=1 (no SharedArrayBuffer
-	// under file://), so the threaded wasm is never loaded. Saves ~20MB.
-	const wasm = ["ort-wasm.wasm", "ort-wasm-simd.wasm"];
+	const distDir = resolveOrtDistDir();
+	// onnxruntime-web's webgpu bundle (imported by @huggingface/transformers) loads the asyncify
+	// wasm build; under file:// with numThreads=1 the worker requests exactly this file.
+	const wasm = ["ort-wasm-simd-threaded.asyncify.wasm"];
 	const ortOut = path.join(OUT, "ort");
 	await mkdir(ortOut, { recursive: true });
 	for (const name of wasm) {
 		const src = path.join(distDir, name);
 		const dest = path.join(ortOut, name);
 		if (!(await exists(src))) {
-			throw new Error(`Missing ${src} — is @xenova/transformers installed? Run npm ci first.`);
+			throw new Error(`Missing ${src} — is @huggingface/transformers installed? Run npm ci first.`);
 		}
 		if (await exists(dest)) {
 			console.log(`  ✓ cached  ort/${name}`);

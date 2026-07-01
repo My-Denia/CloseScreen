@@ -48,7 +48,7 @@ async function loadTranscriber(opts: {
 	assetBaseUrl?: string;
 }): Promise<TranscriberFn> {
 	return withoutNodeVersion(async () => {
-		const { pipeline, env } = await import("@xenova/transformers");
+		const { pipeline, env } = await import("@huggingface/transformers");
 		if (opts.useLocalModels && opts.assetBaseUrl) {
 			// Packaged app: load the bundled model and ORT wasm from disk so transcription
 			// needs no network and works under file:// (remote HuggingFace/CDN fetches fail there).
@@ -56,19 +56,23 @@ async function loadTranscriber(opts: {
 			env.allowLocalModels = true;
 			env.allowRemoteModels = false;
 			env.localModelPath = new URL("models/", base).href;
-			env.backends.onnx.wasm.wasmPaths = new URL("ort/", base).href;
-			// Non-threaded wasm: SharedArrayBuffer isn't available under file:// (no cross-origin isolation).
-			env.backends.onnx.wasm.numThreads = 1;
+			// v4 types env.backends.onnx.wasm as optional — guard before assigning.
+			const onnxWasm = env.backends?.onnx?.wasm;
+			if (onnxWasm) {
+				onnxWasm.wasmPaths = new URL("ort/", base).href;
+				// numThreads=1: SharedArrayBuffer isn't available under file:// (no cross-origin isolation).
+				onnxWasm.numThreads = 1;
+			}
 		} else {
 			// Dev (http://localhost): fetch from the remote CDN, which works there.
 			env.allowLocalModels = false;
 		}
 		// Default tiny weights only: the `output_attentions` revision regresses inference in
 		// some environments (empty chunks, thrown errors) while phrase mode works on this model.
-		const transcriber = (await pipeline(
-			"automatic-speech-recognition",
-			"Xenova/whisper-tiny",
-		)) as unknown as TranscriberFn;
+		const transcriber = (await pipeline("automatic-speech-recognition", "Xenova/whisper-tiny", {
+			// v4 defaults to fp32 weights (not bundled); pin q8 to match the quantized ONNX we ship.
+			dtype: "q8",
+		})) as unknown as TranscriberFn;
 		return transcriber;
 	});
 }
