@@ -48,6 +48,7 @@
 		"availableDescription": "현재 버전: {{current}}",
 		"download": "다운로드",
 		"dontRemind": "다시 알리지 않기",
+		"dismiss": "나중에",
 		"upToDate": "최신 상태입니다",
 		"upToDateDescription": "CloseScreen {{current}}이(가) 최신 버전입니다",
 		"checkFailed": "업데이트를 확인할 수 없습니다",

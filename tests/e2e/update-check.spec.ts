@@ -52,12 +52,24 @@ test("startup update check surfaces a dismissable notification in the HUD", asyn
 		await hudWindow.reload();
 		await hudWindow.waitForLoadState("domcontentloaded");
 
-		await expect(hudWindow.getByText("CloseScreen 9.9.9-fork.9 is available")).toBeVisible({
-			timeout: 15_000,
-		});
-		await expect(hudWindow.getByText("You're on 1.5.0-fork.1")).toBeVisible();
-		await expect(hudWindow.getByRole("button", { name: "Download" })).toBeVisible();
-		await expect(hudWindow.getByRole("button", { name: "Don't remind me again" })).toBeVisible();
+		// The notice renders as an in-window panel marked data-hud-interactive (the HUD
+		// ignores mouse events outside such regions, so a floating toast would be dead).
+		const notice = hudWindow.getByTestId("hud-update-notice");
+		await expect(notice).toBeVisible({ timeout: 15_000 });
+		await expect(notice).toHaveAttribute("data-hud-interactive", "true");
+		await expect(notice.getByText("CloseScreen 9.9.9-fork.9 is available")).toBeVisible();
+		await expect(notice.getByText("You're on 1.5.0-fork.1")).toBeVisible();
+		await expect(notice.getByRole("button", { name: "Download" })).toBeVisible();
+		await expect(notice.getByRole("button", { name: "Don't remind me again" })).toBeVisible();
+
+		// "Later" dismisses the panel and persists the version so the next launch stays
+		// silent for the same release.
+		await notice.getByRole("button", { name: "Later" }).click();
+		await expect(notice).not.toBeVisible();
+		const dismissed = await hudWindow.evaluate(() =>
+			localStorage.getItem("closescreen_update_dismissed_version"),
+		);
+		expect(dismissed).toBe("9.9.9-fork.9");
 	} finally {
 		await app
 			.evaluate(({ app: electronApp }) => {

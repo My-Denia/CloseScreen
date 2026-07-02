@@ -21,6 +21,12 @@ import {
 import { RxDragHandleDots2 } from "react-icons/rx";
 import { useI18n, useScopedT } from "@/contexts/I18nContext";
 import { getAvailableLocales, getLocaleName } from "@/i18n/loader";
+import {
+	type AvailableUpdate,
+	getStartupUpdateNotice,
+	saveDismissedUpdateVersion,
+	setUpdateChecksDisabled,
+} from "@/lib/updateNotifications";
 import { loadUserPreferences, saveUserPreferences } from "@/lib/userPreferences";
 import { nativeBridgeClient } from "@/native";
 import { useAudioLevelMeter } from "../../hooks/useAudioLevelMeter";
@@ -91,7 +97,28 @@ const hudSidebarVerticalClasses =
 /** Launches the floating recording HUD and its recorder controls. */
 export function LaunchWindow() {
 	const t = useScopedT("launch");
+	const tc = useScopedT("common");
 	const availableLocales = getAvailableLocales();
+
+	// Startup update notification (#27), rendered as an in-window panel: the HUD ignores
+	// mouse events outside [data-hud-interactive] regions, so a floating toast would not
+	// be clickable here. Off the critical path; silent unless a newer, not-yet-dismissed
+	// release exists.
+	const [availableUpdate, setAvailableUpdate] = useState<AvailableUpdate | null>(null);
+	useEffect(() => {
+		let cancelled = false;
+		const id = window.setTimeout(() => {
+			getStartupUpdateNotice()
+				.then((update) => {
+					if (!cancelled && update) setAvailableUpdate(update);
+				})
+				.catch(() => undefined);
+		}, 3_000);
+		return () => {
+			cancelled = true;
+			window.clearTimeout(id);
+		};
+	}, []);
 	const {
 		locale,
 		setLocale,
@@ -547,6 +574,63 @@ export function LaunchWindow() {
 							{t("systemLanguagePrompt.switch", {
 								language: suggestedLanguageName,
 							})}
+						</Button>
+					</div>
+				</div>
+			)}
+
+			{/* Update available (#27): same in-window panel mechanics as the language prompt
+			    above — the HUD only accepts clicks inside [data-hud-interactive] regions. Kept
+			    to a single compact row so it fits the 600x160 HUD window above the tray bar.
+			    The language prompt takes precedence when both want the same spot. */}
+			{availableUpdate && !systemLocaleSuggestion && (
+				<div
+					data-hud-interactive="true"
+					data-testid="hud-update-notice"
+					className={`fixed top-2 left-1/2 z-30 flex w-[calc(100vw-1rem)] max-w-[560px] -translate-x-1/2 items-center gap-3 rounded-xl border border-white/15 bg-[rgba(20,20,28,0.95)] px-3 py-2 shadow-2xl backdrop-blur-xl text-white animate-in fade-in-0 zoom-in-95 duration-200 ${styles.electronNoDrag}`}
+				>
+					<div className="min-w-0 flex-1">
+						<div className="truncate text-[12px] font-semibold text-white">
+							{tc("updates.availableTitle", { version: availableUpdate.latestVersion })}
+						</div>
+						<div className="truncate text-[10px] text-white/60">
+							{tc("updates.availableDescription", { current: availableUpdate.currentVersion })}
+						</div>
+					</div>
+					<div className="flex shrink-0 items-center gap-1.5">
+						<Button
+							type="button"
+							variant="ghost"
+							size="sm"
+							onClick={() => {
+								setUpdateChecksDisabled(true);
+								setAvailableUpdate(null);
+							}}
+							className="h-6 px-2 text-[11px] text-white/50 hover:bg-white/10 hover:text-white"
+						>
+							{tc("updates.dontRemind")}
+						</Button>
+						<Button
+							type="button"
+							variant="ghost"
+							size="sm"
+							onClick={() => {
+								saveDismissedUpdateVersion(availableUpdate.latestVersion);
+								setAvailableUpdate(null);
+							}}
+							className="h-6 px-2 text-[11px] text-white/80 hover:bg-white/10 hover:text-white"
+						>
+							{tc("updates.dismiss")}
+						</Button>
+						<Button
+							type="button"
+							size="sm"
+							onClick={() => {
+								void window.electronAPI.openExternalUrl(availableUpdate.url);
+							}}
+							className="h-6 px-2.5 text-[11px] bg-white text-[#10121b] hover:bg-white/90"
+						>
+							{tc("updates.download")}
 						</Button>
 					</div>
 				</div>

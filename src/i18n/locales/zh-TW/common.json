@@ -48,6 +48,7 @@
 		"availableDescription": "目前版本 {{current}}",
 		"download": "下載",
 		"dontRemind": "不再提醒",
+		"dismiss": "稍後",
 		"upToDate": "已是最新版本",
 		"upToDateDescription": "CloseScreen {{current}} 已是最新版本",
 		"checkFailed": "無法檢查更新",

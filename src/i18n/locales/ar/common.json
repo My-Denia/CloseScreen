@@ -48,6 +48,7 @@
 		"availableDescription": "إصدارك الحالي {{current}}",
 		"download": "تنزيل",
 		"dontRemind": "عدم التذكير مجددًا",
+		"dismiss": "لاحقًا",
 		"upToDate": "لديك أحدث إصدار",
 		"upToDateDescription": "CloseScreen {{current}} هو أحدث إصدار",
 		"checkFailed": "تعذّر التحقق من التحديثات",

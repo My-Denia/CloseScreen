@@ -48,6 +48,7 @@
 		"availableDescription": "Şu anki sürümünüz {{current}}",
 		"download": "İndir",
 		"dontRemind": "Bir daha hatırlatma",
+		"dismiss": "Daha sonra",
 		"upToDate": "Güncelsiniz",
 		"upToDateDescription": "CloseScreen {{current}} en son sürüm",
 		"checkFailed": "Güncellemeler kontrol edilemedi",

@@ -48,48 +48,31 @@ export function saveDismissedUpdateVersion(version: string): void {
 
 type UpdateCheckResult = Awaited<ReturnType<Window["electronAPI"]["checkForUpdates"]>>;
 
-function showUpdateAvailableToast(
-	result: Extract<UpdateCheckResult, { status: "update" }>,
-	t: TranslateFn,
-): void {
-	toast(t("updates.availableTitle", { version: result.latestVersion }), {
-		description: t("updates.availableDescription", { current: result.currentVersion }),
-		duration: Number.POSITIVE_INFINITY,
-		closeButton: true,
-		onDismiss: () => saveDismissedUpdateVersion(result.latestVersion),
-		action: {
-			label: t("updates.download"),
-			onClick: () => {
-				void window.electronAPI.openExternalUrl(result.url);
-			},
-		},
-		cancel: {
-			label: t("updates.dontRemind"),
-			onClick: () => setUpdateChecksDisabled(true),
-		},
-	});
-}
+export type AvailableUpdate = Extract<UpdateCheckResult, { status: "update" }>;
 
 /**
- * Startup check (#27): silent unless a newer, not-yet-dismissed release exists and the
- * user hasn't opted out.
+ * Startup check (#27): resolves to the available update, or null when there is nothing
+ * to show (opted out, up to date, already dismissed, or the check failed). The HUD
+ * renders the result as an in-window panel — its window ignores mouse events outside
+ * `[data-hud-interactive]` regions, so floating toasts would not be clickable there.
  */
-export async function runStartupUpdateCheck(t: TranslateFn): Promise<void> {
-	if (getUpdateChecksDisabled()) return;
+export async function getStartupUpdateNotice(): Promise<AvailableUpdate | null> {
+	if (getUpdateChecksDisabled()) return null;
 	let result: UpdateCheckResult;
 	try {
 		result = await window.electronAPI.checkForUpdates();
 	} catch {
-		return;
+		return null;
 	}
-	if (result.status !== "update") return;
-	if (getDismissedUpdateVersion() === result.latestVersion) return;
-	showUpdateAvailableToast(result, t);
+	if (result.status !== "update") return null;
+	if (getDismissedUpdateVersion() === result.latestVersion) return null;
+	return result;
 }
 
 /**
- * Manual check (#17): the user asked, so always answer — up-to-date and failure get a
- * toast too, and a previous dismissal doesn't suppress the result.
+ * Manual check (#17), for the editor window (normal mouse events, sonner toasts): the
+ * user asked, so always answer — up-to-date and failure get a toast too, and a previous
+ * dismissal doesn't suppress the result.
  */
 export async function runManualUpdateCheck(t: TranslateFn): Promise<void> {
 	let result: UpdateCheckResult;
@@ -99,7 +82,18 @@ export async function runManualUpdateCheck(t: TranslateFn): Promise<void> {
 		result = { status: "error", currentVersion: "" };
 	}
 	if (result.status === "update") {
-		showUpdateAvailableToast(result, t);
+		toast(t("updates.availableTitle", { version: result.latestVersion }), {
+			description: t("updates.availableDescription", { current: result.currentVersion }),
+			duration: Number.POSITIVE_INFINITY,
+			closeButton: true,
+			onDismiss: () => saveDismissedUpdateVersion(result.latestVersion),
+			action: {
+				label: t("updates.download"),
+				onClick: () => {
+					void window.electronAPI.openExternalUrl(result.url);
+				},
+			},
+		});
 		return;
 	}
 	if (result.status === "upToDate") {

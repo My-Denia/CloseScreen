@@ -48,6 +48,7 @@
 		"availableDescription": "現在のバージョン: {{current}}",
 		"download": "ダウンロード",
 		"dontRemind": "今後通知しない",
+		"dismiss": "後で",
 		"upToDate": "最新の状態です",
 		"upToDateDescription": "CloseScreen {{current}} は最新バージョンです",
 		"checkFailed": "更新を確認できませんでした",

@@ -48,6 +48,7 @@
 		"availableDescription": "You're on {{current}}",
 		"download": "Download",
 		"dontRemind": "Don't remind me again",
+		"dismiss": "Later",
 		"upToDate": "You're up to date",
 		"upToDateDescription": "CloseScreen {{current}} is the latest version",
 		"checkFailed": "Couldn't check for updates",

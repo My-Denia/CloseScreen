@@ -48,6 +48,7 @@
 		"availableDescription": "Stai usando la versione {{current}}",
 		"download": "Scarica",
 		"dontRemind": "Non ricordarmelo più",
+		"dismiss": "Più tardi",
 		"upToDate": "Sei aggiornato",
 		"upToDateDescription": "CloseScreen {{current}} è la versione più recente",
 		"checkFailed": "Impossibile verificare gli aggiornamenti",

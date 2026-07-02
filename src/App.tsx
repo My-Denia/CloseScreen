@@ -7,7 +7,6 @@ import { TooltipProvider } from "./components/ui/tooltip";
 import { useScopedT } from "./contexts/I18nContext";
 import { ShortcutsProvider } from "./contexts/ShortcutsContext";
 import { loadAllCustomFonts } from "./lib/customFonts";
-import { runStartupUpdateCheck } from "./lib/updateNotifications";
 
 const VideoEditor = lazy(() => import("./components/video-editor/VideoEditor"));
 const ShortcutsConfigDialog = lazy(() =>
@@ -55,17 +54,6 @@ export default function App() {
 			console.error("Failed to load custom fonts:", error);
 		});
 	}, []);
-
-	// Startup update notification (#27): HUD only (one window, once), off the critical
-	// path. Silent unless a newer, not-yet-dismissed release exists.
-	const tCommon = useScopedT("common");
-	useEffect(() => {
-		if (windowType !== "hud-overlay") return;
-		const id = window.setTimeout(() => {
-			void runStartupUpdateCheck(tCommon).catch(() => undefined);
-		}, 3_000);
-		return () => window.clearTimeout(id);
-	}, [windowType, tCommon]);
 
 	const content = (() => {
 		switch (windowType) {

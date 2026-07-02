@@ -48,6 +48,7 @@
 		"availableDescription": "Bạn đang dùng {{current}}",
 		"download": "Tải xuống",
 		"dontRemind": "Không nhắc lại",
+		"dismiss": "Để sau",
 		"upToDate": "Bạn đang dùng bản mới nhất",
 		"upToDateDescription": "CloseScreen {{current}} là phiên bản mới nhất",
 		"checkFailed": "Không thể kiểm tra cập nhật",
