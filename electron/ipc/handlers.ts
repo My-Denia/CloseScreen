@@ -72,7 +72,7 @@ function isPathAllowed(filePath: string): boolean {
 	return getAllowedReadDirs().some((dir) => isPathWithinDir(resolved, dir));
 }
 
-function resolveApprovedVideoPath(videoPath?: string | null): string | null {
+export function resolveApprovedVideoPath(videoPath?: string | null): string | null {
 	const normalizedPath = normalizeVideoSourcePath(videoPath);
 	if (!normalizedPath) {
 		return null;

@@ -183,6 +183,24 @@ export function fromFileUrl(fileUrl: string): string {
 	}
 }
 
+// Base of the app:// media route (see electron/appProtocol.ts). Kept in sync by contract.
+const APP_MEDIA_BASE = "app://bundle/_media/";
+
+/**
+ * Resolve a preview `<video src>` for the current window. In the packaged/unpacked build the page is
+ * served over app://, so a file:// video would be cross-origin and taint the canvas under
+ * webSecurity — route it through the same-origin app://_media handler (which streams with Range).
+ * In dev (http page, webSecurity off) the file:// URL is kept as-is.
+ */
+export function toMediaSrc(fileUrl: string | null | undefined): string | undefined {
+	if (!fileUrl) return undefined;
+	if (typeof window === "undefined" || window.location.protocol !== "app:") {
+		return fileUrl;
+	}
+	const absolutePath = fileUrl.startsWith("file:") ? fromFileUrl(fileUrl) : fileUrl;
+	return `${APP_MEDIA_BASE}${encodeURIComponent(absolutePath)}`;
+}
+
 export function deriveNextId(prefix: string, ids: string[]): number {
 	const max = ids.reduce((acc, id) => {
 		const match = id.match(new RegExp(`^${prefix}-(\\d+)$`));

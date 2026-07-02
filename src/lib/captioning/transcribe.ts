@@ -87,9 +87,11 @@ export function transcribeMono16kToSegments(
 			finish(() => reject(new Error(e.message || "Caption transcription worker failed")));
 		};
 
-		// Packaged app runs from file:// (remote fetches fail), so load bundled assets.
-		// Dev runs from http://localhost where the remote path works.
-		const useLocalModels = typeof window !== "undefined" && window.location?.protocol === "file:";
+		// Packaged app serves the renderer over app:// (and historically file://), where remote CDN
+		// fetches fail/are blocked — load the bundled offline assets. Only dev (http://localhost)
+		// uses the remote model path.
+		const protocol = typeof window !== "undefined" ? window.location?.protocol : undefined;
+		const useLocalModels = protocol === "app:" || protocol === "file:";
 		const assetBaseUrl =
 			typeof window !== "undefined" ? window.electronAPI?.assetBaseUrl : undefined;
 

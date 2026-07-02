@@ -3,6 +3,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { app, BrowserWindow, ipcMain, Menu, nativeImage, session, Tray } from "electron";
 import { ShortcutBinding } from "../src/lib/shortcuts";
+import { registerAppProtocolHandler, registerAppScheme } from "./appProtocol";
 import {
 	loadAndRegisterGlobalShortcut,
 	registerOpenAppShortcut,
@@ -55,6 +56,12 @@ process.env.APP_ROOT = path.join(__dirname, "..");
 
 // Use ['ENV_NAME'] avoid vite:define plugin - Vite@2.x
 export const VITE_DEV_SERVER_URL = process.env["VITE_DEV_SERVER_URL"];
+
+// Register the privileged `app://` scheme before the app is ready. In dev the renderer is served by
+// the Vite HMR server over http, so app:// is only the transport for the packaged/unpacked build.
+if (!VITE_DEV_SERVER_URL) {
+	registerAppScheme();
+}
 export const MAIN_DIST = path.join(process.env.APP_ROOT, "dist-electron");
 export const RENDERER_DIST = path.join(process.env.APP_ROOT, "dist");
 
@@ -374,6 +381,11 @@ app.on("will-quit", () => {
 });
 
 app.whenReady().then(async () => {
+	// Serve the renderer + local assets/media over app:// (packaged/unpacked only; dev uses Vite).
+	if (!VITE_DEV_SERVER_URL) {
+		registerAppProtocolHandler();
+	}
+
 	session.defaultSession.setPermissionCheckHandler((_webContents, permission) => {
 		const allowed = [
 			"media",

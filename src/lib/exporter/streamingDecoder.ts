@@ -327,7 +327,7 @@ export class StreamingVideoDecoder {
 	async loadMetadata(videoUrl: string): Promise<DecodedVideoInfo> {
 		const { file } = await this.loadSourceFile(videoUrl);
 
-		// Relative URL so it resolves in both dev (http) and packaged (file://) builds
+		// Relative to the page origin so it resolves in dev (http://localhost) and packaged (app://).
 		const wasmUrl = new URL("./wasm/web-demuxer.wasm", window.location.href).href;
 		this.demuxer = new WebDemuxer({ wasmFilePath: wasmUrl });
 		await this.withTimeout(

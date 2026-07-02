@@ -1,20 +1,23 @@
 import path from "node:path";
-import { fileURLToPath, pathToFileURL } from "node:url";
+import { fileURLToPath } from "node:url";
 import { BrowserWindow, ipcMain, screen } from "electron";
+import { APP_ASSET_BASE_URL, APP_INDEX_URL } from "./appProtocol";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-const APP_ROOT = path.join(__dirname, "..");
 const VITE_DEV_SERVER_URL = process.env["VITE_DEV_SERVER_URL"];
-const RENDERER_DIST = path.join(APP_ROOT, "dist");
 const HEADLESS = process.env["HEADLESS"] === "true";
 
-// Asset base URL for renderer (wallpapers, etc.). Packaged: extraResources copies
-// public/wallpapers to resources/wallpapers. Unpackaged: <appRoot>/public/.
-const ASSET_BASE_DIR = process.defaultApp
-	? path.join(__dirname, "..", "public")
-	: process.resourcesPath;
-const ASSET_BASE_URL_ARG = `--asset-base-url=${pathToFileURL(`${ASSET_BASE_DIR}${path.sep}`).toString()}`;
+// Asset base URL handed to the renderer (getAssetPath + caption worker resolve against it). Dev is
+// served by Vite over http where getAssetPath uses relative paths, so this is only consulted in the
+// packaged/unpacked build, where it points at the app:// resource route (same origin as the page).
+const ASSET_BASE_URL_ARG = `--asset-base-url=${APP_ASSET_BASE_URL}`;
+
+// Load a renderer window from the Vite HMR server in dev, or the app:// bundle otherwise.
+function loadRendererWindow(win: BrowserWindow, windowType: string): void {
+	const base = VITE_DEV_SERVER_URL ?? APP_INDEX_URL;
+	win.loadURL(`${base}?windowType=${windowType}`);
+}
 
 let hudOverlayWindow: BrowserWindow | null = null;
 
@@ -142,13 +145,7 @@ export function createHudOverlayWindow(): BrowserWindow {
 		}
 	});
 
-	if (VITE_DEV_SERVER_URL) {
-		win.loadURL(VITE_DEV_SERVER_URL + "?windowType=hud-overlay");
-	} else {
-		win.loadFile(path.join(RENDERER_DIST, "index.html"), {
-			query: { windowType: "hud-overlay" },
-		});
-	}
+	loadRendererWindow(win, "hud-overlay");
 
 	return win;
 }
@@ -175,7 +172,10 @@ export function createEditorWindow(): BrowserWindow {
 			additionalArguments: [ASSET_BASE_URL_ARG],
 			nodeIntegration: false,
 			contextIsolation: true,
-			webSecurity: false,
+			// Dev only: the Vite HMR page is http://localhost while the preview video is a file://
+			// URL, so canvas reads (blur/background extraction) need webSecurity off. The packaged
+			// app serves everything same-origin over app://, so it keeps webSecurity ON (default).
+			...(VITE_DEV_SERVER_URL ? { webSecurity: false } : {}),
 			backgroundThrottling: false,
 		},
 	});
@@ -199,13 +199,7 @@ export function createEditorWindow(): BrowserWindow {
 		win?.webContents.send("main-process-message", new Date().toLocaleString());
 	});
 
-	if (VITE_DEV_SERVER_URL) {
-		win.loadURL(VITE_DEV_SERVER_URL + "?windowType=editor");
-	} else {
-		win.loadFile(path.join(RENDERER_DIST, "index.html"), {
-			query: { windowType: "editor" },
-		});
-	}
+	loadRendererWindow(win, "editor");
 
 	return win;
 }
@@ -237,13 +231,7 @@ export function createSourceSelectorWindow(): BrowserWindow {
 		},
 	});
 
-	if (VITE_DEV_SERVER_URL) {
-		win.loadURL(VITE_DEV_SERVER_URL + "?windowType=source-selector");
-	} else {
-		win.loadFile(path.join(RENDERER_DIST, "index.html"), {
-			query: { windowType: "source-selector" },
-		});
-	}
+	loadRendererWindow(win, "source-selector");
 
 	return win;
 }
@@ -286,13 +274,7 @@ export function createCountdownOverlayWindow(): BrowserWindow {
 
 	win.setIgnoreMouseEvents(true);
 
-	if (VITE_DEV_SERVER_URL) {
-		win.loadURL(VITE_DEV_SERVER_URL + "?windowType=countdown-overlay");
-	} else {
-		win.loadFile(path.join(RENDERER_DIST, "index.html"), {
-			query: { windowType: "countdown-overlay" },
-		});
-	}
+	loadRendererWindow(win, "countdown-overlay");
 
 	return win;
 }
