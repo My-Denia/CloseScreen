@@ -6,6 +6,7 @@ import {
 	normalizeProjectEditor,
 	PROJECT_VERSION,
 	resolveProjectMedia,
+	toMediaSrc,
 	validateProjectData,
 } from "./projectPersistence";
 
@@ -262,5 +263,51 @@ describe("wallpaper legacy normalization", () => {
 			wallpaper: "file:///opt/closescreen/resources/wallpapers/wallpaper99.jpg",
 		});
 		expect(normalized.wallpaper).toBe("/wallpapers/wallpaper1.jpg");
+	});
+});
+
+describe("toMediaSrc", () => {
+	const setProtocol = (protocol: string) => {
+		const original = window.location;
+		Object.defineProperty(window, "location", {
+			configurable: true,
+			value: { ...original, protocol },
+		});
+		return () => {
+			Object.defineProperty(window, "location", { configurable: true, value: original });
+		};
+	};
+
+	it("returns undefined for empty input", () => {
+		expect(toMediaSrc(null)).toBeUndefined();
+		expect(toMediaSrc(undefined)).toBeUndefined();
+		expect(toMediaSrc("")).toBeUndefined();
+	});
+
+	it("passes file:// URLs through unchanged on non-app pages (dev)", () => {
+		// jsdom default protocol is http:
+		expect(toMediaSrc("file:///C:/rec/video.mp4")).toBe("file:///C:/rec/video.mp4");
+	});
+
+	it("maps file:// URLs to app://_media when the page runs on app://", () => {
+		const restore = setProtocol("app:");
+		try {
+			expect(toMediaSrc("file:///C:/rec/my%20video.mp4")).toBe(
+				`app://bundle/_media/${encodeURIComponent("C:/rec/my video.mp4")}`,
+			);
+		} finally {
+			restore();
+		}
+	});
+
+	it("maps plain paths to app://_media when the page runs on app://", () => {
+		const restore = setProtocol("app:");
+		try {
+			expect(toMediaSrc("C:\rec\video.mp4")).toBe(
+				`app://bundle/_media/${encodeURIComponent("C:\rec\video.mp4")}`,
+			);
+		} finally {
+			restore();
+		}
 	});
 });

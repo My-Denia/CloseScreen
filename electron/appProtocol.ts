@@ -9,13 +9,17 @@
 //   app://bundle/_res/<path>            -> shared asset dir (public in dev-unpacked, resources when
 //                                          packaged) — the base handed to getAssetPath/captions
 //   app://bundle/_res/caption-assets/*  -> the caption-assets dir (offline Whisper model + ORT wasm)
-//   app://bundle/_media/<encoded-abs>   -> an approved local recording/import, streamed with Range
-//                                          (validated by the SAME guard as the read-binary-file IPC)
+//   app://bundle/_media/<encoded-abs>   -> an approved local recording/import, streamed with Range.
+//                                          Validated by resolveApprovedVideoPath — the approval
+//                                          model the read-binary-file IPC builds on, used here in
+//                                          its strict form (video extension + recordings dir or
+//                                          previously user-approved path; never auto-approves).
 import fs from "node:fs";
 import path from "node:path";
 import { Readable } from "node:stream";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { app, net, protocol } from "electron";
+import { parseByteRange, safeJoin } from "./appProtocol.util";
 import { resolveApprovedVideoPath } from "./ipc/handlers";
 
 // dist-electron/ (where the bundled main lives) → app root. Matches windows.ts RENDERER_DIST so the
@@ -34,6 +38,9 @@ export const APP_ASSET_BASE_URL = `${APP_ORIGIN}/_res/`;
 const MEDIA_PREFIX = "/_media/";
 const RES_PREFIX = "/_res/";
 const CAPTION_SUBPATH = "caption-assets/";
+// Only these _res subtrees are served (the getAssetPath/caption contract). Serving all of
+// process.resourcesPath would expose app.asar and the native helper binaries for no reason.
+const RES_ALLOWED_PREFIXES = ["wallpapers/", "cursors/", CAPTION_SUBPATH];
 
 // Renderer runs from `app://` with no remote content (default-src 'self'). External needs: Google
 // Fonts (style/font), and — dev only — the HuggingFace/CDN caption fetch. worker-src/child-src
@@ -52,8 +59,10 @@ const CONTENT_SECURITY_POLICY = [
 	// data: — the exporter probes short generated clips via data:video URLs. blob: — decoded media.
 	"media-src 'self' blob: data:",
 	// data:/blob: — cursor theme assets are fetched as data: URLs; the caption/export stacks read
-	// blob:. https — dev-only CDN fetch of the caption model (packaged loads it from app://).
-	"connect-src 'self' data: blob: https://huggingface.co https://cdn.jsdelivr.net",
+	// blob:. No remote hosts: this CSP only applies to the packaged/unpacked build, where the
+	// caption model + ORT wasm are bundled and served same-origin (dev pages come from Vite and
+	// never see this policy) — so an allowance here would only serve as an exfiltration channel.
+	"connect-src 'self' data: blob:",
 	"worker-src 'self' blob:",
 	"child-src 'self' blob:",
 	"object-src 'none'",
@@ -74,15 +83,6 @@ function captionAssetsRoot(): string {
 	return app.isPackaged
 		? path.join(process.resourcesPath, "caption-assets")
 		: path.join(APP_ROOT, "caption-assets");
-}
-
-// Resolve `rel` under `root`, refusing anything that escapes it (`..`, absolute rejoin).
-function safeJoin(root: string, rel: string): string | null {
-	const resolved = path.resolve(root, rel.replace(/^[/\\]+/, ""));
-	if (resolved !== root && !resolved.startsWith(root + path.sep)) {
-		return null;
-	}
-	return resolved;
 }
 
 function notFound(): Response {
@@ -131,17 +131,14 @@ async function serveMedia(diskPath: string, request: Request): Promise<Response>
 		return notFound();
 	}
 	const mime = VIDEO_MIME[path.extname(diskPath).toLowerCase()] ?? "application/octet-stream";
-	const range = request.headers.get("range");
-	const match = range ? /bytes=(\d*)-(\d*)/.exec(range) : null;
+	const range = parseByteRange(request.headers.get("range"), size);
 
-	if (match) {
-		let start = match[1] ? Number.parseInt(match[1], 10) : 0;
-		let end = match[2] ? Number.parseInt(match[2], 10) : size - 1;
-		if (!Number.isFinite(start) || start < 0) start = 0;
-		if (!Number.isFinite(end) || end >= size) end = size - 1;
-		if (start > end || start >= size) {
-			return new Response(null, { status: 416, headers: { "Content-Range": `bytes */${size}` } });
-		}
+	if (range === "invalid") {
+		return new Response(null, { status: 416, headers: { "Content-Range": `bytes */${size}` } });
+	}
+
+	if (range) {
+		const { start, end } = range;
 		const body = Readable.toWeb(
 			fs.createReadStream(diskPath, { start, end }),
 		) as unknown as ReadableStream<Uint8Array>;
@@ -185,6 +182,16 @@ export function registerAppScheme(): void {
 	]);
 }
 
+// decodeURIComponent throws on malformed percent-encoding — surface that as a 400, not an
+// unhandled rejection.
+function safeDecode(value: string): string | null {
+	try {
+		return decodeURIComponent(value);
+	} catch {
+		return null;
+	}
+}
+
 // Register the request handler (must run after app 'ready').
 export function registerAppProtocolHandler(): void {
 	protocol.handle(APP_SCHEME, async (request) => {
@@ -194,11 +201,15 @@ export function registerAppProtocolHandler(): void {
 		} catch {
 			return new Response("Bad request", { status: 400 });
 		}
+		if (url.host !== APP_HOST) {
+			return notFound();
+		}
 		const { pathname } = url;
 
 		// Approved local media (recordings/imports), streamed with Range.
 		if (pathname.startsWith(MEDIA_PREFIX)) {
-			const rawPath = decodeURIComponent(pathname.slice(MEDIA_PREFIX.length));
+			const rawPath = safeDecode(pathname.slice(MEDIA_PREFIX.length));
+			if (rawPath === null) return new Response("Bad request", { status: 400 });
 			const approved = resolveApprovedVideoPath(rawPath);
 			if (!approved) {
 				return new Response("Forbidden", { status: 403 });
@@ -207,20 +218,23 @@ export function registerAppProtocolHandler(): void {
 		}
 
 		// Shared assets: wallpapers/cursors from the resource dir; caption-assets from its own root.
+		// Anything outside the allowlisted subtrees 404s.
 		if (pathname.startsWith(RES_PREFIX)) {
-			const rel = decodeURIComponent(pathname.slice(RES_PREFIX.length));
-			let diskPath: string | null;
-			if (rel.startsWith(CAPTION_SUBPATH)) {
-				diskPath = safeJoin(captionAssetsRoot(), rel.slice(CAPTION_SUBPATH.length));
-			} else {
-				diskPath = safeJoin(resourceAssetRoot(), rel);
+			const rel = safeDecode(pathname.slice(RES_PREFIX.length));
+			if (rel === null) return new Response("Bad request", { status: 400 });
+			if (!RES_ALLOWED_PREFIXES.some((prefix) => rel.startsWith(prefix))) {
+				return notFound();
 			}
+			const diskPath = rel.startsWith(CAPTION_SUBPATH)
+				? safeJoin(captionAssetsRoot(), rel.slice(CAPTION_SUBPATH.length))
+				: safeJoin(resourceAssetRoot(), rel);
 			if (!diskPath) return notFound();
 			return serveDiskFile(diskPath, true);
 		}
 
 		// Renderer bundle (dist): index.html, JS/CSS, and vite-copied public assets.
-		const rel = pathname === "/" ? "index.html" : decodeURIComponent(pathname);
+		const rel = pathname === "/" ? "index.html" : safeDecode(pathname);
+		if (rel === null) return new Response("Bad request", { status: 400 });
 		const diskPath = safeJoin(rendererDistRoot(), rel);
 		if (!diskPath) return notFound();
 		return serveDiskFile(diskPath, true);

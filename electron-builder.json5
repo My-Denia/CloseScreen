@@ -29,8 +29,10 @@
     "!CONTRIBUTING.md",
     "!LICENSE"
   ],
-  // Asset layout contract: "wallpapers/" and "cursors/" under resourcesPath must
-  // align with assetBaseDir in electron/preload.ts (packaged branch).
+  // Asset layout contract: "wallpapers/", "cursors/" and "caption-assets/" under
+  // resourcesPath are served by the app:// protocol's _res route — must align with
+  // resourceAssetRoot()/captionAssetsRoot() and RES_ALLOWED_PREFIXES in
+  // electron/appProtocol.ts.
   "extraResources": [
     {
       "from": "public/wallpapers",
