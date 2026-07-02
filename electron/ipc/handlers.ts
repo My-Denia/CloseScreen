@@ -1429,6 +1429,12 @@ export function registerIpcHandlers(
 	const recordingStreams = new RecordingStreamRegistry();
 	registerRecordingStreamHandlers(ipcMain, recordingStreams, resolveRecordingOutputPath);
 
+	// Storage-change gate inputs beyond the stream registry (issue #23): a browser
+	// recording buffering in memory has no open stream, and a store/attach finalize
+	// resolves paths against the current dir — both must block folder changes.
+	let browserRecordingActive = false;
+	let storeOperationsInFlight = 0;
+
 	// A filesystem failure gets the actionable describeSaveError text (ENOSPC is the
 	// issue #23 headline case); anything else keeps its own message. The renderer
 	// shows `message` verbatim, so it must carry the real reason, not a generic one.
@@ -1479,6 +1485,15 @@ export function registerIpcHandlers(
 	}
 
 	async function storeRecordedSessionFiles(payload: StoreRecordedSessionInput) {
+		storeOperationsInFlight += 1;
+		try {
+			return await storeRecordedSessionFilesInner(payload);
+		} finally {
+			storeOperationsInFlight -= 1;
+		}
+	}
+
+	async function storeRecordedSessionFilesInner(payload: StoreRecordedSessionInput) {
 		const createdAt =
 			typeof payload.createdAt === "number" && Number.isFinite(payload.createdAt)
 				? payload.createdAt
@@ -1632,6 +1647,10 @@ export function registerIpcHandlers(
 	ipcMain.handle(
 		"set-recording-state",
 		async (_, recording: boolean, recordingId?: number, cursorCaptureMode?: CursorCaptureMode) => {
+			// Feeds the storage-change gate: a browser recording whose stream open is
+			// pending or has fallen back to in-memory buffering is invisible to
+			// recordingStreams.size but must still block folder changes.
+			browserRecordingActive = recording;
 			const normalizedCursorCaptureMode =
 				normalizeCursorCaptureMode(cursorCaptureMode) ?? "editable-overlay";
 			if (recording && normalizedCursorCaptureMode === "editable-overlay") {
@@ -2173,11 +2192,19 @@ export function registerIpcHandlers(
 
 	// --- Recording storage location (issue #23) ---------------------------------
 
-	// Authoritative main-process gate: while bytes are flowing (open browser streams
-	// or a live native capture), moving the recordings dir would split a recording
-	// across directories. The renderer also disables the buttons; this is the backstop.
+	// Authoritative main-process gate: while a recording is active or being finalized,
+	// moving the recordings dir could retarget writes mid-flight. Four signals, each
+	// covering a hole the others miss: open disk streams; a live native capture; a
+	// browser recording buffering in memory (no stream to count — reported via
+	// set-recording-state); an in-flight store/attach finalize. The renderer also
+	// disables the buttons; this is the backstop.
 	function isRecordingStorageLocked(): boolean {
-		return recordingStreams.size > 0 || nativeWindowsCaptureProcess !== null;
+		return (
+			recordingStreams.size > 0 ||
+			nativeWindowsCaptureProcess !== null ||
+			browserRecordingActive ||
+			storeOperationsInFlight > 0
+		);
 	}
 
 	ipcMain.handle("get-recording-storage-status", async () => {

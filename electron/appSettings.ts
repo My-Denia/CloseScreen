@@ -1,3 +1,4 @@
+import crypto from "node:crypto";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
@@ -228,41 +229,59 @@ export async function setRecordingsDir(
 ): Promise<{ success: boolean; error?: string }> {
 	const s = requireState();
 	const run = s.writeLock.then(async (): Promise<{ success: boolean; error?: string }> => {
-		if (dir === null) {
+		let resolved: string | null = null;
+		if (dir !== null) {
+			const shapeError = validateRecordingsDirShape(dir, s);
+			if (shapeError) {
+				return { success: false, error: shapeError };
+			}
+			resolved = path.resolve(dir);
+			try {
+				await fs.mkdir(resolved, { recursive: true });
+				// Unique name + exclusive create: a fixed probe name could overwrite (and
+				// then delete) a user's own file in a pre-existing folder.
+				const probePath = path.join(resolved, `${WRITE_PROBE_FILE_NAME}-${crypto.randomUUID()}`);
+				await fs.writeFile(probePath, "probe", { encoding: "utf-8", flag: "wx" });
+				await fs.unlink(probePath).catch(() => undefined);
+			} catch (error) {
+				const code =
+					typeof error === "object" && error !== null && "code" in error
+						? String((error as { code?: unknown }).code ?? "")
+						: "";
+				return {
+					success: false,
+					error: code ? `Folder is not writable (${code}).` : "Folder is not writable.",
+				};
+			}
+		}
+
+		// Mutate in-memory state only together with a successful disk write: if the
+		// settings file can't be written (full/read-only userData), the session must
+		// keep the old effective dir — otherwise the UI reports a folder that will
+		// silently revert on restart.
+		const snapshot = {
+			rawRecordingsDir: s.raw.recordingsDir,
+			storedRecordingsDir: s.storedRecordingsDir,
+			recordingsDirUnavailable: s.recordingsDirUnavailable,
+		};
+		if (resolved === null) {
 			delete s.raw.recordingsDir;
 			s.storedRecordingsDir = null;
-			s.recordingsDirUnavailable = false;
-			await persistSettings(s);
-			return { success: true };
+		} else {
+			s.raw.recordingsDir = resolved;
+			s.storedRecordingsDir = resolved;
 		}
-
-		const shapeError = validateRecordingsDirShape(dir, s);
-		if (shapeError) {
-			return { success: false, error: shapeError };
-		}
-		const resolved = path.resolve(dir);
-		try {
-			await fs.mkdir(resolved, { recursive: true });
-			const probePath = path.join(resolved, WRITE_PROBE_FILE_NAME);
-			await fs.writeFile(probePath, "probe", "utf-8");
-			await fs.unlink(probePath).catch(() => undefined);
-		} catch (error) {
-			const code =
-				typeof error === "object" && error !== null && "code" in error
-					? String((error as { code?: unknown }).code ?? "")
-					: "";
-			return {
-				success: false,
-				error: code ? `Folder is not writable (${code}).` : "Folder is not writable.",
-			};
-		}
-
-		s.raw.recordingsDir = resolved;
-		s.storedRecordingsDir = resolved;
 		s.recordingsDirUnavailable = false;
 		try {
 			await persistSettings(s);
 		} catch (error) {
+			if (snapshot.rawRecordingsDir === undefined) {
+				delete s.raw.recordingsDir;
+			} else {
+				s.raw.recordingsDir = snapshot.rawRecordingsDir;
+			}
+			s.storedRecordingsDir = snapshot.storedRecordingsDir;
+			s.recordingsDirUnavailable = snapshot.recordingsDirUnavailable;
 			return { success: false, error: `Failed to save settings: ${String(error)}` };
 		}
 		return { success: true };

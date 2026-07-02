@@ -126,6 +126,41 @@ describe("setRecordingsDir", () => {
 		expect(result.error).toMatch(/not writable/i);
 		expect(getRecordingsDir()).toBe(getDefaultRecordingsDir());
 	});
+
+	it("never clobbers a user's file that shares the probe name prefix", async () => {
+		await mkdir(customDir, { recursive: true });
+		const userFile = path.join(customDir, ".closescreen-write-probe");
+		await writeFile(userFile, "user data", "utf-8");
+
+		expect((await setRecordingsDir(customDir)).success).toBe(true);
+		expect(await readFile(userFile, "utf-8")).toBe("user data");
+	});
+
+	it("keeps the old effective dir when persisting the new choice fails", async () => {
+		// A directory squatting on the settings-file path makes writeFile fail, so
+		// the in-memory state must roll back — otherwise the session records into a
+		// folder that silently reverts on restart.
+		await rm(settingsPath(), { force: true });
+		await mkdir(settingsPath(), { recursive: true });
+
+		const result = await setRecordingsDir(customDir);
+		expect(result.success).toBe(false);
+		expect(result.error).toMatch(/Failed to save settings/);
+		expect(getRecordingsDir()).toBe(getDefaultRecordingsDir());
+		expect(getRecordingStorageInfo()).toMatchObject({ isCustom: false });
+		expect(getAllowedRecordingDirs()).toEqual([getDefaultRecordingsDir()]);
+	});
+
+	it("keeps the custom dir when persisting a reset fails", async () => {
+		expect((await setRecordingsDir(customDir)).success).toBe(true);
+		await rm(settingsPath(), { force: true });
+		await mkdir(settingsPath(), { recursive: true });
+
+		const result = await setRecordingsDir(null);
+		expect(result.success).toBe(false);
+		expect(getRecordingsDir()).toBe(customDir);
+		expect(getAllowedRecordingDirs()).toContain(customDir);
+	});
 });
 
 describe("getAllowedRecordingDirs", () => {
