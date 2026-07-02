@@ -11,6 +11,7 @@ import {
 } from "./globalShortcut";
 import { mainT, setMainLocale } from "./i18n";
 import { getSelectedDesktopSource, registerIpcHandlers } from "./ipc/handlers";
+import { isLocalStorageMigrationRunning, migrateLegacyLocalStorage } from "./localStorageMigration";
 import {
 	createCountdownOverlayWindow,
 	createEditorWindow,
@@ -373,6 +374,9 @@ function createCountdownOverlayWindowWrapper() {
 // Closing every window quits the app (tray goes too). The in-app "Return to Recorder"
 // button covers the editor-to-HUD round-trip, so closing the last window means "I'm done".
 app.on("window-all-closed", () => {
+	// Don't quit while the one-time localStorage migration is briefly juggling hidden probe windows
+	// before the first real window exists — that transient "all closed" is not the user finishing.
+	if (isLocalStorageMigrationRunning()) return;
 	app.quit();
 });
 
@@ -483,4 +487,12 @@ app.whenReady().then(async () => {
 	await loadAndRegisterGlobalShortcut(showMainWindow);
 
 	createWindow();
+
+	// One-time carry-over of settings from the pre-app:// file:// origin. Runs AFTER the HUD exists
+	// (so its transient probe windows never become the first window nor trip window-all-closed) and
+	// fire-and-forget (so it never delays startup). Migrated preferences/fonts/locale take effect on
+	// the next launch — acceptable for a one-time upgrade. Best-effort; guarded to run at most once.
+	if (!VITE_DEV_SERVER_URL) {
+		void migrateLegacyLocalStorage(RENDERER_DIST).catch(() => undefined);
+	}
 });

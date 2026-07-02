@@ -1897,6 +1897,9 @@ const VideoPlayback = forwardRef<VideoPlaybackRef, VideoPlaybackProps>(
 			resolvedWallpaper &&
 				(resolvedWallpaper.startsWith("file://") ||
 					resolvedWallpaper.startsWith("http") ||
+					// Packaged/unpacked: bundled wallpapers resolve to app://bundle/_res/... via
+					// getAssetPath. Without this they fall to the `background:` shorthand and vanish.
+					resolvedWallpaper.startsWith("app:") ||
 					resolvedWallpaper.startsWith("/") ||
 					resolvedWallpaper.startsWith("data:")),
 		);

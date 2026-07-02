@@ -38,9 +38,17 @@ export const APP_ASSET_BASE_URL = `${APP_ORIGIN}/_res/`;
 const MEDIA_PREFIX = "/_media/";
 const RES_PREFIX = "/_res/";
 const CAPTION_SUBPATH = "caption-assets/";
-// Only these _res subtrees are served (the getAssetPath/caption contract). Serving all of
-// process.resourcesPath would expose app.asar and the native helper binaries for no reason.
-const RES_ALLOWED_PREFIXES = ["wallpapers/", "cursors/", CAPTION_SUBPATH];
+// The only _res subtrees served (the getAssetPath/caption contract). Each maps to its own on-disk
+// root and is safeJoin'd against THAT root, so a `..` inside the (decoded) path can't climb out of
+// the subtree even though it would still resolve under process.resourcesPath. Serving all of
+// resourcesPath would expose app.asar and the native helper binaries.
+function resSubtreeRoots(): Record<string, string> {
+	return {
+		"wallpapers/": path.join(resourceAssetRoot(), "wallpapers"),
+		"cursors/": path.join(resourceAssetRoot(), "cursors"),
+		[CAPTION_SUBPATH]: captionAssetsRoot(),
+	};
+}
 
 // Renderer runs from `app://` with no remote content (default-src 'self'). External needs: Google
 // Fonts (style/font), and — dev only — the HuggingFace/CDN caption fetch. worker-src/child-src
@@ -218,16 +226,15 @@ export function registerAppProtocolHandler(): void {
 		}
 
 		// Shared assets: wallpapers/cursors from the resource dir; caption-assets from its own root.
-		// Anything outside the allowlisted subtrees 404s.
+		// Match against the allowlisted subtree AFTER decoding, then safeJoin the remainder against
+		// that subtree's root so encoded `..` traversal can't escape the subtree.
 		if (pathname.startsWith(RES_PREFIX)) {
 			const rel = safeDecode(pathname.slice(RES_PREFIX.length));
 			if (rel === null) return new Response("Bad request", { status: 400 });
-			if (!RES_ALLOWED_PREFIXES.some((prefix) => rel.startsWith(prefix))) {
-				return notFound();
-			}
-			const diskPath = rel.startsWith(CAPTION_SUBPATH)
-				? safeJoin(captionAssetsRoot(), rel.slice(CAPTION_SUBPATH.length))
-				: safeJoin(resourceAssetRoot(), rel);
+			const subtrees = resSubtreeRoots();
+			const prefix = Object.keys(subtrees).find((p) => rel.startsWith(p));
+			if (!prefix) return notFound();
+			const diskPath = safeJoin(subtrees[prefix], rel.slice(prefix.length));
 			if (!diskPath) return notFound();
 			return serveDiskFile(diskPath, true);
 		}
