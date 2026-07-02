@@ -215,9 +215,10 @@ test.describe("Windows native checklist smoke tests", () => {
 			await expect(
 				editorWindow.getByText("Background").or(editorWindow.getByText("Arrière-plan")).first(),
 			).toBeVisible();
-			// The export button moved inside the export panel; the always-visible panel toggle is
-			// the "export is available" signal now.
-			await expect(editorWindow.getByTestId("testId-export-panel-button")).toBeVisible();
+			// The export button moved inside the export panel: open the panel and assert the
+			// actual export action, preserving the original assertion's reach.
+			await editorWindow.getByTestId("testId-export-panel-button").click();
+			await expect(editorWindow.getByTestId("testId-export-button")).toBeVisible();
 		} finally {
 			await closeApp(app);
 			if (testVideoInRecordings && fs.existsSync(testVideoInRecordings)) {
@@ -274,7 +275,11 @@ test.describe("Windows native checklist smoke tests", () => {
 							return success({ success: false, canceled: true });
 						}
 						if (request.domain === "project" && request.action === "getCurrentVideoPath") {
-							return success({ success: true, path: projectLoaded ? payload.videoPath : null });
+							// Mirror the real handler's contract (handlers.ts getCurrentVideoPathResult):
+							// { success: false } while no current video, { success: true, path } after.
+							return success(
+								projectLoaded ? { success: true, path: payload.videoPath } : { success: false },
+							);
 						}
 						if (request.domain === "system" && request.action === "getPlatform") {
 							return success("win32");
@@ -321,9 +326,10 @@ test.describe("Windows native checklist smoke tests", () => {
 			await editorWindow.waitForLoadState("domcontentloaded");
 			await editorWindow.getByTestId("editor-empty-load-project-button").click();
 			await expect(editorWindow.getByText("Loading video...")).not.toBeVisible({ timeout: 20_000 });
-			// The export button moved inside the export panel; the always-visible panel toggle is
-			// the "export is available" signal now.
-			await expect(editorWindow.getByTestId("testId-export-panel-button")).toBeVisible();
+			// The export button moved inside the export panel: open the panel and assert the
+			// actual export action, preserving the original assertion's reach.
+			await editorWindow.getByTestId("testId-export-panel-button").click();
+			await expect(editorWindow.getByTestId("testId-export-button")).toBeVisible();
 		} finally {
 			await closeApp(app);
 			if (testVideoInRecordings && fs.existsSync(testVideoInRecordings)) {
