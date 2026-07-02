@@ -45,13 +45,20 @@ export class UnsafeImagePrefixError extends Error {
 }
 
 export function resolveImageWallpaperUrl(imagePath: string): string {
+	// data: images are same-origin under the packaged CSP; pass them straight through.
+	if (imagePath.startsWith("data:")) {
+		return imagePath;
+	}
+	// http(s)/file images can't load under the packaged CSP (img-src 'self' data: blob:) and would
+	// silently blank the background + crash export. Project load migrates persisted values to the
+	// default (normalizeWallpaperValue), so this only guards a value set at runtime — surface it as a
+	// handled BackgroundLoadError instead of returning a URL the browser will refuse.
 	if (
 		imagePath.startsWith("http://") ||
 		imagePath.startsWith("https://") ||
-		imagePath.startsWith("file://") ||
-		imagePath.startsWith("data:")
+		imagePath.startsWith("file://")
 	) {
-		return imagePath;
+		throw new BackgroundLoadError(imagePath, new UnsafeImagePrefixError(ALLOWED_IMAGE_PREFIX));
 	}
 	const withLeadingSlash = imagePath.startsWith("/") ? imagePath : `/${imagePath}`;
 	if (!withLeadingSlash.startsWith(ALLOWED_IMAGE_PREFIX)) {

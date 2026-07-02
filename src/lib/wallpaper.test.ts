@@ -136,18 +136,22 @@ describe("resolveImageWallpaperUrl", () => {
 		vi.unstubAllGlobals();
 	});
 
-	it("passes through http URL", () => {
-		expect(resolveImageWallpaperUrl("http://example.com/bg.jpg")).toBe("http://example.com/bg.jpg");
-	});
-
-	it("passes through https URL", () => {
-		expect(resolveImageWallpaperUrl("https://example.com/bg.jpg")).toBe(
-			"https://example.com/bg.jpg",
+	// http(s)/file image URLs can't load under the packaged CSP (img-src 'self' data: blob:);
+	// they must be rejected as a handled BackgroundLoadError, not returned to blank the canvas.
+	it("rejects http URL (CSP-unservable)", () => {
+		expect(() => resolveImageWallpaperUrl("http://example.com/bg.jpg")).toThrow(
+			BackgroundLoadError,
 		);
 	});
 
-	it("passes through file:// URL", () => {
-		expect(resolveImageWallpaperUrl("file:///tmp/bg.jpg")).toBe("file:///tmp/bg.jpg");
+	it("rejects https URL (CSP-unservable)", () => {
+		expect(() => resolveImageWallpaperUrl("https://example.com/bg.jpg")).toThrow(
+			BackgroundLoadError,
+		);
+	});
+
+	it("rejects file:// URL (CSP-unservable)", () => {
+		expect(() => resolveImageWallpaperUrl("file:///tmp/bg.jpg")).toThrow(BackgroundLoadError);
 	});
 
 	it("passes through data URI", () => {

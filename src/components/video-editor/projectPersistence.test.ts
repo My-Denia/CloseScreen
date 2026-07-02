@@ -253,9 +253,16 @@ describe("wallpaper legacy normalization", () => {
 		).toBe("linear-gradient(90deg, red, blue)");
 	});
 
-	it("does NOT rewrite user files outside the known install layout", () => {
-		const userPath = "file:///home/user/Pictures/wallpapers/wallpaper1.jpg";
-		expect(normalizeProjectEditor({ wallpaper: userPath }).wallpaper).toBe(userPath);
+	it("falls back to default for CSP-unservable image URLs (file://, http(s)://)", () => {
+		// The packaged CSP (img-src 'self' data: blob:) can't load these; the app never produces
+		// them, so a legacy/hand-edited value is reset to the default rather than left to render
+		// blank and crash export.
+		expect(
+			normalizeProjectEditor({ wallpaper: "file:///home/user/Pictures/custom.jpg" }).wallpaper,
+		).toBe("/wallpapers/wallpaper1.jpg");
+		expect(normalizeProjectEditor({ wallpaper: "https://example.com/bg.jpg" }).wallpaper).toBe(
+			"/wallpapers/wallpaper1.jpg",
+		);
 	});
 
 	it("falls back to default for bundled paths outside WALLPAPER_PATHS", () => {

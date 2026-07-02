@@ -57,9 +57,18 @@ const CANONICAL_WALLPAPERS = new Set(WALLPAPER_PATHS);
 
 function normalizeWallpaperValue(value: string): string {
 	const match = LEGACY_FILE_WALLPAPER_RE.exec(value);
-	if (!match) return value;
-	const canonical = `/wallpapers/${match[1]}`;
-	return CANONICAL_WALLPAPERS.has(canonical) ? canonical : DEFAULT_WALLPAPER;
+	if (match) {
+		const canonical = `/wallpapers/${match[1]}`;
+		return CANONICAL_WALLPAPERS.has(canonical) ? canonical : DEFAULT_WALLPAPER;
+	}
+	// Image wallpapers with a scheme the packaged CSP (img-src 'self' data: blob:) can't load would
+	// render a blank background and fail export. The app only ever produces bundled `/wallpapers/…`
+	// paths or `data:` uploads, so any file://, http:// or https:// value is a legacy/hand-edited
+	// leftover — fall back to the default background rather than open into a broken state.
+	if (/^(?:file:|https?:)/i.test(value)) {
+		return DEFAULT_WALLPAPER;
+	}
+	return value;
 }
 
 export const PROJECT_VERSION = 2;
