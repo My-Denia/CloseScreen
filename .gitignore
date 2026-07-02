@@ -26,6 +26,7 @@ node_modules
 dist
 dist-electron
 dist-ssr
+*.tsbuildinfo
 *.local
 .env
 

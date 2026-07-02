@@ -19,11 +19,14 @@ import { app, BrowserWindow } from "electron";
 import { APP_ORIGIN } from "./appProtocol";
 
 const PROBE_PAGE = "__ls-migrate.html";
+// Must match the exact localStorage keys the renderer writes — note the i18n keys are hyphenated
+// while the others use underscores. A mismatch silently strands that setting (readKeys finds
+// nothing, then we flag done), so these are pinned to their source-of-truth modules:
 const MIGRATION_KEYS = [
-	"closescreen_user_preferences",
-	"closescreen_custom_fonts",
-	"closescreen_locale",
-	"closescreen_system_language_prompt_seen",
+	"closescreen_user_preferences", // src/lib/userPreferences.ts (PREFS_KEY)
+	"closescreen_custom_fonts", // src/lib/customFonts.ts (STORAGE_KEY)
+	"closescreen-locale", // src/i18n/config.ts (LOCALE_STORAGE_KEY)
+	"closescreen-system-language-prompt-seen", // src/contexts/I18nContext.tsx
 ];
 
 // Hard cap so the migration can NEVER block app startup, even if a hidden window's load hangs.
@@ -58,6 +61,19 @@ function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
 	]);
 }
 
+// Every hidden probe window we've opened. withHiddenWindow's own finally closes a window on the
+// happy path, but if loadURL() truly hangs that finally never runs and the window leaks — and a
+// leaked hidden window keeps the app alive (it still counts toward window-all-closed). So the
+// migration cleanup force-closes anything left here when it finishes OR when the timeout fires.
+const openProbeWindows = new Set<BrowserWindow>();
+
+function destroyAllProbeWindows(): void {
+	for (const win of openProbeWindows) {
+		if (!win.isDestroyed()) win.destroy();
+	}
+	openProbeWindows.clear();
+}
+
 async function withHiddenWindow<T>(
 	url: string,
 	fn: (win: BrowserWindow) => Promise<T>,
@@ -66,10 +82,12 @@ async function withHiddenWindow<T>(
 		show: false,
 		webPreferences: { nodeIntegration: false, contextIsolation: true },
 	});
+	openProbeWindows.add(win);
 	try {
 		await win.loadURL(url);
 		return await fn(win);
 	} finally {
+		openProbeWindows.delete(win);
 		if (!win.isDestroyed()) win.destroy();
 	}
 }
@@ -112,25 +130,34 @@ export async function migrateLegacyLocalStorage(rendererDist: string): Promise<v
 
 	let outcome = "nodata";
 	migrationRunning = true;
-	try {
-		await withTimeout(
-			(async () => {
-				const probe = path.join(rendererDist, PROBE_PAGE);
-				if (!fs.existsSync(probe)) return;
-				const legacy = await withHiddenWindow(pathToFileURL(probe).toString(), readKeys).catch(
-					() => ({}) as Record<string, string>,
-				);
-				if (Object.keys(legacy).length > 0) {
-					await withHiddenWindow(`${APP_ORIGIN}/${PROBE_PAGE}`, (win) => writeKeys(win, legacy));
-					outcome = "migrated";
-				}
-			})(),
-			MIGRATION_TIMEOUT_MS,
+	const work = (async () => {
+		const probe = path.join(rendererDist, PROBE_PAGE);
+		if (!fs.existsSync(probe)) return;
+		const legacy = await withHiddenWindow(pathToFileURL(probe).toString(), readKeys).catch(
+			() => ({}) as Record<string, string>,
 		);
+		if (Object.keys(legacy).length > 0) {
+			await withHiddenWindow(`${APP_ORIGIN}/${PROBE_PAGE}`, (win) => writeKeys(win, legacy));
+			outcome = "migrated";
+		}
+	})();
+	// If the timeout wins the race, `work` keeps running and may reject later (e.g. when cleanup
+	// destroys the window it was awaiting). Swallow that so it never becomes an unhandled rejection.
+	work.catch(() => undefined);
+	try {
+		await withTimeout(work, MIGRATION_TIMEOUT_MS);
 	} catch {
 		// Best-effort (incl. timeout): fall through and mark done so we don't retry / block startup.
 	} finally {
+		// A timed-out/hung load leaves its hidden window open; force-close everything we opened. This
+		// runs while migrationRunning is still true, so the window-all-closed guard suppresses these
+		// probe-window closes (a probe closing is never "the user finishing").
+		destroyAllProbeWindows();
 		migrationRunning = false;
+		// If the user closed the last *real* window while migration was running, that window-all-closed
+		// was suppressed and nothing will re-fire it. Now that we've stopped suppressing, honor the
+		// same "closing the last window quits" policy (mirrors main.ts's window-all-closed handler).
+		if (BrowserWindow.getAllWindows().length === 0) app.quit();
 	}
 
 	try {

@@ -31,7 +31,7 @@
   ],
   // Asset layout contract: "wallpapers/", "cursors/" and "caption-assets/" under
   // resourcesPath are served by the app:// protocol's _res route — must align with
-  // resourceAssetRoot()/captionAssetsRoot() and RES_ALLOWED_PREFIXES in
+  // resourceAssetRoot()/captionAssetsRoot() and resSubtreeRoots() in
   // electron/appProtocol.ts.
   "extraResources": [
     {
