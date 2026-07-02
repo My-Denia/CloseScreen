@@ -1106,52 +1106,39 @@ export default function TimelineEditor({
 			return;
 		}
 
-		zoomRegionsRef.current.forEach((region) => {
-			const clampedStart = Math.max(0, Math.min(region.startMs, totalMs));
-			const minEnd = clampedStart + safeMinDurationMs;
-			const clampedEnd = Math.min(totalMs, Math.max(minEnd, region.endMs));
-			const normalizedStart = Math.max(0, Math.min(clampedStart, totalMs - safeMinDurationMs));
-			const normalizedEnd = Math.max(minEnd, Math.min(clampedEnd, totalMs));
+		// Normalize the start FIRST, then derive the end from it: computing minEnd from a
+		// start merely clamped to totalMs could push the end to totalMs + minDuration when a
+		// saved region starts past the real video duration (e.g. the source was shortened).
+		const normalizeSpan = (region: { startMs: number; endMs: number }) => {
+			const normalizedStart = Math.max(
+				0,
+				Math.min(region.startMs, Math.max(0, totalMs - safeMinDurationMs)),
+			);
+			const minEnd = Math.min(totalMs, normalizedStart + safeMinDurationMs);
+			const normalizedEnd = Math.min(totalMs, Math.max(minEnd, region.endMs));
+			return normalizedStart !== region.startMs || normalizedEnd !== region.endMs
+				? { start: normalizedStart, end: normalizedEnd }
+				: null;
+		};
 
-			if (normalizedStart !== region.startMs || normalizedEnd !== region.endMs) {
-				onZoomSpanChange(region.id, { start: normalizedStart, end: normalizedEnd });
-			}
+		zoomRegionsRef.current.forEach((region) => {
+			const span = normalizeSpan(region);
+			if (span) onZoomSpanChange(region.id, span);
 		});
 
 		trimRegionsRef.current.forEach((region) => {
-			const clampedStart = Math.max(0, Math.min(region.startMs, totalMs));
-			const minEnd = clampedStart + safeMinDurationMs;
-			const clampedEnd = Math.min(totalMs, Math.max(minEnd, region.endMs));
-			const normalizedStart = Math.max(0, Math.min(clampedStart, totalMs - safeMinDurationMs));
-			const normalizedEnd = Math.max(minEnd, Math.min(clampedEnd, totalMs));
-
-			if (normalizedStart !== region.startMs || normalizedEnd !== region.endMs) {
-				onTrimSpanChange?.(region.id, { start: normalizedStart, end: normalizedEnd });
-			}
+			const span = normalizeSpan(region);
+			if (span) onTrimSpanChange?.(region.id, span);
 		});
 
 		speedRegionsRef.current.forEach((region) => {
-			const clampedStart = Math.max(0, Math.min(region.startMs, totalMs));
-			const minEnd = clampedStart + safeMinDurationMs;
-			const clampedEnd = Math.min(totalMs, Math.max(minEnd, region.endMs));
-			const normalizedStart = Math.max(0, Math.min(clampedStart, totalMs - safeMinDurationMs));
-			const normalizedEnd = Math.max(minEnd, Math.min(clampedEnd, totalMs));
-
-			if (normalizedStart !== region.startMs || normalizedEnd !== region.endMs) {
-				onSpeedSpanChange?.(region.id, { start: normalizedStart, end: normalizedEnd });
-			}
+			const span = normalizeSpan(region);
+			if (span) onSpeedSpanChange?.(region.id, span);
 		});
 
 		highlightRegionsRef.current.forEach((region) => {
-			const clampedStart = Math.max(0, Math.min(region.startMs, totalMs));
-			const minEnd = clampedStart + safeMinDurationMs;
-			const clampedEnd = Math.min(totalMs, Math.max(minEnd, region.endMs));
-			const normalizedStart = Math.max(0, Math.min(clampedStart, totalMs - safeMinDurationMs));
-			const normalizedEnd = Math.max(minEnd, Math.min(clampedEnd, totalMs));
-
-			if (normalizedStart !== region.startMs || normalizedEnd !== region.endMs) {
-				onHighlightSpanChange?.(region.id, { start: normalizedStart, end: normalizedEnd });
-			}
+			const span = normalizeSpan(region);
+			if (span) onHighlightSpanChange?.(region.id, span);
 		});
 	}, [
 		totalMs,

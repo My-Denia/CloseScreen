@@ -1721,20 +1721,26 @@ const VideoPlayback = forwardRef<VideoPlaybackRef, VideoPlaybackProps>(
 										highlightStyle.opacity > 0 &&
 										diameter > 0;
 									if (showHighlight) {
+										// Ring: the canvas exporter strokes centered ON the radius, so give the
+										// border-box element one ring-width of extra size — its inner border's
+										// centerline then sits exactly at `radius`, matching the export.
+										const ringWidth = Math.max(1.5, (diameter / 2) * 0.22);
+										const boxSize =
+											highlightStyle.style === "ring" ? diameter + ringWidth : diameter;
 										highlightEl.style.display = "block";
-										highlightEl.style.width = `${diameter}px`;
-										highlightEl.style.height = `${diameter}px`;
+										highlightEl.style.width = `${boxSize}px`;
+										highlightEl.style.height = `${boxSize}px`;
 										highlightEl.style.opacity = `${highlightStyle.opacity}`;
 										if (highlightStyle.style === "ring") {
-											highlightEl.style.border = `${Math.max(1.5, (diameter / 2) * 0.22)}px solid ${highlightStyle.color}`;
+											highlightEl.style.border = `${ringWidth}px solid ${highlightStyle.color}`;
 											highlightEl.style.backgroundColor = "transparent";
 										} else {
 											highlightEl.style.border = "none";
 											highlightEl.style.backgroundColor = highlightStyle.color;
 										}
 										highlightEl.style.transform = `translate3d(${
-											projectedStagePoint.x - diameter / 2
-										}px, ${projectedStagePoint.y - diameter / 2}px, 0)`;
+											projectedStagePoint.x - boxSize / 2
+										}px, ${projectedStagePoint.y - boxSize / 2}px, 0)`;
 									} else {
 										highlightEl.style.display = "none";
 									}
@@ -2205,6 +2211,7 @@ const VideoPlayback = forwardRef<VideoPlaybackRef, VideoPlaybackProps>(
 							display: "none",
 							pointerEvents: "none",
 							transformOrigin: "0 0",
+							boxSizing: "border-box",
 						}}
 					/>
 					<img

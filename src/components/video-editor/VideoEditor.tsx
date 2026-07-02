@@ -1218,6 +1218,10 @@ export default function VideoEditor() {
 		}
 
 		if (timelineClipboard.kind === "highlight") {
+			// The clipboard can outlive the project it was copied from; without an editable
+			// cursor recording the highlight row is hidden and a pasted region would be
+			// invisible and unremovable from the UI.
+			if (!hasEditableCursorRecording) return;
 			pasteSpanRegion({
 				existingRegions: highlightRegions,
 				createId: () => `highlight-${nextHighlightIdRef.current++}`,
@@ -1250,6 +1254,7 @@ export default function VideoEditor() {
 		trimRegions,
 		speedRegions,
 		highlightRegions,
+		hasEditableCursorRecording,
 		autoFocusAll,
 		tt,
 		notifyPasted,
@@ -3312,7 +3317,11 @@ export default function VideoEditor() {
 										!!selectedBlurId ||
 										!!selectedHighlightId
 									}
-									canPasteTimelineItem={!!timelineClipboard && duration > 0}
+									canPasteTimelineItem={
+										!!timelineClipboard &&
+										duration > 0 &&
+										(timelineClipboard.kind !== "highlight" || hasEditableCursorRecording)
+									}
 									onCopySelectedItem={handleCopySelectedTimelineItem}
 									onPasteTimelineItem={handlePasteTimelineItem}
 									aspectRatio={aspectRatio}
