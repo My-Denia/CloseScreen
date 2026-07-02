@@ -53,6 +53,7 @@ import {
 	DEFAULT_EDITOR_LAYOUT_SETTINGS,
 	DEFAULT_SOURCE_DIMENSIONS,
 } from "./editorDefaults";
+import { toMediaSrc } from "./projectPersistence";
 import {
 	type AnnotationRegion,
 	type BlurData,
@@ -1971,7 +1972,7 @@ const VideoPlayback = forwardRef<VideoPlaybackRef, VideoPlaybackProps>(
 								>
 									<video
 										ref={webcamVideoRef}
-										src={webcamVideoPath}
+										src={toMediaSrc(webcamVideoPath)}
 										className={`w-full h-full object-cover ${webcamLayoutPreset === "picture-in-picture" ? "cursor-grab active:cursor-grabbing" : "pointer-events-none"}`}
 										style={{
 											borderRadius: useClipPath ? 0 : (webcamLayout?.borderRadius ?? 0),
@@ -2150,7 +2151,7 @@ const VideoPlayback = forwardRef<VideoPlaybackRef, VideoPlaybackProps>(
 				</div>
 				<video
 					ref={videoRef}
-					src={videoPath}
+					src={toMediaSrc(videoPath)}
 					className="hidden"
 					preload="auto"
 					playsInline

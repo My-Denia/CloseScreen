@@ -1,3 +1,9 @@
+// Patch PixiJS to avoid `new Function()` shader/uniform codegen under the packaged app's
+// Content-Security-Policy. The CSP currently allows 'unsafe-eval' only because web-demuxer's
+// FFmpeg glue needs it; this patch removes PixiJS's own eval dependency so the renderer isn't a
+// blocker if that allowance is ever dropped. Must run before any PixiJS renderer is created
+// (editor preview + the exporter's FrameRenderer). Side-effect import.
+import "pixi.js/unsafe-eval";
 import React from "react";
 import ReactDOM from "react-dom/client";
 import App from "./App.tsx";
