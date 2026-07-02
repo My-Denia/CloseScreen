@@ -49,5 +49,22 @@
 		"description": "Abbiamo rilevato {{language}} come lingua del sistema. Vuoi passare CloseScreen a {{language}}?",
 		"switch": "Passa a {{language}}",
 		"keepDefault": "Mantieni la lingua corrente"
+	},
+	"storage": {
+		"title": "Cartella di archiviazione delle registrazioni",
+		"tooltip": "Archiviazione registrazioni",
+		"browse": "Cambia…",
+		"reset": "Usa predefinita",
+		"openFolder": "Apri cartella",
+		"close": "Chiudi",
+		"manage": "Gestisci…",
+		"dismiss": "Ignora",
+		"freeSpace": "{{free}} liberi",
+		"freeSpaceUnknown": "Spazio libero sconosciuto",
+		"lowSpaceWarning": "Spazio su disco insufficiente: {{free}} sull'unità di registrazione. La registrazione potrebbe non riuscire.",
+		"saveFailedTitle": "Impossibile salvare la registrazione",
+		"appliesToNew": "Si applica alle nuove registrazioni; i file esistenti restano dove sono",
+		"unavailableFallback": "Cartella personalizzata non disponibile: viene usata quella predefinita",
+		"recordingActive": "Interrompi la registrazione per cambiare la cartella di archiviazione"
 	}
 }

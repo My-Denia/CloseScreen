@@ -49,5 +49,22 @@
 		"description": "Detectamos {{language}} como idioma de tu sistema. ¿Quieres cambiar CloseScreen a {{language}}?",
 		"switch": "Cambiar a {{language}}",
 		"keepDefault": "Mantener idioma actual"
+	},
+	"storage": {
+		"title": "Carpeta de almacenamiento de grabaciones",
+		"tooltip": "Almacenamiento de grabaciones",
+		"browse": "Cambiar…",
+		"reset": "Usar predeterminada",
+		"openFolder": "Abrir carpeta",
+		"close": "Cerrar",
+		"manage": "Gestionar…",
+		"dismiss": "Descartar",
+		"freeSpace": "{{free}} libres",
+		"freeSpaceUnknown": "Espacio libre desconocido",
+		"lowSpaceWarning": "Poco espacio en disco: {{free}} en la unidad de grabación. La grabación puede fallar.",
+		"saveFailedTitle": "No se pudo guardar la grabación",
+		"appliesToNew": "Se aplica a las nuevas grabaciones; los archivos existentes no se mueven",
+		"unavailableFallback": "Carpeta personalizada no disponible: se usa la carpeta predeterminada",
+		"recordingActive": "Detén la grabación para cambiar la carpeta de almacenamiento"
 	}
 }

@@ -49,5 +49,22 @@
 		"description": "We detected {{language}} as your system language. Do you want to switch CloseScreen to {{language}}?",
 		"switch": "Switch to {{language}}",
 		"keepDefault": "Keep current language"
+	},
+	"storage": {
+		"title": "Recording storage folder",
+		"tooltip": "Recording storage",
+		"browse": "Change…",
+		"reset": "Use default",
+		"openFolder": "Open folder",
+		"close": "Close",
+		"manage": "Manage…",
+		"dismiss": "Dismiss",
+		"freeSpace": "{{free}} free",
+		"freeSpaceUnknown": "Free space unknown",
+		"lowSpaceWarning": "Low disk space — {{free}} on the recording drive. Recording may fail.",
+		"saveFailedTitle": "Recording could not be saved",
+		"appliesToNew": "Applies to new recordings; existing files stay where they are",
+		"unavailableFallback": "Custom folder unavailable — using the default folder",
+		"recordingActive": "Stop recording to change the storage folder"
 	}
 }

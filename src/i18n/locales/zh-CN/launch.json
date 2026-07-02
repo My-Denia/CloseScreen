@@ -49,5 +49,22 @@
 		"description": "我们检测到你的系统语言是{{language}}。是否将 CloseScreen 切换为{{language}}？",
 		"switch": "切换到{{language}}",
 		"keepDefault": "保持当前语言"
+	},
+	"storage": {
+		"title": "录制文件保存位置",
+		"tooltip": "录制存储设置",
+		"browse": "更改…",
+		"reset": "恢复默认",
+		"openFolder": "打开文件夹",
+		"close": "关闭",
+		"manage": "管理…",
+		"dismiss": "知道了",
+		"freeSpace": "剩余 {{free}}",
+		"freeSpaceUnknown": "剩余空间未知",
+		"lowSpaceWarning": "磁盘空间不足——录制盘剩余 {{free}}，录制可能失败。",
+		"saveFailedTitle": "录制内容保存失败",
+		"appliesToNew": "仅对新录制生效；已有文件保留在原位置",
+		"unavailableFallback": "自定义文件夹不可用——已改用默认文件夹",
+		"recordingActive": "请先停止录制再更改保存位置"
 	}
 }

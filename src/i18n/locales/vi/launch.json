@@ -49,5 +49,22 @@
 		"description": "Chúng tôi phát hiện {{language}} là ngôn ngữ hệ thống của bạn. Bạn có muốn chuyển CloseScreen sang {{language}} không?",
 		"switch": "Chuyển sang {{language}}",
 		"keepDefault": "Giữ ngôn ngữ hiện tại"
+	},
+	"storage": {
+		"title": "Thư mục lưu bản ghi",
+		"tooltip": "Lưu trữ bản ghi",
+		"browse": "Thay đổi…",
+		"reset": "Dùng mặc định",
+		"openFolder": "Mở thư mục",
+		"close": "Đóng",
+		"manage": "Quản lý…",
+		"dismiss": "Bỏ qua",
+		"freeSpace": "Còn trống {{free}}",
+		"freeSpaceUnknown": "Không rõ dung lượng trống",
+		"lowSpaceWarning": "Dung lượng đĩa thấp — còn {{free}} trên ổ ghi hình. Việc ghi có thể thất bại.",
+		"saveFailedTitle": "Không thể lưu bản ghi",
+		"appliesToNew": "Chỉ áp dụng cho bản ghi mới; các tệp hiện có vẫn giữ nguyên vị trí",
+		"unavailableFallback": "Thư mục tùy chỉnh không khả dụng — đang dùng thư mục mặc định",
+		"recordingActive": "Dừng ghi hình để thay đổi thư mục lưu trữ"
 	}
 }
