@@ -206,6 +206,20 @@ contextBridge.exposeInMainWorld("electronAPI", {
 	saveShortcuts: (shortcuts: unknown) => {
 		return ipcRenderer.invoke("save-shortcuts", shortcuts);
 	},
+	getRecordingStorageStatus: () => {
+		return ipcRenderer.invoke("get-recording-storage-status");
+	},
+	// No path argument by design: the folder comes from the OS dialog in the main
+	// process, never from renderer-supplied strings (issue #23).
+	pickRecordingsDirectory: () => {
+		return ipcRenderer.invoke("pick-recordings-directory");
+	},
+	resetRecordingsDirectory: () => {
+		return ipcRenderer.invoke("reset-recordings-directory");
+	},
+	openRecordingsDirectory: () => {
+		return ipcRenderer.invoke("open-recordings-directory");
+	},
 	updateGlobalShortcut: (binding: ShortcutBinding) => {
 		return ipcRenderer.invoke("update-global-shortcut", binding);
 	},

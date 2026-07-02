@@ -8,11 +8,8 @@
  * (issue #3 / upstream #686). The raw error is still logged and returned in `error`;
  * this produces the message the user actually sees.
  */
-export function describeSaveError(error: unknown): string {
-	const code =
-		typeof error === "object" && error !== null && "code" in error
-			? String((error as { code?: unknown }).code ?? "")
-			: "";
+export function describeSaveError(error: unknown, subject = "exported video"): string {
+	const code = fsErrorCode(error);
 
 	switch (code) {
 		case "EACCES":
@@ -35,6 +32,13 @@ export function describeSaveError(error: unknown): string {
 		case "ENFILE":
 			return "Too many files are open. Close some applications and try again.";
 		default:
-			return code ? `Failed to save exported video (${code}).` : "Failed to save exported video.";
+			return code ? `Failed to save ${subject} (${code}).` : `Failed to save ${subject}.`;
 	}
+}
+
+/** The Node fs error code carried by `error`, or "" when it isn't an fs-style error. */
+export function fsErrorCode(error: unknown): string {
+	return typeof error === "object" && error !== null && "code" in error
+		? String((error as { code?: unknown }).code ?? "")
+		: "";
 }

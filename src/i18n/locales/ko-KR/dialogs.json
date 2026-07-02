@@ -67,6 +67,7 @@
 		"saveGif": "내보낸 GIF 저장",
 		"saveVideo": "내보낸 비디오 저장",
 		"selectVideo": "비디오 파일 선택",
+		"selectRecordingsFolder": "녹화 저장 폴더 선택",
 		"saveProject": "CloseScreen 프로젝트 저장",
 		"openProject": "CloseScreen 프로젝트 열기",
 		"gifImage": "GIF 이미지",
