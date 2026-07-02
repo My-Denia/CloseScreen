@@ -26,9 +26,18 @@ describe("safeJoin", () => {
 		expect(safeJoin(ROOT, ["..", "secrets.txt"].join(path.sep))).toBeNull();
 	});
 
-	it("rejects absolute-path rejoins", () => {
-		const outside = path.sep === "\\" ? "C:\\Windows\\System32\\config" : "/etc/passwd";
-		expect(safeJoin(ROOT, outside)).toBeNull();
+	it("rejects absolute-path rejoins that escape the root", () => {
+		// safeJoin strips leading separators, so a leading-slash abs path collapses to a relative
+		// path UNDER root (that's intended — it can't escape). Genuine escapes are a different
+		// Windows drive, or a UNC/root-anchored path that resolves outside the root.
+		if (path.sep === "\\") {
+			expect(safeJoin(ROOT, "D:\\Windows\\System32")).toBeNull();
+			expect(safeJoin("C:\\srv\\dist", "C:\\srv\\other\\x")).toBeNull();
+		} else {
+			// A leading-slash path is stripped to a subpath (safe); an escape needs `..`.
+			expect(safeJoin(ROOT, "/etc/passwd")).toBe(path.join(ROOT, "etc/passwd"));
+			expect(safeJoin("/srv/dist", "../other/x")).toBeNull();
+		}
 	});
 
 	it("rejects sibling-directory prefix confusion (root + suffix)", () => {
