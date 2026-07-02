@@ -133,6 +133,35 @@ describe("timelineClipboardUtils", () => {
 		expect(pasted.focus).not.toBe(source.focus);
 	});
 
+	it("applies the global Auto-Focus All mode to pasted zooms while it is on", () => {
+		const manualSource = createZoomRegion({ focusMode: "manual" });
+		const pasted = buildPastedZoomRegion(
+			manualSource,
+			"zoom-9",
+			{ startMs: 4000, endMs: 6000 },
+			{ forceAutoFocus: true },
+		);
+		expect(pasted.focusMode).toBe("auto");
+	});
+
+	it("preserves the copied zoom's focus mode while Auto-Focus All is off", () => {
+		const autoSource = createZoomRegion({ focusMode: "auto" });
+		const pasted = buildPastedZoomRegion(
+			autoSource,
+			"zoom-9",
+			{ startMs: 4000, endMs: 6000 },
+			{ forceAutoFocus: false },
+		);
+		expect(pasted.focusMode).toBe("auto");
+
+		const manualSource = createZoomRegion({ focusMode: "manual" });
+		const pastedManual = buildPastedZoomRegion(manualSource, "zoom-10", {
+			startMs: 4000,
+			endMs: 6000,
+		});
+		expect(pastedManual.focusMode).toBe("manual");
+	});
+
 	it("pastes annotations with a new identity and without the auto-caption link", () => {
 		const source = createAnnotationRegion({
 			annotationSource: "auto-caption",

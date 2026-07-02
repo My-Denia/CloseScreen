@@ -81,11 +81,18 @@ export function getPastedAnnotationPosition(
 	};
 }
 
-/** Pasted zooms are the user's own: always source:"manual" so wand toggles never remove them. */
+/**
+ * Pasted zooms are the user's own: always source:"manual" so wand toggles never remove
+ * them. While Auto-Focus All is on, every zoom must be cursor-following (the toggle
+ * rewrites all regions and the settings UI locks the selector), so the paste applies the
+ * global mode instead of the clipboard's — otherwise the source's focusMode is preserved,
+ * matching the per-zoom choice the user copied.
+ */
 export function buildPastedZoomRegion(
 	source: ZoomRegion,
 	id: string,
 	span: { startMs: number; endMs: number },
+	opts?: { forceAutoFocus?: boolean },
 ): ZoomRegion {
 	return {
 		...source,
@@ -94,6 +101,7 @@ export function buildPastedZoomRegion(
 		endMs: span.endMs,
 		focus: { ...source.focus },
 		source: "manual",
+		...(opts?.forceAutoFocus ? { focusMode: "auto" as const } : {}),
 	};
 }
 

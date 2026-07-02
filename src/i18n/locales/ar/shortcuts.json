@@ -33,6 +33,8 @@
 		"deleteSelectedAlt": "حذف المحدد (alt)",
 		"panTimeline": "تحريك المخطط الزمني",
 		"zoomTimeline": "تكبير المخطط الزمني",
+		"copyTimelineItem": "نسخ العنصر المحدد",
+		"pasteTimelineItem": "لصق عند مؤشر التشغيل",
 		"frameBack": "إطار للخلف",
 		"frameForward": "إطار للأمام"
 	}

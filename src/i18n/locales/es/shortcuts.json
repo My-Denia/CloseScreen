@@ -33,6 +33,8 @@
 		"deleteSelectedAlt": "Eliminar seleccionado (alt)",
 		"panTimeline": "Desplazar línea de tiempo",
 		"zoomTimeline": "Zoom en línea de tiempo",
+		"copyTimelineItem": "Copiar elemento seleccionado",
+		"pasteTimelineItem": "Pegar en el cursor de reproducción",
 		"frameBack": "Fotograma anterior",
 		"frameForward": "Fotograma siguiente"
 	}

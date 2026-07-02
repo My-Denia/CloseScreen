@@ -33,6 +33,8 @@
 		"deleteSelectedAlt": "Seçileni Sil (alternatif)",
 		"panTimeline": "Zaman Çizelgesini Kaydır",
 		"zoomTimeline": "Zaman Çizelgesini Yakınlaştır",
+		"copyTimelineItem": "Seçili öğeyi kopyala",
+		"pasteTimelineItem": "Oynatma kafasına yapıştır",
 		"frameBack": "Önceki Kare",
 		"frameForward": "Sonraki Kare"
 	}

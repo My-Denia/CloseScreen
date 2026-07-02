@@ -1153,7 +1153,10 @@ export default function VideoEditor() {
 			pasteSpanRegion({
 				existingRegions: zoomRegions,
 				createId: () => `zoom-${nextZoomIdRef.current++}`,
-				createRegion: (id) => buildPastedZoomRegion(timelineClipboard.region, id, span),
+				createRegion: (id) =>
+					buildPastedZoomRegion(timelineClipboard.region, id, span, {
+						forceAutoFocus: autoFocusAll,
+					}),
 				pushRegion: (region) =>
 					pushState((prev) => ({ zoomRegions: [...prev.zoomRegions, region] })),
 				selectRegion: setSelectedZoomId,
@@ -1195,6 +1198,7 @@ export default function VideoEditor() {
 		zoomRegions,
 		trimRegions,
 		speedRegions,
+		autoFocusAll,
 		tt,
 		notifyPasted,
 	]);

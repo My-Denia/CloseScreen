@@ -33,6 +33,8 @@
 		"deleteSelectedAlt": "선택 항목 삭제 (대체)",
 		"panTimeline": "타임라인 이동",
 		"zoomTimeline": "타임라인 확대/축소",
+		"copyTimelineItem": "선택한 요소 복사",
+		"pasteTimelineItem": "재생 헤드에 붙여넣기",
 		"frameBack": "이전 프레임",
 		"frameForward": "다음 프레임"
 	}

@@ -65,6 +65,21 @@ export const FIXED_SHORTCUTS: FixedShortcut[] = [
 		bindings: [],
 	},
 	{ i18nKey: "zoomTimeline", label: "Zoom Timeline", display: "Ctrl + Scroll", bindings: [] },
+	// Timeline clipboard (issue #29). Listed here so the customize dialog reserves the
+	// bindings — TimelineEditor handles these keys directly, so letting a configurable
+	// action claim Ctrl+C/V would behave inconsistently with selection/clipboard state.
+	{
+		i18nKey: "copyTimelineItem",
+		label: "Copy Selected Element",
+		display: "Ctrl + C",
+		bindings: [{ key: "c", ctrl: true }],
+	},
+	{
+		i18nKey: "pasteTimelineItem",
+		label: "Paste at Playhead",
+		display: "Ctrl + V",
+		bindings: [{ key: "v", ctrl: true }],
+	},
 	{ i18nKey: "frameBack", label: "Frame Back", display: "←", bindings: [{ key: "arrowleft" }] },
 	{
 		i18nKey: "frameForward",

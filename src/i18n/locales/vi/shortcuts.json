@@ -33,6 +33,8 @@
 		"deleteSelectedAlt": "Xóa mục đã chọn (alt)",
 		"panTimeline": "Xoay Trục thời gian",
 		"zoomTimeline": "Thu phóng Trục thời gian",
+		"copyTimelineItem": "Sao chép phần tử đã chọn",
+		"pasteTimelineItem": "Dán tại đầu phát",
 		"frameBack": "Lùi một khung hình",
 		"frameForward": "Tiến một khung hình"
 	}

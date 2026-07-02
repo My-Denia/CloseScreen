@@ -33,6 +33,8 @@
 		"deleteSelectedAlt": "Delete Selected (alt)",
 		"panTimeline": "Pan Timeline",
 		"zoomTimeline": "Zoom Timeline",
+		"copyTimelineItem": "Copy Selected Element",
+		"pasteTimelineItem": "Paste at Playhead",
 		"frameBack": "Frame Back",
 		"frameForward": "Frame Forward"
 	}
