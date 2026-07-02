@@ -55,6 +55,9 @@ const ICON_SIZE = 20;
 const HUD_DEVICE_POPUP_GAP = 28;
 // Horizontal layout: mirrors the `bottom-[68px]` class on the popup element.
 const HUD_DEVICE_POPUP_HORIZONTAL_BOTTOM = 68;
+// Top-anchored panels sit at `top-2` (8px); this is that offset plus breathing room
+// between a panel's bottom edge and the tray bar's top edge.
+const HUD_TOP_PANEL_GAP = 16;
 
 const ICON_CONFIG = {
 	drag: { icon: RxDragHandleDots2, size: ICON_SIZE },
@@ -241,6 +244,10 @@ export function LaunchWindow() {
 	const languageMenuPanelRef = useRef<HTMLDivElement | null>(null);
 	const hudBarRef = useRef<HTMLDivElement | null>(null);
 	const deviceSelectorRef = useRef<HTMLDivElement | null>(null);
+	// Whichever top-anchored panel is mounted (they are mutually exclusive): language
+	// prompt, update notice, storage panel or storage alert. Measured into the window
+	// height so panels never overlay the tray bar.
+	const topPanelRef = useRef<HTMLDivElement | null>(null);
 	// Measured bar height, anchors the popups above the tall vertical tray so they don't overlap it.
 	const [hudBarHeight, setHudBarHeight] = useState(0);
 	const [languageMenuStyle, setLanguageMenuStyle] = useState<{
@@ -417,6 +424,7 @@ export function LaunchWindow() {
 		// small-screen fallback, and reading clipped height would pin the window to it.
 		// scrollHeight gives full content height; the cap only engages when the main process clamps to screen.
 		let topFromBottom = viewportHeight - barEl.getBoundingClientRect().bottom + barEl.scrollHeight;
+		const barTopFromBottom = topFromBottom;
 		let halfWidth = barEl.scrollWidth / 2;
 
 		// Popups drive both dimensions too. Their vertical anchor depends on bar height,
@@ -440,6 +448,18 @@ export function LaunchWindow() {
 		if (languageMenuPanelRef.current) {
 			const rect = languageMenuPanelRef.current.getBoundingClientRect();
 			halfWidth = Math.max(halfWidth, centerX - rect.left, rect.right - centerX);
+		}
+
+		// Top-anchored panels (language prompt, update notice, storage panel/alert) are
+		// fixed to the window top while the bar hugs the bottom. The window must grow
+		// tall enough for both plus a gap — otherwise the panel overlays the tray bar
+		// and swallows its clicks (found live: the low-disk alert covered Stop).
+		if (topPanelRef.current) {
+			const rect = topPanelRef.current.getBoundingClientRect();
+			if (rect.width !== 0 || rect.height !== 0) {
+				topFromBottom = Math.max(topFromBottom, barTopFromBottom + rect.height + HUD_TOP_PANEL_GAP);
+				halfWidth = Math.max(halfWidth, rect.width / 2);
+			}
 		}
 
 		setHudBarHeight((prev) => {
@@ -491,6 +511,10 @@ export function LaunchWindow() {
 	);
 	const setLanguageMenuPanelEl = useCallback(
 		(el: HTMLDivElement | null) => observeHudElement(el, languageMenuPanelRef),
+		[observeHudElement],
+	);
+	const setTopPanelEl = useCallback(
+		(el: HTMLDivElement | null) => observeHudElement(el, topPanelRef),
 		[observeHudElement],
 	);
 
@@ -611,6 +635,7 @@ export function LaunchWindow() {
 		>
 			{systemLocaleSuggestion && (
 				<div
+					ref={setTopPanelEl}
 					data-hud-interactive="true"
 					className={`fixed top-8 left-1/2 z-30 w-[calc(100vw-1rem)] max-w-[520px] -translate-x-1/2 rounded-xl border border-white/15 bg-[rgba(20,20,28,0.95)] p-3 shadow-2xl backdrop-blur-xl text-white animate-in fade-in-0 zoom-in-95 duration-200 ${styles.electronNoDrag}`}
 				>
@@ -651,6 +676,7 @@ export function LaunchWindow() {
 			    editor just never opened. Same panel mechanics as the update notice below. */}
 			{storageAlert && !systemLocaleSuggestion && !isStoragePanelOpen && (
 				<div
+					ref={setTopPanelEl}
 					data-hud-interactive="true"
 					data-testid="hud-storage-alert"
 					className={`fixed top-2 left-1/2 z-30 flex w-[calc(100vw-1rem)] max-w-[560px] -translate-x-1/2 items-center gap-3 rounded-xl border px-3 py-2 shadow-2xl backdrop-blur-xl text-white animate-in fade-in-0 zoom-in-95 duration-200 ${
@@ -708,6 +734,7 @@ export function LaunchWindow() {
 			{/* Recording storage folder panel (issue #23). */}
 			{isStoragePanelOpen && !systemLocaleSuggestion && (
 				<div
+					ref={setTopPanelEl}
 					data-hud-interactive="true"
 					data-testid="hud-storage-panel"
 					className={`fixed top-2 left-1/2 z-30 w-[calc(100vw-1rem)] max-w-[560px] -translate-x-1/2 rounded-xl border border-white/15 bg-[rgba(20,20,28,0.95)] px-3 py-2 shadow-2xl backdrop-blur-xl text-white animate-in fade-in-0 zoom-in-95 duration-200 ${styles.electronNoDrag}`}
@@ -796,6 +823,7 @@ export function LaunchWindow() {
 			    The language prompt and storage panels take precedence when they want the spot. */}
 			{availableUpdate && !systemLocaleSuggestion && !storageAlert && !isStoragePanelOpen && (
 				<div
+					ref={setTopPanelEl}
 					data-hud-interactive="true"
 					data-testid="hud-update-notice"
 					className={`fixed top-2 left-1/2 z-30 flex w-[calc(100vw-1rem)] max-w-[560px] -translate-x-1/2 items-center gap-3 rounded-xl border border-white/15 bg-[rgba(20,20,28,0.95)] px-3 py-2 shadow-2xl backdrop-blur-xl text-white animate-in fade-in-0 zoom-in-95 duration-200 ${styles.electronNoDrag}`}
