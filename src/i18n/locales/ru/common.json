@@ -42,5 +42,16 @@
 	"locale": {
 		"name": "Русский",
 		"short": "RU"
+	},
+	"updates": {
+		"availableTitle": "Доступна версия CloseScreen {{version}}",
+		"availableDescription": "У вас версия {{current}}",
+		"download": "Скачать",
+		"dontRemind": "Больше не напоминать",
+		"dismiss": "Позже",
+		"upToDate": "У вас последняя версия",
+		"upToDateDescription": "CloseScreen {{current}} — последняя версия",
+		"checkFailed": "Не удалось проверить обновления",
+		"checkFailedDescription": "Проверьте подключение и попробуйте снова."
 	}
 }

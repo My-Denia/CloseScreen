@@ -113,7 +113,8 @@
 	"support": {
 		"reportBug": "回報錯誤",
 		"saveDiagnostics": "儲存診斷資料",
-		"starOnGithub": "在 GitHub 上加星"
+		"starOnGithub": "在 GitHub 上加星",
+		"checkForUpdates": "檢查更新"
 	},
 	"imageUpload": {
 		"invalidFileType": "無效的檔案類型",

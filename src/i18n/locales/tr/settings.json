@@ -113,7 +113,8 @@
 	"support": {
 		"reportBug": "Hata Bildir",
 		"saveDiagnostics": "Teşhis Verilerini Kaydet",
-		"starOnGithub": "GitHub'da Yıldızla"
+		"starOnGithub": "GitHub'da Yıldızla",
+		"checkForUpdates": "Güncellemeleri denetle"
 	},
 	"imageUpload": {
 		"invalidFileType": "Geçersiz dosya türü",

@@ -113,7 +113,8 @@
 	"support": {
 		"reportBug": "Báo cáo lỗi",
 		"saveDiagnostics": "Lưu thông tin chẩn đoán",
-		"starOnGithub": "Đánh giá sao trên GitHub"
+		"starOnGithub": "Đánh giá sao trên GitHub",
+		"checkForUpdates": "Kiểm tra cập nhật"
 	},
 	"imageUpload": {
 		"invalidFileType": "Loại tệp không hợp lệ",

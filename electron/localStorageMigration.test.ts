@@ -16,7 +16,9 @@ import { describe, expect, it } from "vitest";
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), "..");
 const read = (rel: string): string => fs.readFileSync(path.join(ROOT, rel), "utf8");
 
-// Every module that owns a localStorage key the renderer persists.
+// Every module that owns a localStorage key PREDATING the app:// origin migration.
+// Keys introduced after the migration (e.g. src/lib/updateNotifications.ts) have no
+// legacy file:// values to carry over and deliberately stay out of MIGRATION_KEYS.
 const RENDERER_KEY_SOURCES = [
 	"src/lib/userPreferences.ts", // PREFS_KEY
 	"src/lib/customFonts.ts", // STORAGE_KEY

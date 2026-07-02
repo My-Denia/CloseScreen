@@ -42,5 +42,16 @@
 	"locale": {
 		"name": "Português Brasileiro",
 		"short": "PT-BR"
+	},
+	"updates": {
+		"availableTitle": "CloseScreen {{version}} está disponível",
+		"availableDescription": "Você está na versão {{current}}",
+		"download": "Baixar",
+		"dontRemind": "Não lembrar novamente",
+		"dismiss": "Mais tarde",
+		"upToDate": "Você está atualizado",
+		"upToDateDescription": "CloseScreen {{current}} é a versão mais recente",
+		"checkFailed": "Não foi possível verificar atualizações",
+		"checkFailedDescription": "Verifique sua conexão e tente novamente."
 	}
 }

@@ -12,6 +12,7 @@ import {
 	Lock,
 	MousePointerClick,
 	Palette,
+	RefreshCw,
 	SlidersHorizontal,
 	Sparkles,
 	Star,
@@ -51,6 +52,7 @@ import {
 	GIF_FRAME_RATES,
 	GIF_SIZE_PRESETS,
 } from "@/lib/exporter";
+import { runManualUpdateCheck } from "@/lib/updateNotifications";
 import { cn } from "@/lib/utils";
 import { resolveImageWallpaperUrl, WALLPAPER_PATHS } from "@/lib/wallpaper";
 import { type AspectRatio, isPortraitAspectRatio } from "@/utils/aspectRatioUtils";
@@ -488,6 +490,7 @@ export function SettingsPanel({
 	showCursorSettings = true,
 }: SettingsPanelProps) {
 	const t = useScopedT("settings");
+	const tc = useScopedT("common");
 	const [activePanelMode, setActivePanelMode] = useState<SettingsPanelMode>("background");
 	const sourceDimensions = formatSourceDimensions(videoElement, cropRegion);
 	// Resolved URLs are for DOM rendering only. We persist the canonical
@@ -775,6 +778,17 @@ export function SettingsPanel({
 			>
 				<Star className="w-3 h-3 text-yellow-400" />
 				{t("support.starOnGithub")}
+			</button>
+			<button
+				type="button"
+				data-testid="settings-check-updates-button"
+				onClick={() => {
+					void runManualUpdateCheck(tc);
+				}}
+				className="flex-1 flex items-center justify-center gap-1.5 text-[10px] text-slate-500 hover:text-slate-300 py-1.5 transition-colors"
+			>
+				<RefreshCw className="w-3 h-3 text-slate-400" />
+				{t("support.checkForUpdates")}
 			</button>
 		</div>
 	);

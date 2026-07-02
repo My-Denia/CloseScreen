@@ -113,7 +113,8 @@
 	"support": {
 		"reportBug": "Signaler un bug",
 		"saveDiagnostics": "Enregistrer les diagnostics",
-		"starOnGithub": "Étoile sur GitHub"
+		"starOnGithub": "Étoile sur GitHub",
+		"checkForUpdates": "Rechercher des mises à jour"
 	},
 	"imageUpload": {
 		"invalidFileType": "Type de fichier invalide",

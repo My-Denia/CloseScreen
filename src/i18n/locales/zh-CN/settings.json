@@ -113,7 +113,8 @@
 	"support": {
 		"reportBug": "报告错误",
 		"saveDiagnostics": "保存诊断信息",
-		"starOnGithub": "在 GitHub 上加星"
+		"starOnGithub": "在 GitHub 上加星",
+		"checkForUpdates": "检查更新"
 	},
 	"imageUpload": {
 		"invalidFileType": "无效的文件类型",

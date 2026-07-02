@@ -11,6 +11,7 @@ import {
 } from "./globalShortcut";
 import { mainT, setMainLocale } from "./i18n";
 import { getSelectedDesktopSource, registerIpcHandlers } from "./ipc/handlers";
+import { registerUpdateCheckHandler } from "./ipc/updateCheck";
 import { isLocalStorageMigrationRunning, migrateLegacyLocalStorage } from "./localStorageMigration";
 import {
 	createCountdownOverlayWindow,
@@ -483,6 +484,7 @@ app.whenReady().then(async () => {
 		},
 		switchToHudWrapper,
 	);
+	registerUpdateCheckHandler();
 
 	await loadAndRegisterGlobalShortcut(showMainWindow);
 

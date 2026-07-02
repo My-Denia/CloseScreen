@@ -113,7 +113,8 @@
 	"support": {
 		"reportBug": "バグを報告",
 		"saveDiagnostics": "診断情報を保存",
-		"starOnGithub": "GitHub でスターを付ける"
+		"starOnGithub": "GitHub でスターを付ける",
+		"checkForUpdates": "更新を確認"
 	},
 	"imageUpload": {
 		"invalidFileType": "無効なファイル形式",

@@ -113,7 +113,8 @@
 	"support": {
 		"reportBug": "버그 신고",
 		"saveDiagnostics": "Save Diagnostics",
-		"starOnGithub": "GitHub에 Star 남기기"
+		"starOnGithub": "GitHub에 Star 남기기",
+		"checkForUpdates": "업데이트 확인"
 	},
 	"imageUpload": {
 		"invalidFileType": "지원하지 않는 파일 형식입니다",
