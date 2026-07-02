@@ -9,14 +9,16 @@
 		"addTrim": "添加剪辑 (T)",
 		"addAnnotation": "添加标注 (A)",
 		"addBlur": "添加模糊 (B)",
-		"addSpeed": "添加速度 (S)"
+		"addSpeed": "添加速度 (S)",
+		"addHighlight": "添加光标高亮 (H)"
 	},
 	"hints": {
 		"pressZoom": "按 Z 添加缩放",
 		"pressTrim": "按 T 添加剪辑",
 		"pressAnnotation": "按 A 添加标注",
 		"pressBlur": "按 B 添加模糊区域",
-		"pressSpeed": "按 S 添加速度"
+		"pressSpeed": "按 S 添加速度",
+		"pressHighlight": "按 H 添加光标高亮"
 	},
 	"labels": {
 		"pan": "平移",
@@ -29,7 +31,9 @@
 		"annotationItem": "标注",
 		"blurItem": "模糊 {{index}}",
 		"imageItem": "图片",
-		"emptyText": "空文本"
+		"emptyText": "空文本",
+		"highlight": "高亮",
+		"highlightItem": "高亮 {{index}}"
 	},
 	"emptyState": {
 		"noVideo": "未加载视频",
@@ -50,7 +54,9 @@
 		"cannotPlaceTrim": "无法在此处放置剪辑",
 		"trimExistsAtLocation": "此位置已存在剪辑或没有足够的空间。",
 		"cannotPlaceSpeed": "无法在此处放置速度",
-		"speedExistsAtLocation": "此位置已存在速度区域或没有足够的空间。"
+		"speedExistsAtLocation": "此位置已存在速度区域或没有足够的空间。",
+		"cannotPlaceHighlight": "无法在此处放置高亮",
+		"highlightExistsAtLocation": "此位置已有高亮，或空间不足。"
 	},
 	"success": {
 		"addedZoomSuggestions": "已添加 {{count}} 个基于光标的缩放建议",

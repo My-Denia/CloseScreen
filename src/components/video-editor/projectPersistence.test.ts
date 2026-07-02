@@ -207,6 +207,64 @@ it("detects unsaved changes from differing snapshots", () => {
 	expect(hasProjectUnsavedChanges("current", "baseline")).toBe(true);
 });
 
+describe("cursor highlight normalization (issue #26)", () => {
+	it("defaults highlight regions and style for pre-#26 projects", () => {
+		const normalized = normalizeProjectEditor({});
+		expect(normalized.highlightRegions).toEqual([]);
+		expect(normalized.cursorHighlight).toEqual({
+			style: "ring",
+			sizePx: 28,
+			color: "#FFD700",
+			opacity: 0.55,
+		});
+	});
+
+	it("keeps valid highlight regions and repairs malformed ones", () => {
+		const normalized = normalizeProjectEditor({
+			highlightRegions: [
+				{ id: "highlight-1", startMs: 100, endMs: 900 },
+				{ id: "highlight-2", startMs: 500.4, endMs: Number.NaN },
+				{ id: 42, startMs: 0, endMs: 100 },
+				null,
+			],
+		} as never);
+		expect(normalized.highlightRegions).toEqual([
+			{ id: "highlight-1", startMs: 100, endMs: 900 },
+			// NaN end falls back to start + 1000; fractional start rounds.
+			{ id: "highlight-2", startMs: 500, endMs: 1500 },
+		]);
+	});
+
+	it("clamps and validates the highlight style", () => {
+		const normalized = normalizeProjectEditor({
+			cursorHighlight: { style: "dot", sizePx: 500, color: "not-a-color", opacity: 3 },
+		} as never);
+		expect(normalized.cursorHighlight).toEqual({
+			style: "dot",
+			sizePx: 80, // clamped to CURSOR_HIGHLIGHT_SIZE_RANGE.max
+			color: "#FFD700", // invalid color falls back to the default
+			opacity: 1,
+		});
+	});
+
+	it("round-trips highlight state through a project snapshot", () => {
+		const editor = normalizeProjectEditor({
+			highlightRegions: [{ id: "highlight-1", startMs: 250, endMs: 1250 }],
+			cursorHighlight: { style: "dot", sizePx: 40, color: "#00FF00", opacity: 0.8 },
+		} as never);
+		const reparsed = JSON.parse(createProjectSnapshot(null, editor));
+		expect(reparsed.editor.highlightRegions).toEqual([
+			{ id: "highlight-1", startMs: 250, endMs: 1250 },
+		]);
+		expect(reparsed.editor.cursorHighlight).toEqual({
+			style: "dot",
+			sizePx: 40,
+			color: "#00FF00",
+			opacity: 0.8,
+		});
+	});
+});
+
 describe("wallpaper legacy normalization", () => {
 	it("rewrites pre-fix packaged paths (resources/assets/wallpapers/…)", () => {
 		const normalized = normalizeProjectEditor({

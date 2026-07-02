@@ -8,6 +8,7 @@ import type {
 	AnnotationPosition,
 	AnnotationRegion,
 	AnnotationSize,
+	HighlightRegion,
 	SpeedRegion,
 	TrimRegion,
 	ZoomRegion,
@@ -18,7 +19,8 @@ export type TimelineClipboardItem =
 	| { kind: "trim"; region: TrimRegion }
 	| { kind: "speed"; region: SpeedRegion }
 	| { kind: "annotation"; region: AnnotationRegion }
-	| { kind: "blur"; region: AnnotationRegion };
+	| { kind: "blur"; region: AnnotationRegion }
+	| { kind: "highlight"; region: HighlightRegion };
 
 function clamp(value: number, min: number, max: number): number {
 	return Math.min(max, Math.max(min, value));

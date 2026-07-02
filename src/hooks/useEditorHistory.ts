@@ -7,6 +7,8 @@ import {
 import type {
 	AnnotationRegion,
 	CropRegion,
+	CursorHighlightStyle,
+	HighlightRegion,
 	SpeedRegion,
 	TrimRegion,
 	WebcamLayoutPreset,
@@ -17,6 +19,7 @@ import type {
 } from "@/components/video-editor/types";
 import {
 	DEFAULT_CROP_REGION,
+	DEFAULT_CURSOR_HIGHLIGHT_STYLE,
 	DEFAULT_WEBCAM_MIRRORED,
 	DEFAULT_WEBCAM_REACTIVE_ZOOM,
 } from "@/components/video-editor/types";
@@ -34,6 +37,10 @@ export interface EditorState {
 	trimRegions: TrimRegion[];
 	speedRegions: SpeedRegion[];
 	annotationRegions: AnnotationRegion[];
+	/** Time ranges during which the cursor highlight shows (issue #26). */
+	highlightRegions: HighlightRegion[];
+	/** Global cursor-highlight styling; the regions above gate when it shows. */
+	cursorHighlight: CursorHighlightStyle;
 	cropRegion: CropRegion;
 	wallpaper: string;
 	shadowIntensity: number;
@@ -58,6 +65,8 @@ export const INITIAL_EDITOR_STATE: EditorState = {
 	trimRegions: [],
 	speedRegions: [],
 	annotationRegions: [],
+	highlightRegions: [],
+	cursorHighlight: DEFAULT_CURSOR_HIGHLIGHT_STYLE,
 	cropRegion: DEFAULT_CROP_REGION,
 	wallpaper: DEFAULT_EDITOR_LAYOUT_SETTINGS.wallpaper,
 	shadowIntensity: DEFAULT_EDITOR_APPEARANCE_SETTINGS.shadowIntensity,

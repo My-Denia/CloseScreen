@@ -21,6 +21,7 @@
 		"addSpeed": "Ajouter une vitesse",
 		"addAnnotation": "Ajouter une annotation",
 		"addBlur": "Ajouter un flou",
+		"addHighlight": "Ajouter la surbrillance du curseur",
 		"addKeyframe": "Ajouter une image-clé",
 		"deleteSelected": "Supprimer la sélection",
 		"playPause": "Lecture / Pause"

@@ -1,6 +1,8 @@
 import type {
 	AnnotationRegion,
 	CropRegion,
+	CursorHighlightStyle,
+	HighlightRegion,
 	SpeedRegion,
 	TrimRegion,
 	WebcamLayoutPreset,
@@ -48,6 +50,8 @@ export interface VideoExporterConfig extends ExportConfig {
 	cursorClickBounce?: number;
 	cursorClipToBounds?: boolean;
 	cursorTheme?: string;
+	highlightRegions?: HighlightRegion[];
+	cursorHighlight?: CursorHighlightStyle;
 	annotationRegions?: AnnotationRegion[];
 	previewWidth?: number;
 	previewHeight?: number;
@@ -263,6 +267,8 @@ export class VideoExporter {
 				cursorClickBounce: this.config.cursorClickBounce,
 				cursorClipToBounds: this.config.cursorClipToBounds,
 				cursorTheme: this.config.cursorTheme,
+				highlightRegions: this.config.highlightRegions,
+				cursorHighlight: this.config.cursorHighlight,
 				videoWidth: videoInfo.width,
 				videoHeight: videoInfo.height,
 				webcamSize: webcamInfo ? { width: webcamInfo.width, height: webcamInfo.height } : null,

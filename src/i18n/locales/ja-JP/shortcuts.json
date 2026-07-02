@@ -21,6 +21,7 @@
 		"addSpeed": "速度を追加",
 		"addAnnotation": "注釈を追加",
 		"addBlur": "ぼかしを追加",
+		"addHighlight": "カーソルハイライトを追加",
 		"addKeyframe": "キーフレームを追加",
 		"deleteSelected": "選択を削除",
 		"playPause": "再生 / 一時停止"

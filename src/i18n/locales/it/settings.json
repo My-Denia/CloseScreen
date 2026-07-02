@@ -219,7 +219,13 @@
 		"motionBlur": "Sfocatura movimento",
 		"clickBounce": "Rimbalzo clic",
 		"clipToBounds": "Ritaglia al canvas",
-		"clipToBoundsDescription": "Keeps the cursor inside the video frame. Turn off to let the cursor extend past the edges - useful when zoomed in or panned."
+		"clipToBoundsDescription": "Keeps the cursor inside the video frame. Turn off to let the cursor extend past the edges - useful when zoomed in or panned.",
+		"highlightTitle": "Evidenziazione cursore",
+		"highlightRing": "Anello",
+		"highlightDot": "Punto",
+		"highlightColor": "Colore evidenziazione",
+		"highlightSize": "Dimensione",
+		"highlightOpacity": "Opacità"
 	},
 	"language": {
 		"title": "Lingua"

@@ -219,7 +219,13 @@
 		"motionBlur": "Desfoque de movimento",
 		"clickBounce": "Rebote ao clicar",
 		"clipToBounds": "Recortar à tela",
-		"clipToBoundsDescription": "Mantém o cursor dentro do quadro do vídeo. Desative para permitir que o cursor ultrapasse as bordas — útil ao aplicar zoom ou ao deslocar."
+		"clipToBoundsDescription": "Mantém o cursor dentro do quadro do vídeo. Desative para permitir que o cursor ultrapasse as bordas — útil ao aplicar zoom ou ao deslocar.",
+		"highlightTitle": "Destaque do cursor",
+		"highlightRing": "Anel",
+		"highlightDot": "Ponto",
+		"highlightColor": "Cor do destaque",
+		"highlightSize": "Tamanho",
+		"highlightOpacity": "Opacidade"
 	},
 	"language": {
 		"title": "Idioma"

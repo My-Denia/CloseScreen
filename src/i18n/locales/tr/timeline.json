@@ -9,14 +9,16 @@
 		"addTrim": "Kırpma Ekle (T)",
 		"addAnnotation": "Açıklama Ekle (A)",
 		"addBlur": "Bulanık ekle (B)",
-		"addSpeed": "Hız Ekle (S)"
+		"addSpeed": "Hız Ekle (S)",
+		"addHighlight": "İmleç vurgusu ekle (H)"
 	},
 	"hints": {
 		"pressZoom": "Yakınlaştırma eklemek için Z tuşuna basın",
 		"pressTrim": "Kırpma eklemek için T tuşuna basın",
 		"pressAnnotation": "Açıklama eklemek için A tuşuna basın",
 		"pressBlur": "Bulanık bölge eklemek için B tuşuna basın",
-		"pressSpeed": "Hız eklemek için S tuşuna basın"
+		"pressSpeed": "Hız eklemek için S tuşuna basın",
+		"pressHighlight": "İmleç vurgusu eklemek için H'ye basın"
 	},
 	"labels": {
 		"pan": "Kaydır",
@@ -29,7 +31,9 @@
 		"annotationItem": "Açıklama",
 		"blurItem": "Bulanık {{index}}",
 		"imageItem": "Görüntü",
-		"emptyText": "Boş metin"
+		"emptyText": "Boş metin",
+		"highlight": "Vurgu",
+		"highlightItem": "Vurgu {{index}}"
 	},
 	"emptyState": {
 		"noVideo": "Video Yüklenmedi",
@@ -50,7 +54,9 @@
 		"cannotPlaceTrim": "Buraya kırpma yerleştirilemiyor",
 		"trimExistsAtLocation": "Bu konumda zaten bir kırpma var veya yeterli alan yok.",
 		"cannotPlaceSpeed": "Buraya hız yerleştirilemiyor",
-		"speedExistsAtLocation": "Bu konumda zaten bir hız bölgesi var veya yeterli alan yok."
+		"speedExistsAtLocation": "Bu konumda zaten bir hız bölgesi var veya yeterli alan yok.",
+		"cannotPlaceHighlight": "Vurgu buraya yerleştirilemez",
+		"highlightExistsAtLocation": "Bu konumda zaten bir vurgu var veya yeterli alan yok."
 	},
 	"success": {
 		"addedZoomSuggestions": "{{count}} imleç tabanlı yakınlaştırma önerisi eklendi",

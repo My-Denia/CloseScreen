@@ -219,7 +219,13 @@
 		"motionBlur": "Desenfoque de movimiento",
 		"clickBounce": "Rebote al clic",
 		"clipToBounds": "Recortar al lienzo",
-		"clipToBoundsDescription": "Keeps the cursor inside the video frame. Turn off to let the cursor extend past the edges - useful when zoomed in or panned."
+		"clipToBoundsDescription": "Keeps the cursor inside the video frame. Turn off to let the cursor extend past the edges - useful when zoomed in or panned.",
+		"highlightTitle": "Resaltado del cursor",
+		"highlightRing": "Anillo",
+		"highlightDot": "Punto",
+		"highlightColor": "Color del resaltado",
+		"highlightSize": "Tamaño",
+		"highlightOpacity": "Opacidad"
 	},
 	"language": {
 		"title": "Idioma"

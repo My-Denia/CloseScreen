@@ -2,6 +2,8 @@ import GIF from "gif.js";
 import type {
 	AnnotationRegion,
 	CropRegion,
+	CursorHighlightStyle,
+	HighlightRegion,
 	SpeedRegion,
 	TrimRegion,
 	WebcamLayoutPreset,
@@ -57,6 +59,8 @@ interface GifExporterConfig {
 	cursorClickBounce?: number;
 	cursorClipToBounds?: boolean;
 	cursorTheme?: string;
+	highlightRegions?: HighlightRegion[];
+	cursorHighlight?: CursorHighlightStyle;
 	annotationRegions?: AnnotationRegion[];
 	previewWidth?: number;
 	previewHeight?: number;
@@ -165,6 +169,8 @@ export class GifExporter {
 				cursorClickBounce: this.config.cursorClickBounce,
 				cursorClipToBounds: this.config.cursorClipToBounds,
 				cursorTheme: this.config.cursorTheme,
+				highlightRegions: this.config.highlightRegions,
+				cursorHighlight: this.config.cursorHighlight,
 				videoWidth: videoInfo.width,
 				videoHeight: videoInfo.height,
 				webcamSize: webcamInfo ? { width: webcamInfo.width, height: webcamInfo.height } : null,

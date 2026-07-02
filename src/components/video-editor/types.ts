@@ -208,6 +208,37 @@ export const DEFAULT_CURSOR_CLICK_BOUNCE = 2.5;
 export const DEFAULT_CURSOR_CLIP_TO_BOUNDS = false;
 export const DEFAULT_ZOOM_MOTION_BLUR = 0.35;
 
+/**
+ * Time range during which the cursor highlight is shown (issue #26). The highlight draws
+ * at the native cursor's own projected position in both the preview and the exporter, so
+ * it can never drift from the cursor. Styling is global (see CursorHighlightStyle) — the
+ * regions only gate WHEN it shows.
+ */
+export interface HighlightRegion {
+	id: string;
+	startMs: number;
+	endMs: number;
+}
+
+export interface CursorHighlightStyle {
+	style: "dot" | "ring";
+	/** Diameter in canvas pixels at scale 1 (clamped 8-80). */
+	sizePx: number;
+	/** Hex color, e.g. "#FFD700". */
+	color: string;
+	/** 0-1. */
+	opacity: number;
+}
+
+export const DEFAULT_CURSOR_HIGHLIGHT_STYLE: CursorHighlightStyle = {
+	style: "ring",
+	sizePx: 28,
+	color: "#FFD700",
+	opacity: 0.55,
+};
+
+export const CURSOR_HIGHLIGHT_SIZE_RANGE = { min: 8, max: 80 } as const;
+
 export interface TrimRegion {
 	id: string;
 	startMs: number;

@@ -11,6 +11,8 @@ import { MotionBlurFilter } from "pixi-filters/motion-blur";
 import type {
 	AnnotationRegion,
 	CropRegion,
+	CursorHighlightStyle,
+	HighlightRegion,
 	Rotation3D,
 	SpeedRegion,
 	WebcamLayoutPreset,
@@ -18,6 +20,7 @@ import type {
 	ZoomRegion,
 } from "@/components/video-editor/types";
 import {
+	DEFAULT_CURSOR_HIGHLIGHT_STYLE,
 	DEFAULT_ROTATION_3D,
 	getZoomScale,
 	isRotation3DIdentity,
@@ -50,6 +53,7 @@ import {
 	type StyledRenderRect,
 } from "@/lib/compositeLayout";
 import { getSmoothedCursorPath } from "@/lib/cursor/cursorPathSmoothing";
+import { isHighlightActive } from "@/lib/cursor/highlightRegions";
 import {
 	createNativeCursorMotionBlurState,
 	getNativeCursorClickBounceProgress,
@@ -92,6 +96,9 @@ interface FrameRenderConfig {
 	cursorClickBounce?: number;
 	cursorClipToBounds?: boolean;
 	cursorTheme?: string;
+	/** Cursor-highlight time ranges (issue #26); drawn at the cursor's own position. */
+	highlightRegions?: HighlightRegion[];
+	cursorHighlight?: CursorHighlightStyle;
 	videoWidth: number;
 	videoHeight: number;
 	webcamSize?: Size | null;
@@ -628,6 +635,30 @@ export class FrameRenderer {
 				cursorClip.br,
 			);
 			this.foregroundCtx.clip();
+		}
+		// Cursor highlight (issue #26): drawn at the hotspot point (canvasX/canvasY) the
+		// cursor itself uses — same projection, so it can never drift — inside the same
+		// clip but BEFORE the motion-blur filter (an emphasis ring should stay crisp).
+		// Deliberately skipped with the cursor (cursorScale <= 0 early-returns above):
+		// the highlight is an emphasis OF the cursor, not a standalone marker.
+		if (isHighlightActive(this.config.highlightRegions, timeMs)) {
+			const highlight = this.config.cursorHighlight ?? DEFAULT_CURSOR_HIGHLIGHT_STYLE;
+			const radius = (highlight.sizePx / 2) * appliedScale * sizeNorm;
+			if (radius > 0 && highlight.opacity > 0) {
+				this.foregroundCtx.save();
+				this.foregroundCtx.globalAlpha = highlight.opacity;
+				this.foregroundCtx.beginPath();
+				this.foregroundCtx.arc(canvasX, canvasY, radius, 0, Math.PI * 2);
+				if (highlight.style === "ring") {
+					this.foregroundCtx.lineWidth = Math.max(1.5, radius * 0.22);
+					this.foregroundCtx.strokeStyle = highlight.color;
+					this.foregroundCtx.stroke();
+				} else {
+					this.foregroundCtx.fillStyle = highlight.color;
+					this.foregroundCtx.fill();
+				}
+				this.foregroundCtx.restore();
+			}
 		}
 		const previousFilter = this.foregroundCtx.filter;
 		if (blurPx > 0) {

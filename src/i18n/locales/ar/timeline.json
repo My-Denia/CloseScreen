@@ -9,14 +9,16 @@
 		"addTrim": "إضافة قص (T)",
 		"addAnnotation": "إضافة شرح (A)",
 		"addBlur": "إضافة تمويه (B)",
-		"addSpeed": "إضافة سرعة (S)"
+		"addSpeed": "إضافة سرعة (S)",
+		"addHighlight": "إضافة تمييز المؤشر (H)"
 	},
 	"hints": {
 		"pressZoom": "اضغط Z لإضافة تكبير",
 		"pressTrim": "اضغط T لإضافة قص",
 		"pressAnnotation": "اضغط A لإضافة شرح",
 		"pressBlur": "اضغط B لإضافة منطقة تمويه",
-		"pressSpeed": "اضغط S لإضافة سرعة"
+		"pressSpeed": "اضغط S لإضافة سرعة",
+		"pressHighlight": "اضغط H لإضافة تمييز المؤشر"
 	},
 	"labels": {
 		"pan": "تحريك",
@@ -29,7 +31,9 @@
 		"annotationItem": "شرح",
 		"blurItem": "تمويه {{index}}",
 		"imageItem": "صورة",
-		"emptyText": "نص فارغ"
+		"emptyText": "نص فارغ",
+		"highlight": "تمييز",
+		"highlightItem": "تمييز {{index}}"
 	},
 	"emptyState": {
 		"noVideo": "لم يتم تحميل أي فيديو",
@@ -50,7 +54,9 @@
 		"cannotPlaceTrim": "لا يمكن وضع القص هنا",
 		"trimExistsAtLocation": "يوجد قص بالفعل في هذا الموقع أو لا توجد مساحة كافية متاحة.",
 		"cannotPlaceSpeed": "لا يمكن وضع السرعة هنا",
-		"speedExistsAtLocation": "توجد منطقة سرعة بالفعل في هذا الموقع أو لا توجد مساحة كافية متاحة."
+		"speedExistsAtLocation": "توجد منطقة سرعة بالفعل في هذا الموقع أو لا توجد مساحة كافية متاحة.",
+		"cannotPlaceHighlight": "لا يمكن وضع التمييز هنا",
+		"highlightExistsAtLocation": "يوجد تمييز بالفعل في هذا الموضع أو لا توجد مساحة كافية."
 	},
 	"success": {
 		"addedZoomSuggestions": "تمت إضافة {{count}} اقتراح تكبير بناءً على المؤشر",

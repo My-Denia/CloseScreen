@@ -27,6 +27,7 @@ import {
 	type WebcamSizePreset,
 } from "@/lib/compositeLayout";
 import { getSmoothedCursorPath } from "@/lib/cursor/cursorPathSmoothing";
+import { isHighlightActive } from "@/lib/cursor/highlightRegions";
 import {
 	createNativeCursorMotionBlurState,
 	getNativeCursorClickBounceProgress,
@@ -57,10 +58,13 @@ import { toMediaSrc } from "./projectPersistence";
 import {
 	type AnnotationRegion,
 	type BlurData,
+	type CursorHighlightStyle,
 	type CursorTelemetryPoint,
 	computeRotation3DContainScale,
+	DEFAULT_CURSOR_HIGHLIGHT_STYLE,
 	DEFAULT_ROTATION_3D,
 	getZoomScale,
+	type HighlightRegion,
 	isRotation3DIdentity,
 	lerpRotation3D,
 	rotation3DPerspective,
@@ -127,6 +131,9 @@ interface VideoPlaybackProps {
 	cropRegion?: import("./types").CropRegion;
 	trimRegions?: TrimRegion[];
 	speedRegions?: SpeedRegion[];
+	/** Cursor-highlight time ranges (issue #26); drawn at the native cursor's position. */
+	highlightRegions?: HighlightRegion[];
+	cursorHighlight?: CursorHighlightStyle;
 	aspectRatio: AspectRatio;
 	cursorRecordingData?: CursorRecordingData | null;
 	annotationRegions?: AnnotationRegion[];
@@ -260,6 +267,8 @@ const VideoPlayback = forwardRef<VideoPlaybackRef, VideoPlaybackProps>(
 			cropRegion,
 			trimRegions = [],
 			speedRegions = [],
+			highlightRegions = [],
+			cursorHighlight = DEFAULT_CURSOR_HIGHLIGHT_STYLE,
 			aspectRatio,
 			cursorRecordingData,
 			annotationRegions = [],
@@ -354,6 +363,8 @@ const VideoPlayback = forwardRef<VideoPlaybackRef, VideoPlaybackProps>(
 		const layoutVideoContentRef = useRef<(() => void) | null>(null);
 		const trimRegionsRef = useRef<TrimRegion[]>([]);
 		const speedRegionsRef = useRef<SpeedRegion[]>([]);
+		const highlightRegionsRef = useRef<HighlightRegion[]>([]);
+		const cursorHighlightRef = useRef<CursorHighlightStyle>(DEFAULT_CURSOR_HIGHLIGHT_STYLE);
 		const motionBlurAmountRef = useRef(motionBlurAmount);
 		const cursorOverlayRef = useRef<PixiCursorOverlay | null>(null);
 		const showCursorRef = useRef(showCursor);
@@ -382,6 +393,7 @@ const VideoPlayback = forwardRef<VideoPlaybackRef, VideoPlaybackProps>(
 		const nativeCursorImageIdRef = useRef<string | null>(null);
 		const nativeCursorMotionBlurStateRef = useRef(createNativeCursorMotionBlurState());
 		const nativeCursorClipRef = useRef<HTMLDivElement | null>(null);
+		const nativeCursorHighlightRef = useRef<HTMLDivElement | null>(null);
 		const borderRadiusRef = useRef<number>(0);
 
 		const hasNativeCursorRecording = useMemo(
@@ -822,6 +834,14 @@ const VideoPlayback = forwardRef<VideoPlaybackRef, VideoPlaybackProps>(
 		useEffect(() => {
 			speedRegionsRef.current = speedRegions;
 		}, [speedRegions]);
+
+		useEffect(() => {
+			highlightRegionsRef.current = highlightRegions;
+		}, [highlightRegions]);
+
+		useEffect(() => {
+			cursorHighlightRef.current = cursorHighlight;
+		}, [cursorHighlight]);
 
 		useEffect(() => {
 			motionBlurAmountRef.current = motionBlurAmount;
@@ -1576,6 +1596,9 @@ const VideoPlayback = forwardRef<VideoPlaybackRef, VideoPlaybackProps>(
 						nativeCursorImage.style.display = "none";
 						nativeCursorImage.style.filter = "none";
 					}
+					if (nativeCursorHighlightRef.current) {
+						nativeCursorHighlightRef.current.style.display = "none";
+					}
 					if (nativeCursorClipRef.current) {
 						nativeCursorClipRef.current.style.clipPath = "";
 					}
@@ -1684,6 +1707,38 @@ const VideoPlayback = forwardRef<VideoPlaybackRef, VideoPlaybackProps>(
 								nativeCursorImage.style.transform = `translate3d(${
 									projectedStagePoint.x - renderAsset.hotspotX * transformedScale
 								}px, ${projectedStagePoint.y - renderAsset.hotspotY * transformedScale}px, 0)`;
+								// Cursor highlight (issue #26): same clip container, same projected hotspot
+								// point as the cursor image — it cannot drift from the cursor. Sized by the
+								// camera/video scale only (independent of the cursor-size slider), matching
+								// the exporter's appliedScale * sizeNorm factor.
+								const highlightEl = nativeCursorHighlightRef.current;
+								if (highlightEl) {
+									const highlightStyle = cursorHighlightRef.current;
+									const highlightScale = Math.abs(cameraContainer?.scale.x || 1) * sizeNorm;
+									const diameter = highlightStyle.sizePx * highlightScale;
+									const showHighlight =
+										isHighlightActive(highlightRegionsRef.current, timeMs) &&
+										highlightStyle.opacity > 0 &&
+										diameter > 0;
+									if (showHighlight) {
+										highlightEl.style.display = "block";
+										highlightEl.style.width = `${diameter}px`;
+										highlightEl.style.height = `${diameter}px`;
+										highlightEl.style.opacity = `${highlightStyle.opacity}`;
+										if (highlightStyle.style === "ring") {
+											highlightEl.style.border = `${Math.max(1.5, (diameter / 2) * 0.22)}px solid ${highlightStyle.color}`;
+											highlightEl.style.backgroundColor = "transparent";
+										} else {
+											highlightEl.style.border = "none";
+											highlightEl.style.backgroundColor = highlightStyle.color;
+										}
+										highlightEl.style.transform = `translate3d(${
+											projectedStagePoint.x - diameter / 2
+										}px, ${projectedStagePoint.y - diameter / 2}px, 0)`;
+									} else {
+										highlightEl.style.display = "none";
+									}
+								}
 								if (nativeCursorSprite) {
 									nativeCursorSprite.visible = false;
 									if (nativeCursorTextureIdRef.current !== renderAsset.id) {
@@ -2140,6 +2195,18 @@ const VideoPlayback = forwardRef<VideoPlaybackRef, VideoPlaybackProps>(
 					className="absolute inset-0"
 					style={{ zIndex: 18, pointerEvents: "none" }}
 				>
+					{/* Cursor highlight (issue #26): before the cursor img so it renders beneath it;
+					    same clip container, so clip-path and the 3D transform copy apply to both. */}
+					<div
+						ref={nativeCursorHighlightRef}
+						aria-hidden="true"
+						className="absolute left-0 top-0 select-none rounded-full"
+						style={{
+							display: "none",
+							pointerEvents: "none",
+							transformOrigin: "0 0",
+						}}
+					/>
 					<img
 						ref={nativeCursorImageRef}
 						alt=""

@@ -21,6 +21,7 @@
 		"addSpeed": "新增速度",
 		"addAnnotation": "新增標註",
 		"addBlur": "新增模糊",
+		"addHighlight": "新增游標高亮",
 		"addKeyframe": "新增關鍵影格",
 		"deleteSelected": "刪除所選",
 		"playPause": "播放 / 暫停"

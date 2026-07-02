@@ -219,7 +219,13 @@
 		"motionBlur": "Làm mờ chuyển động",
 		"clickBounce": "Nảy khi nhấp",
 		"clipToBounds": "Cắt theo khung",
-		"clipToBoundsDescription": "Keeps the cursor inside the video frame. Turn off to let the cursor extend past the edges - useful when zoomed in or panned."
+		"clipToBoundsDescription": "Keeps the cursor inside the video frame. Turn off to let the cursor extend past the edges - useful when zoomed in or panned.",
+		"highlightTitle": "Nổi bật con trỏ",
+		"highlightRing": "Vòng",
+		"highlightDot": "Chấm",
+		"highlightColor": "Màu nổi bật",
+		"highlightSize": "Kích thước",
+		"highlightOpacity": "Độ mờ"
 	},
 	"language": {
 		"title": "Ngôn ngữ"
