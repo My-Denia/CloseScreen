@@ -179,9 +179,16 @@ export function formatBinding(binding: ShortcutBinding): string {
 export function mergeWithDefaults(partial: Partial<ShortcutsConfig>): ShortcutsConfig {
 	const merged = { ...DEFAULT_SHORTCUTS };
 	for (const action of SHORTCUT_ACTIONS) {
-		if (partial[action]) {
-			merged[action] = partial[action] as ShortcutBinding;
-		}
+		const saved = partial[action];
+		if (!saved) continue;
+		// A saved binding can predate an entry in FIXED_SHORTCUTS (e.g. Ctrl+C/V, reserved for
+		// the timeline clipboard in #54). The dialog blocks new assignments, but a stale stored
+		// one would be silently shadowed by the hard-coded handler and shown as a duplicate
+		// claim in the shortcuts UI — so remap it to the action's default on load.
+		const reservedByFixed = FIXED_SHORTCUTS.some((fixed) =>
+			fixed.bindings.some((binding) => bindingsEqual(binding, saved)),
+		);
+		merged[action] = reservedByFixed ? DEFAULT_SHORTCUTS[action] : saved;
 	}
 	return merged;
 }
