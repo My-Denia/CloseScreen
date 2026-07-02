@@ -1434,6 +1434,25 @@ export function registerIpcHandlers(
 	// resolves paths against the current dir — both must block folder changes.
 	let browserRecordingActive = false;
 	let storeOperationsInFlight = 0;
+	// Buffered-finalize hold: the renderer reports recording=false BEFORE it drains
+	// the blob, fixes the WebM duration and calls store — seconds in which none of
+	// the other gate signals is up. The hold starts when recording flips false and
+	// ends on an explicit finalize notification, a completed store, or a new
+	// recording; the timer is a backstop so a crashed renderer can't wedge the gate.
+	let browserRecordingSettlingTimer: NodeJS.Timeout | null = null;
+	const BROWSER_SETTLING_BACKSTOP_MS = 300_000;
+	function enterStorageSettling(): void {
+		clearStorageSettling();
+		browserRecordingSettlingTimer = setTimeout(() => {
+			browserRecordingSettlingTimer = null;
+		}, BROWSER_SETTLING_BACKSTOP_MS);
+	}
+	function clearStorageSettling(): void {
+		if (browserRecordingSettlingTimer) {
+			clearTimeout(browserRecordingSettlingTimer);
+			browserRecordingSettlingTimer = null;
+		}
+	}
 
 	// A filesystem failure gets the actionable describeSaveError text (ENOSPC is the
 	// issue #23 headline case); anything else keeps its own message. The renderer
@@ -1490,6 +1509,9 @@ export function registerIpcHandlers(
 			return await storeRecordedSessionFilesInner(payload);
 		} finally {
 			storeOperationsInFlight -= 1;
+			// The finalize this store belongs to is over either way (the renderer also
+			// notifies, but a completed store is the stronger signal).
+			clearStorageSettling();
 		}
 	}
 
@@ -1649,8 +1671,18 @@ export function registerIpcHandlers(
 		async (_, recording: boolean, recordingId?: number, cursorCaptureMode?: CursorCaptureMode) => {
 			// Feeds the storage-change gate: a browser recording whose stream open is
 			// pending or has fallen back to in-memory buffering is invisible to
-			// recordingStreams.size but must still block folder changes.
-			browserRecordingActive = recording;
+			// recordingStreams.size but must still block folder changes. `false` means
+			// finalize BEGINS (blob drain + duration fix + store still ahead), so the
+			// gate transitions to the settling hold rather than unlocking.
+			if (recording) {
+				browserRecordingActive = true;
+				clearStorageSettling();
+			} else {
+				if (browserRecordingActive) {
+					enterStorageSettling();
+				}
+				browserRecordingActive = false;
+			}
 			const normalizedCursorCaptureMode =
 				normalizeCursorCaptureMode(cursorCaptureMode) ?? "editable-overlay";
 			if (recording && normalizedCursorCaptureMode === "editable-overlay") {
@@ -2193,19 +2225,30 @@ export function registerIpcHandlers(
 	// --- Recording storage location (issue #23) ---------------------------------
 
 	// Authoritative main-process gate: while a recording is active or being finalized,
-	// moving the recordings dir could retarget writes mid-flight. Four signals, each
+	// moving the recordings dir could retarget writes mid-flight. Five signals, each
 	// covering a hole the others miss: open disk streams; a live native capture; a
 	// browser recording buffering in memory (no stream to count — reported via
-	// set-recording-state); an in-flight store/attach finalize. The renderer also
-	// disables the buttons; this is the backstop.
+	// set-recording-state); the buffered-finalize settling hold between stop and
+	// store; an in-flight store/attach finalize. The renderer also disables the
+	// buttons; this is the backstop.
 	function isRecordingStorageLocked(): boolean {
 		return (
 			recordingStreams.size > 0 ||
 			nativeWindowsCaptureProcess !== null ||
 			browserRecordingActive ||
+			browserRecordingSettlingTimer !== null ||
 			storeOperationsInFlight > 0
 		);
 	}
+
+	// Finalize-complete notification from the renderer: fires in finalizeRecording's
+	// finally for every exit path — success (store already cleared the hold), store
+	// failure, discard, and the empty-recording early return, the last two of which
+	// produce no store call at all.
+	ipcMain.handle("notify-recording-finalized", async () => {
+		clearStorageSettling();
+		return { success: true };
+	});
 
 	ipcMain.handle("get-recording-storage-status", async () => {
 		const info = getRecordingStorageInfo();

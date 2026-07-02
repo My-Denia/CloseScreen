@@ -444,6 +444,11 @@ export function useScreenRecorder(): UseScreenRecorderReturn {
 					if (discardRecordingId.current === activeRecordingId) {
 						discardRecordingId.current = null;
 					}
+					// Releases the main process's storage-settling hold (issue #23): the
+					// recording=false report fires BEFORE the blob drains and stores, so the
+					// gate waits for this end-of-finalize signal on every exit path —
+					// including discard and the empty-recording return, which never store.
+					window.electronAPI?.notifyRecordingFinalized?.().catch(() => undefined);
 				}
 			})();
 		},

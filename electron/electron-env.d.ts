@@ -240,6 +240,7 @@ interface Window {
 		}>;
 		resetRecordingsDirectory: () => Promise<{ success: boolean; dir?: string; error?: string }>;
 		openRecordingsDirectory: () => Promise<{ success: boolean; error?: string }>;
+		notifyRecordingFinalized: () => Promise<{ success: boolean }>;
 		updateGlobalShortcut: (binding: {
 			key: string;
 			ctrl?: boolean;
