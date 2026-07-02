@@ -86,6 +86,11 @@ interface TimelineEditorProps {
 	onSpeedDelete?: (id: string) => void;
 	selectedSpeedId?: string | null;
 	onSelectSpeed?: (id: string | null) => void;
+	/** Timeline clipboard (issue #29): mod+C copies the selected element, mod+V pastes at the playhead. */
+	canCopySelectedItem?: boolean;
+	canPasteTimelineItem?: boolean;
+	onCopySelectedItem?: () => void;
+	onPasteTimelineItem?: () => void;
 	aspectRatio: AspectRatio;
 	onAspectRatioChange: (aspectRatio: AspectRatio) => void;
 	videoUrl?: string;
@@ -921,6 +926,10 @@ export default function TimelineEditor({
 	onSpeedDelete,
 	selectedSpeedId,
 	onSelectSpeed,
+	canCopySelectedItem = false,
+	canPasteTimelineItem = false,
+	onCopySelectedItem,
+	onPasteTimelineItem,
 	aspectRatio,
 	onAspectRatioChange,
 	videoUrl,
@@ -1238,7 +1247,42 @@ export default function TimelineEditor({
 
 	useEffect(() => {
 		const handleKeyDown = (e: KeyboardEvent) => {
-			if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
+			const target = e.target;
+			if (
+				target instanceof HTMLInputElement ||
+				target instanceof HTMLTextAreaElement ||
+				target instanceof HTMLSelectElement ||
+				(target instanceof HTMLElement && target.isContentEditable)
+			) {
+				return;
+			}
+
+			// Timeline clipboard (issue #29). Primary modifier is Ctrl, matching every other
+			// shortcut in the app (see matchesShortcut). Only intercept when the action can
+			// actually run, so browser-native copy of selected page text keeps working.
+			const key = e.key.toLowerCase();
+			if (
+				e.ctrlKey &&
+				!e.shiftKey &&
+				!e.altKey &&
+				key === "c" &&
+				canCopySelectedItem &&
+				onCopySelectedItem
+			) {
+				e.preventDefault();
+				onCopySelectedItem();
+				return;
+			}
+			if (
+				e.ctrlKey &&
+				!e.shiftKey &&
+				!e.altKey &&
+				key === "v" &&
+				canPasteTimelineItem &&
+				onPasteTimelineItem
+			) {
+				e.preventDefault();
+				onPasteTimelineItem();
 				return;
 			}
 
@@ -1328,6 +1372,10 @@ export default function TimelineEditor({
 		currentTime,
 		onSelectAnnotation,
 		keyShortcuts,
+		canCopySelectedItem,
+		canPasteTimelineItem,
+		onCopySelectedItem,
+		onPasteTimelineItem,
 	]);
 
 	const clampedRange = useMemo<Range>(() => {

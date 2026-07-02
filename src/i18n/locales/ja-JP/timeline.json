@@ -55,5 +55,9 @@
 	"success": {
 		"addedZoomSuggestions": "カーソルに基づくズーム提案を {{count}} 件追加しました",
 		"addedZoomSuggestionsPlural": "カーソルに基づくズーム提案を {{count}} 件追加しました"
+	},
+	"feedback": {
+		"copied": "コピーしました",
+		"pasted": "貼り付けました"
 	}
 }

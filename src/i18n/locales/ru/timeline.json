@@ -55,5 +55,9 @@
 	"success": {
 		"addedZoomSuggestions": "Добавлено {{count}} предложение масштабирования на основе курсора",
 		"addedZoomSuggestionsPlural": "Добавлено {{count}} предложений масштабирования на основе курсора"
+	},
+	"feedback": {
+		"copied": "Скопировано!",
+		"pasted": "Вставлено!"
 	}
 }
