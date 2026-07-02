@@ -102,7 +102,9 @@ function hasAllowedImportVideoExtension(filePath: string): boolean {
 }
 
 async function prepareSupplementalPreviewAudioTrack(videoPath: string) {
-	const normalizedPath = await approveReadableVideoPath(videoPath);
+	// Strict approval (no auto-approve) — the preview audio track is always the editor's already
+	// -opened source, so it is approved via picker/recording/project load before this runs.
+	const normalizedPath = resolveApprovedVideoPath(videoPath);
 	if (!normalizedPath) {
 		return {
 			success: false,
@@ -1767,7 +1769,11 @@ export function registerIpcHandlers(
 
 	ipcMain.handle("read-binary-file", async (_, filePath: string) => {
 		try {
-			const normalizedPath = await approveReadableVideoPath(filePath);
+			// Strict: only paths already approved (via the native picker, recording, or project load)
+			// or inside the recordings dir. Unlike approveReadableVideoPath this never auto-approves
+			// (and never stat()s) an arbitrary on-disk path, so a compromised renderer cannot read
+			// files outside what the user already opened (nor trigger a UNC stat -> SMB/NTLM).
+			const normalizedPath = resolveApprovedVideoPath(filePath);
 			if (!normalizedPath) {
 				return {
 					success: false,

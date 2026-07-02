@@ -1,7 +1,8 @@
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { BrowserWindow, ipcMain, screen } from "electron";
-import { APP_ASSET_BASE_URL, APP_INDEX_URL } from "./appProtocol";
+import { BrowserWindow, ipcMain, screen, shell } from "electron";
+import { APP_ASSET_BASE_URL, APP_INDEX_URL, APP_ORIGIN } from "./appProtocol";
+import { isAllowedExternalUrl } from "./ipc/externalUrl";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -13,8 +14,35 @@ const HEADLESS = process.env["HEADLESS"] === "true";
 // packaged/unpacked build, where it points at the app:// resource route (same origin as the page).
 const ASSET_BASE_URL_ARG = `--asset-base-url=${APP_ASSET_BASE_URL}`;
 
+// Renderer-controllable navigation targets that stay in-app: the app:// bundle (packaged/unpacked)
+// or the Vite dev server (dev). Everything else is treated as an external navigation.
+function isInternalUrl(url: string): boolean {
+	if (VITE_DEV_SERVER_URL && url.startsWith(VITE_DEV_SERVER_URL)) return true;
+	return url.startsWith(`${APP_ORIGIN}/`) || url === APP_ORIGIN;
+}
+
+// Harden every window: block navigating the frame away from the app, and never let the renderer
+// spawn new Electron windows. Web/mail links go to the OS browser via the same scheme allowlist as
+// the open-external-url IPC; anything else is dropped.
+function applyWindowSecurity(win: BrowserWindow): void {
+	win.webContents.on("will-navigate", (event, url) => {
+		if (isInternalUrl(url)) return;
+		event.preventDefault();
+		if (isAllowedExternalUrl(url)) {
+			void shell.openExternal(url);
+		}
+	});
+	win.webContents.setWindowOpenHandler(({ url }) => {
+		if (isAllowedExternalUrl(url)) {
+			void shell.openExternal(url);
+		}
+		return { action: "deny" };
+	});
+}
+
 // Load a renderer window from the Vite HMR server in dev, or the app:// bundle otherwise.
 function loadRendererWindow(win: BrowserWindow, windowType: string): void {
+	applyWindowSecurity(win);
 	const base = VITE_DEV_SERVER_URL ?? APP_INDEX_URL;
 	win.loadURL(`${base}?windowType=${windowType}`);
 }
