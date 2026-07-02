@@ -190,5 +190,26 @@ export function mergeWithDefaults(partial: Partial<ShortcutsConfig>): ShortcutsC
 		);
 		merged[action] = reservedByFixed ? DEFAULT_SHORTCUTS[action] : saved;
 	}
+
+	// Falling back to a default can itself duplicate another action's legitimately saved
+	// binding (e.g. addZoom: Ctrl+C → default Z while addTrim was swapped onto Z). Resolve by
+	// resetting whichever colliding action is NOT on its own default to its default, repeating
+	// until stable. Defaults are pairwise distinct, so every reset strictly shrinks the set of
+	// off-default actions and the loop terminates with no duplicates.
+	for (let changed = true; changed; ) {
+		changed = false;
+		for (const a of SHORTCUT_ACTIONS) {
+			for (const b of SHORTCUT_ACTIONS) {
+				if (a === b || !bindingsEqual(merged[a], merged[b])) continue;
+				const victim =
+					bindingsEqual(merged[b], DEFAULT_SHORTCUTS[b]) &&
+					!bindingsEqual(merged[a], DEFAULT_SHORTCUTS[a])
+						? a
+						: b;
+				merged[victim] = DEFAULT_SHORTCUTS[victim];
+				changed = true;
+			}
+		}
+	}
 	return merged;
 }

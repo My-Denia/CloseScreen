@@ -1,9 +1,7 @@
 import fs from "node:fs/promises";
 import { globalShortcut } from "electron";
-import { type ShortcutBinding } from "../src/lib/shortcuts";
+import { DEFAULT_SHORTCUTS, mergeWithDefaults, type ShortcutBinding } from "../src/lib/shortcuts";
 import { SHORTCUTS_FILE } from "./ipc/handlers";
-
-const DEFAULT_OPEN_APP_BINDING: ShortcutBinding = { key: "o", ctrl: true, shift: true };
 
 // Maps KeyboardEvent.key values to Electron accelerator key names
 const KEY_TO_ACCELERATOR: Record<string, string> = {
@@ -64,11 +62,13 @@ export function registerOpenAppShortcut(binding: ShortcutBinding, onTrigger: () 
 export async function loadAndRegisterGlobalShortcut(onTrigger: () => void): Promise<void> {
 	try {
 		const data = await fs.readFile(SHORTCUTS_FILE, "utf-8");
-		const shortcuts = JSON.parse(data);
-		const binding = shortcuts.openApp || DEFAULT_OPEN_APP_BINDING;
+		// Run the persisted config through the same sanitizer the renderer uses, so a stored
+		// openApp binding that is now reserved (e.g. Ctrl+C after #54) never gets registered
+		// as the OS-global hotkey while the UI shows the remapped default.
+		const binding = mergeWithDefaults(JSON.parse(data)).openApp;
 		registerOpenAppShortcut(binding, onTrigger);
 	} catch {
-		registerOpenAppShortcut(DEFAULT_OPEN_APP_BINDING, onTrigger);
+		registerOpenAppShortcut(DEFAULT_SHORTCUTS.openApp, onTrigger);
 	}
 }
 

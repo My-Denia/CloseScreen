@@ -53,4 +53,32 @@ describe("mergeWithDefaults", () => {
 		expect(merged.addZoom).toEqual({ key: "g", ctrl: true });
 		expect(merged.addTrim).toEqual(DEFAULT_SHORTCUTS.addTrim);
 	});
+
+	it("resolves the duplicate a reserved-binding fallback would reintroduce", () => {
+		// Old config: addTrim legitimately swapped onto Z, addZoom bound to the now-reserved
+		// Ctrl+C. Remapping addZoom to its default Z must not leave two actions on Z.
+		const merged = mergeWithDefaults({
+			addZoom: { key: "c", ctrl: true },
+			addTrim: { key: "z" },
+		});
+		expect(merged.addZoom).toEqual(DEFAULT_SHORTCUTS.addZoom); // z
+		expect(merged.addTrim).toEqual(DEFAULT_SHORTCUTS.addTrim); // t
+	});
+
+	it("cascades duplicate resolution until every binding is unique", () => {
+		// addZoom's fallback to Z displaces addTrim, whose fallback to T displaces addSpeed.
+		const merged = mergeWithDefaults({
+			addZoom: { key: "c", ctrl: true },
+			addTrim: { key: "z" },
+			addSpeed: { key: "t" },
+		});
+		expect(merged.addZoom).toEqual(DEFAULT_SHORTCUTS.addZoom); // z
+		expect(merged.addTrim).toEqual(DEFAULT_SHORTCUTS.addTrim); // t
+		expect(merged.addSpeed).toEqual(DEFAULT_SHORTCUTS.addSpeed); // s
+		// No two actions share a binding afterwards.
+		const bindings = Object.values(merged).map((b) =>
+			JSON.stringify([b.key, !!b.ctrl, !!b.shift, !!b.alt]),
+		);
+		expect(new Set(bindings).size).toBe(bindings.length);
+	});
 });
