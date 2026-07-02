@@ -65,6 +65,21 @@ export const FIXED_SHORTCUTS: FixedShortcut[] = [
 		bindings: [],
 	},
 	{ i18nKey: "zoomTimeline", label: "Zoom Timeline", display: "Ctrl + Scroll", bindings: [] },
+	// Timeline clipboard (issue #29). Listed here so the customize dialog reserves the
+	// bindings — TimelineEditor handles these keys directly, so letting a configurable
+	// action claim Ctrl+C/V would behave inconsistently with selection/clipboard state.
+	{
+		i18nKey: "copyTimelineItem",
+		label: "Copy Selected Element",
+		display: "Ctrl + C",
+		bindings: [{ key: "c", ctrl: true }],
+	},
+	{
+		i18nKey: "pasteTimelineItem",
+		label: "Paste at Playhead",
+		display: "Ctrl + V",
+		bindings: [{ key: "v", ctrl: true }],
+	},
 	{ i18nKey: "frameBack", label: "Frame Back", display: "←", bindings: [{ key: "arrowleft" }] },
 	{
 		i18nKey: "frameForward",
@@ -164,8 +179,36 @@ export function formatBinding(binding: ShortcutBinding): string {
 export function mergeWithDefaults(partial: Partial<ShortcutsConfig>): ShortcutsConfig {
 	const merged = { ...DEFAULT_SHORTCUTS };
 	for (const action of SHORTCUT_ACTIONS) {
-		if (partial[action]) {
-			merged[action] = partial[action] as ShortcutBinding;
+		const saved = partial[action];
+		if (!saved) continue;
+		// A saved binding can predate an entry in FIXED_SHORTCUTS (e.g. Ctrl+C/V, reserved for
+		// the timeline clipboard in #54). The dialog blocks new assignments, but a stale stored
+		// one would be silently shadowed by the hard-coded handler and shown as a duplicate
+		// claim in the shortcuts UI — so remap it to the action's default on load.
+		const reservedByFixed = FIXED_SHORTCUTS.some((fixed) =>
+			fixed.bindings.some((binding) => bindingsEqual(binding, saved)),
+		);
+		merged[action] = reservedByFixed ? DEFAULT_SHORTCUTS[action] : saved;
+	}
+
+	// Falling back to a default can itself duplicate another action's legitimately saved
+	// binding (e.g. addZoom: Ctrl+C → default Z while addTrim was swapped onto Z). Resolve by
+	// resetting whichever colliding action is NOT on its own default to its default, repeating
+	// until stable. Defaults are pairwise distinct, so every reset strictly shrinks the set of
+	// off-default actions and the loop terminates with no duplicates.
+	for (let changed = true; changed; ) {
+		changed = false;
+		for (const a of SHORTCUT_ACTIONS) {
+			for (const b of SHORTCUT_ACTIONS) {
+				if (a === b || !bindingsEqual(merged[a], merged[b])) continue;
+				const victim =
+					bindingsEqual(merged[b], DEFAULT_SHORTCUTS[b]) &&
+					!bindingsEqual(merged[a], DEFAULT_SHORTCUTS[a])
+						? a
+						: b;
+				merged[victim] = DEFAULT_SHORTCUTS[victim];
+				changed = true;
+			}
 		}
 	}
 	return merged;

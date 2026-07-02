@@ -33,6 +33,8 @@
 		"deleteSelectedAlt": "選択を削除 (alt)",
 		"panTimeline": "タイムラインをパン",
 		"zoomTimeline": "タイムラインをズーム",
+		"copyTimelineItem": "選択した要素をコピー",
+		"pasteTimelineItem": "再生ヘッドに貼り付け",
 		"frameBack": "フレームを戻す",
 		"frameForward": "フレームを進める"
 	}

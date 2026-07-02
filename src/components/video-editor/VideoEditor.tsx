@@ -22,6 +22,7 @@ import {
 } from "@/components/ui/select";
 import { useI18n, useScopedT } from "@/contexts/I18nContext";
 import { useShortcuts } from "@/contexts/ShortcutsContext";
+import { useClipboardFeedback } from "@/hooks/useClipboardFeedback";
 import { INITIAL_EDITOR_STATE, useEditorHistory } from "@/hooks/useEditorHistory";
 import { type Locale } from "@/i18n/config";
 import { getAvailableLocales, getLocaleName } from "@/i18n/loader";
@@ -93,6 +94,14 @@ import {
 import { SettingsPanel } from "./SettingsPanel";
 import TimelineEditor from "./timeline/TimelineEditor";
 import { buildAutoZoomSuggestions } from "./timeline/zoomSuggestionUtils";
+import {
+	buildPastedAnnotationRegion,
+	buildPastedZoomRegion,
+	cloneAnnotationRegion,
+	getPastedSpan,
+	spansOverlap,
+	type TimelineClipboardItem,
+} from "./timelineClipboardUtils";
 import {
 	type AnnotationRegion,
 	type BlurData,
@@ -242,6 +251,9 @@ export default function VideoEditor() {
 	const [selectedSpeedId, setSelectedSpeedId] = useState<string | null>(null);
 	const [selectedAnnotationId, setSelectedAnnotationId] = useState<string | null>(null);
 	const [selectedBlurId, setSelectedBlurId] = useState<string | null>(null);
+	// In-memory timeline clipboard (issue #29). Deliberately not the OS clipboard: regions only
+	// make sense inside this editor, and keeping it local avoids clobbering user copy of text.
+	const [timelineClipboard, setTimelineClipboard] = useState<TimelineClipboardItem | null>(null);
 	const [isExporting, setIsExporting] = useState(false);
 	const [exportProgress, setExportProgress] = useState<ExportProgress | null>(null);
 	const [exportError, setExportError] = useState<string | null>(null);
@@ -320,6 +332,8 @@ export default function VideoEditor() {
 	const { locale, setLocale, t: rawT } = useI18n();
 	const t = useScopedT("editor");
 	const ts = useScopedT("settings");
+	const tt = useScopedT("timeline");
+	const { notifyCopied, notifyPasted } = useClipboardFeedback();
 	const availableLocales = getAvailableLocales();
 
 	const nextAnnotationIdRef = useRef(1);
@@ -1016,6 +1030,178 @@ export default function VideoEditor() {
 			setSelectedSpeedId(null);
 		}
 	}, []);
+
+	// Copy the selected timeline element into the in-memory clipboard (issue #29). Selection is
+	// mutually exclusive (each select handler clears the others), so at most one branch matches.
+	const handleCopySelectedTimelineItem = useCallback(() => {
+		if (selectedAnnotationId) {
+			const region = annotationOnlyRegions.find((item) => item.id === selectedAnnotationId);
+			if (region) {
+				setTimelineClipboard({ kind: "annotation", region: cloneAnnotationRegion(region) });
+				notifyCopied();
+			}
+			return;
+		}
+		if (selectedBlurId) {
+			const region = blurRegions.find((item) => item.id === selectedBlurId);
+			if (region) {
+				setTimelineClipboard({ kind: "blur", region: cloneAnnotationRegion(region) });
+				notifyCopied();
+			}
+			return;
+		}
+		if (selectedZoomId) {
+			const region = zoomRegions.find((item) => item.id === selectedZoomId);
+			if (region) {
+				setTimelineClipboard({ kind: "zoom", region: { ...region, focus: { ...region.focus } } });
+				notifyCopied();
+			}
+			return;
+		}
+		if (selectedTrimId) {
+			const region = trimRegions.find((item) => item.id === selectedTrimId);
+			if (region) {
+				setTimelineClipboard({ kind: "trim", region: { ...region } });
+				notifyCopied();
+			}
+			return;
+		}
+		if (selectedSpeedId) {
+			const region = speedRegions.find((item) => item.id === selectedSpeedId);
+			if (region) {
+				setTimelineClipboard({ kind: "speed", region: { ...region } });
+				notifyCopied();
+			}
+		}
+	}, [
+		selectedAnnotationId,
+		selectedBlurId,
+		selectedZoomId,
+		selectedTrimId,
+		selectedSpeedId,
+		annotationOnlyRegions,
+		blurRegions,
+		zoomRegions,
+		trimRegions,
+		speedRegions,
+		notifyCopied,
+	]);
+
+	// Paste the clipboard element at the playhead. Span kinds (zoom/trim/speed) keep the
+	// no-overlap invariant and reject with the same error toasts as manual placement;
+	// annotations/blurs may overlap freely and always paste.
+	const handlePasteTimelineItem = useCallback(() => {
+		if (!timelineClipboard) return;
+		const totalMs = Math.max(0, Math.round(duration * 1000));
+		const span = getPastedSpan(
+			timelineClipboard.region.startMs,
+			timelineClipboard.region.endMs,
+			Math.round(currentTime * 1000),
+			totalMs,
+		);
+		if (!span) return;
+
+		const selectPasted = (select: (id: string) => void, id: string) => {
+			setSelectedZoomId(null);
+			setSelectedTrimId(null);
+			setSelectedSpeedId(null);
+			setSelectedAnnotationId(null);
+			setSelectedBlurId(null);
+			select(id);
+		};
+
+		if (timelineClipboard.kind === "annotation" || timelineClipboard.kind === "blur") {
+			const id = `annotation-${nextAnnotationIdRef.current++}`;
+			const pasted = buildPastedAnnotationRegion(
+				timelineClipboard.region,
+				id,
+				nextAnnotationZIndexRef.current++,
+				span,
+			);
+			pushState((prev) => ({ annotationRegions: [...prev.annotationRegions, pasted] }));
+			selectPasted(
+				timelineClipboard.kind === "blur" ? setSelectedBlurId : setSelectedAnnotationId,
+				id,
+			);
+			notifyPasted();
+			return;
+		}
+
+		const pasteSpanRegion = <T extends { id: string; startMs: number; endMs: number }>(config: {
+			existingRegions: T[];
+			createRegion: (id: string) => T;
+			createId: () => string;
+			pushRegion: (region: T) => void;
+			selectRegion: (id: string) => void;
+			errorTitle: string;
+			errorDescription: string;
+		}) => {
+			const hasConflict = config.existingRegions.some((region) =>
+				spansOverlap(region.startMs, region.endMs, span.startMs, span.endMs),
+			);
+			if (hasConflict) {
+				toast.error(config.errorTitle, { description: config.errorDescription });
+				return;
+			}
+			const id = config.createId();
+			config.pushRegion(config.createRegion(id));
+			selectPasted(config.selectRegion, id);
+			notifyPasted();
+		};
+
+		if (timelineClipboard.kind === "zoom") {
+			pasteSpanRegion({
+				existingRegions: zoomRegions,
+				createId: () => `zoom-${nextZoomIdRef.current++}`,
+				createRegion: (id) =>
+					buildPastedZoomRegion(timelineClipboard.region, id, span, {
+						forceAutoFocus: autoFocusAll,
+					}),
+				pushRegion: (region) =>
+					pushState((prev) => ({ zoomRegions: [...prev.zoomRegions, region] })),
+				selectRegion: setSelectedZoomId,
+				errorTitle: tt("errors.cannotPlaceZoom"),
+				errorDescription: tt("errors.zoomExistsAtLocation"),
+			});
+			return;
+		}
+
+		if (timelineClipboard.kind === "trim") {
+			pasteSpanRegion({
+				existingRegions: trimRegions,
+				createId: () => `trim-${nextTrimIdRef.current++}`,
+				createRegion: (id) => ({ ...timelineClipboard.region, id, ...span }),
+				pushRegion: (region) =>
+					pushState((prev) => ({ trimRegions: [...prev.trimRegions, region] })),
+				selectRegion: setSelectedTrimId,
+				errorTitle: tt("errors.cannotPlaceTrim"),
+				errorDescription: tt("errors.trimExistsAtLocation"),
+			});
+			return;
+		}
+
+		pasteSpanRegion({
+			existingRegions: speedRegions,
+			createId: () => `speed-${nextSpeedIdRef.current++}`,
+			createRegion: (id) => ({ ...timelineClipboard.region, id, ...span }),
+			pushRegion: (region) =>
+				pushState((prev) => ({ speedRegions: [...prev.speedRegions, region] })),
+			selectRegion: setSelectedSpeedId,
+			errorTitle: tt("errors.cannotPlaceSpeed"),
+			errorDescription: tt("errors.speedExistsAtLocation"),
+		});
+	}, [
+		timelineClipboard,
+		duration,
+		currentTime,
+		pushState,
+		zoomRegions,
+		trimRegions,
+		speedRegions,
+		autoFocusAll,
+		tt,
+		notifyPasted,
+	]);
 
 	const handleZoomAdded = useCallback(
 		(span: Span) => {
@@ -2967,6 +3153,16 @@ export default function VideoEditor() {
 									onBlurDelete={handleAnnotationDelete}
 									selectedBlurId={selectedBlurId}
 									onSelectBlur={handleSelectBlur}
+									canCopySelectedItem={
+										!!selectedZoomId ||
+										!!selectedTrimId ||
+										!!selectedSpeedId ||
+										!!selectedAnnotationId ||
+										!!selectedBlurId
+									}
+									canPasteTimelineItem={!!timelineClipboard && duration > 0}
+									onCopySelectedItem={handleCopySelectedTimelineItem}
+									onPasteTimelineItem={handlePasteTimelineItem}
 									aspectRatio={aspectRatio}
 									onAspectRatioChange={(ar) =>
 										pushState({

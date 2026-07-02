@@ -33,6 +33,8 @@
 		"deleteSelectedAlt": "Удалить выбранное (альт)",
 		"panTimeline": "Панорамирование таймлайна",
 		"zoomTimeline": "Масштабирование таймлайна",
+		"copyTimelineItem": "Копировать выбранный элемент",
+		"pasteTimelineItem": "Вставить на позиции воспроизведения",
 		"frameBack": "Кадр назад",
 		"frameForward": "Кадр вперёд"
 	}

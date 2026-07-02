@@ -55,5 +55,9 @@
 	"success": {
 		"addedZoomSuggestions": "Adicionada {{count}} sugestão de zoom baseada no cursor",
 		"addedZoomSuggestionsPlural": "Adicionadas {{count}} sugestões de zoom baseadas no cursor"
+	},
+	"feedback": {
+		"copied": "Copiado!",
+		"pasted": "Colado!"
 	}
 }

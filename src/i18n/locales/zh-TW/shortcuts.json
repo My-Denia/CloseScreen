@@ -33,6 +33,8 @@
 		"deleteSelectedAlt": "刪除所選（替代）",
 		"panTimeline": "平移時間軸",
 		"zoomTimeline": "縮放時間軸",
+		"copyTimelineItem": "複製選取元素",
+		"pasteTimelineItem": "貼上至播放頭",
 		"frameBack": "上一影格",
 		"frameForward": "下一影格"
 	}

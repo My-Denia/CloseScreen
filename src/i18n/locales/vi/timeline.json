@@ -55,5 +55,9 @@
 	"success": {
 		"addedZoomSuggestions": "Đã thêm {{count}} đề xuất thu phóng dựa trên con trỏ",
 		"addedZoomSuggestionsPlural": "Đã thêm {{count}} đề xuất thu phóng dựa trên con trỏ"
+	},
+	"feedback": {
+		"copied": "Đã sao chép!",
+		"pasted": "Đã dán!"
 	}
 }
