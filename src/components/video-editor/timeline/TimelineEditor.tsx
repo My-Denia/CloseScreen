@@ -657,7 +657,15 @@ function Timeline({
 		onSelectAnnotation?.(null);
 		onSelectBlur?.(null);
 		onSelectSpeed?.(null);
-	}, [onSelectZoom, onSelectTrim, onSelectAnnotation, onSelectBlur, onSelectSpeed]);
+		onSelectHighlight?.(null);
+	}, [
+		onSelectZoom,
+		onSelectTrim,
+		onSelectAnnotation,
+		onSelectBlur,
+		onSelectSpeed,
+		onSelectHighlight,
+	]);
 
 	const handleTimelineClick = useCallback(
 		(e: React.MouseEvent<HTMLDivElement>) => {
@@ -1087,9 +1095,11 @@ export default function TimelineEditor({
 	const zoomRegionsRef = useRef(zoomRegions);
 	const trimRegionsRef = useRef(trimRegions);
 	const speedRegionsRef = useRef(speedRegions);
+	const highlightRegionsRef = useRef(highlightRegions);
 	zoomRegionsRef.current = zoomRegions;
 	trimRegionsRef.current = trimRegions;
 	speedRegionsRef.current = speedRegions;
+	highlightRegionsRef.current = highlightRegions;
 
 	useEffect(() => {
 		if (totalMs === 0 || safeMinDurationMs <= 0) {
@@ -1131,7 +1141,26 @@ export default function TimelineEditor({
 				onSpeedSpanChange?.(region.id, { start: normalizedStart, end: normalizedEnd });
 			}
 		});
-	}, [totalMs, safeMinDurationMs, onZoomSpanChange, onTrimSpanChange, onSpeedSpanChange]);
+
+		highlightRegionsRef.current.forEach((region) => {
+			const clampedStart = Math.max(0, Math.min(region.startMs, totalMs));
+			const minEnd = clampedStart + safeMinDurationMs;
+			const clampedEnd = Math.min(totalMs, Math.max(minEnd, region.endMs));
+			const normalizedStart = Math.max(0, Math.min(clampedStart, totalMs - safeMinDurationMs));
+			const normalizedEnd = Math.max(minEnd, Math.min(clampedEnd, totalMs));
+
+			if (normalizedStart !== region.startMs || normalizedEnd !== region.endMs) {
+				onHighlightSpanChange?.(region.id, { start: normalizedStart, end: normalizedEnd });
+			}
+		});
+	}, [
+		totalMs,
+		safeMinDurationMs,
+		onZoomSpanChange,
+		onTrimSpanChange,
+		onSpeedSpanChange,
+		onHighlightSpanChange,
+	]);
 
 	const hasOverlap = useCallback(
 		(newSpan: Span, excludeId?: string): boolean => {
@@ -1575,9 +1604,14 @@ export default function TimelineEditor({
 		const zooms = zoomRegions.map((r) => ({ id: r.id, start: r.startMs, end: r.endMs }));
 		const trims = trimRegions.map((r) => ({ id: r.id, start: r.startMs, end: r.endMs }));
 		const speeds = speedRegions.map((r) => ({ id: r.id, start: r.startMs, end: r.endMs }));
-		const highlights = highlightRegions.map((r) => ({ id: r.id, start: r.startMs, end: r.endMs }));
+		// Only when the highlight row is visible: a project can carry saved highlights while
+		// the editable cursor recording (and thus the row) is unavailable, and invisible spans
+		// must not snap/clamp drags of the visible kinds.
+		const highlights = highlightRegionsEnabled
+			? highlightRegions.map((r) => ({ id: r.id, start: r.startMs, end: r.endMs }))
+			: [];
 		return [...zooms, ...trims, ...speeds, ...highlights];
-	}, [zoomRegions, trimRegions, speedRegions, highlightRegions]);
+	}, [zoomRegions, trimRegions, speedRegions, highlightRegions, highlightRegionsEnabled]);
 
 	// Snap targets whose edges pull during a snap but don't push anyone away.
 	const softSnapSpans = useMemo(() => {

@@ -892,6 +892,7 @@ export default function VideoEditor() {
 		setSelectedSpeedId(null);
 		setSelectedAnnotationId(null);
 		setSelectedBlurId(null);
+		setSelectedHighlightId(null);
 		// Reset playback.
 		setCurrentTime(0);
 		setIsPlaying(false);
@@ -1019,6 +1020,7 @@ export default function VideoEditor() {
 			setSelectedSpeedId(null);
 			setSelectedAnnotationId(null);
 			setSelectedBlurId(null);
+			setSelectedHighlightId(null);
 		}
 	}, []);
 
@@ -1029,6 +1031,7 @@ export default function VideoEditor() {
 			setSelectedSpeedId(null);
 			setSelectedAnnotationId(null);
 			setSelectedBlurId(null);
+			setSelectedHighlightId(null);
 		}
 	}, []);
 
@@ -1039,6 +1042,7 @@ export default function VideoEditor() {
 			setSelectedTrimId(null);
 			setSelectedSpeedId(null);
 			setSelectedBlurId(null);
+			setSelectedHighlightId(null);
 		}
 	}, []);
 
@@ -1049,6 +1053,7 @@ export default function VideoEditor() {
 			setSelectedTrimId(null);
 			setSelectedAnnotationId(null);
 			setSelectedSpeedId(null);
+			setSelectedHighlightId(null);
 		}
 	}, []);
 
@@ -1270,6 +1275,7 @@ export default function VideoEditor() {
 			setSelectedSpeedId(null);
 			setSelectedAnnotationId(null);
 			setSelectedBlurId(null);
+			setSelectedHighlightId(null);
 		},
 		[pushState, autoFocusAll],
 	);
@@ -1374,6 +1380,7 @@ export default function VideoEditor() {
 			setSelectedSpeedId(null);
 			setSelectedAnnotationId(null);
 			setSelectedBlurId(null);
+			setSelectedHighlightId(null);
 		},
 		[pushState],
 	);
@@ -1609,6 +1616,7 @@ export default function VideoEditor() {
 			setSelectedTrimId(null);
 			setSelectedAnnotationId(null);
 			setSelectedBlurId(null);
+			setSelectedHighlightId(null);
 		},
 		[pushState],
 	);
@@ -1677,6 +1685,7 @@ export default function VideoEditor() {
 			setSelectedTrimId(null);
 			setSelectedSpeedId(null);
 			setSelectedBlurId(null);
+			setSelectedHighlightId(null);
 		},
 		[pushState],
 	);
@@ -1705,6 +1714,7 @@ export default function VideoEditor() {
 			setSelectedZoomId(null);
 			setSelectedTrimId(null);
 			setSelectedSpeedId(null);
+			setSelectedHighlightId(null);
 		},
 		[pushState],
 	);
@@ -1759,6 +1769,7 @@ export default function VideoEditor() {
 			setSelectedTrimId(null);
 			setSelectedSpeedId(null);
 			setSelectedBlurId(null);
+			setSelectedHighlightId(null);
 		},
 		[pushState],
 	);
