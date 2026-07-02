@@ -55,8 +55,9 @@ const ICON_SIZE = 20;
 const HUD_DEVICE_POPUP_GAP = 28;
 // Horizontal layout: mirrors the `bottom-[68px]` class on the popup element.
 const HUD_DEVICE_POPUP_HORIZONTAL_BOTTOM = 68;
-// Top-anchored panels sit at `top-2` (8px); this is that offset plus breathing room
-// between a panel's bottom edge and the tray bar's top edge.
+// Top-anchored panels sit at `top-2` (8px; the language prompt uses `top-8` — its
+// extra 24px rides on measureHudSize's TOP_MARGIN); this is the top-2 offset plus
+// breathing room between a panel's bottom edge and the tray bar's top edge.
 const HUD_TOP_PANEL_GAP = 16;
 
 const ICON_CONFIG = {
