@@ -165,7 +165,9 @@ test.describe("Windows native checklist smoke tests", () => {
 		}
 	});
 
-	test("launch window opens an existing video into the editor and playback controls respond", async () => {
+	// Since 643d5dc (Studio Dashboard) the HUD no longer has open-video/open-project buttons:
+	// the studio button opens the editor's empty state, which hosts both actions.
+	test("studio empty state opens an existing video into the editor and playback controls respond", async () => {
 		const app = await launchApp();
 		let testVideoInRecordings = "";
 
@@ -183,12 +185,13 @@ test.describe("Windows native checklist smoke tests", () => {
 				}));
 			}, testVideoInRecordings);
 
-			await hudWindow.getByTestId("launch-open-video-button").click();
+			await hudWindow.getByTestId("launch-open-studio-button").click();
 			const editorWindow = await app.waitForEvent("window", {
 				predicate: (w) => w.url().includes("windowType=editor"),
 				timeout: 15_000,
 			});
 			await editorWindow.waitForLoadState("domcontentloaded");
+			await editorWindow.getByTestId("editor-empty-import-video-button").click();
 			await expect(editorWindow.getByText("Loading video...")).not.toBeVisible({ timeout: 20_000 });
 
 			const playButton = editorWindow.locator(
@@ -207,9 +210,14 @@ test.describe("Windows native checklist smoke tests", () => {
 			});
 			await expect.poll(() => seekInput.inputValue(), { timeout: 10_000 }).not.toBe("0");
 
+			// .first(): the settings panel renders "Background" as both a tab label and a
+			// section heading, and either satisfies "the settings panel is up".
 			await expect(
-				editorWindow.getByText("Background").or(editorWindow.getByText("Arrière-plan")),
+				editorWindow.getByText("Background").or(editorWindow.getByText("Arrière-plan")).first(),
 			).toBeVisible();
+			// The export button moved inside the export panel: open the panel and assert the
+			// actual export action, preserving the original assertion's reach.
+			await editorWindow.getByTestId("testId-export-panel-button").click();
 			await expect(editorWindow.getByTestId("testId-export-button")).toBeVisible();
 		} finally {
 			await closeApp(app);
@@ -219,7 +227,7 @@ test.describe("Windows native checklist smoke tests", () => {
 		}
 	});
 
-	test("launch window opens an existing project into the editor", async () => {
+	test("studio empty state opens an existing project into the editor", async () => {
 		const app = await launchApp();
 		let testVideoInRecordings = "";
 		let projectPath = "";
@@ -240,6 +248,10 @@ test.describe("Windows native checklist smoke tests", () => {
 			await app.evaluate(
 				({ ipcMain }, payload) => {
 					ipcMain.removeHandler(payload.nativeBridgeChannel);
+					// The editor boots into the empty state only while there is no current video, so
+					// the stub must answer getCurrentVideoPath with null until the project is loaded
+					// through the empty state's Load Project button.
+					let projectLoaded = false;
 					ipcMain.handle(payload.nativeBridgeChannel, (_event, request) => {
 						const success = (data: unknown) => ({
 							ok: true,
@@ -252,6 +264,7 @@ test.describe("Windows native checklist smoke tests", () => {
 						});
 
 						if (request.domain === "project" && request.action === "loadProjectFile") {
+							projectLoaded = true;
 							return success({
 								success: true,
 								path: payload.projectPath,
@@ -262,7 +275,11 @@ test.describe("Windows native checklist smoke tests", () => {
 							return success({ success: false, canceled: true });
 						}
 						if (request.domain === "project" && request.action === "getCurrentVideoPath") {
-							return success({ success: true, path: payload.videoPath });
+							// Mirror the real handler's contract (handlers.ts getCurrentVideoPathResult):
+							// { success: false } while no current video, { success: true, path } after.
+							return success(
+								projectLoaded ? { success: true, path: payload.videoPath } : { success: false },
+							);
 						}
 						if (request.domain === "system" && request.action === "getPlatform") {
 							return success("win32");
@@ -301,13 +318,17 @@ test.describe("Windows native checklist smoke tests", () => {
 				},
 			);
 
-			await hudWindow.getByTestId("launch-open-project-button").click();
+			await hudWindow.getByTestId("launch-open-studio-button").click();
 			const editorWindow = await app.waitForEvent("window", {
 				predicate: (w) => w.url().includes("windowType=editor"),
 				timeout: 15_000,
 			});
 			await editorWindow.waitForLoadState("domcontentloaded");
+			await editorWindow.getByTestId("editor-empty-load-project-button").click();
 			await expect(editorWindow.getByText("Loading video...")).not.toBeVisible({ timeout: 20_000 });
+			// The export button moved inside the export panel: open the panel and assert the
+			// actual export action, preserving the original assertion's reach.
+			await editorWindow.getByTestId("testId-export-panel-button").click();
 			await expect(editorWindow.getByTestId("testId-export-button")).toBeVisible();
 		} finally {
 			await closeApp(app);
