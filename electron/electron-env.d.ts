@@ -125,6 +125,11 @@ interface Window {
 		}>;
 		onStopRecordingFromTray: (callback: () => void) => () => void;
 		openExternalUrl: (url: string) => Promise<{ success: boolean; error?: string }>;
+		checkForUpdates: () => Promise<
+			| { status: "update"; currentVersion: string; latestVersion: string; url: string }
+			| { status: "upToDate"; currentVersion: string }
+			| { status: "error"; currentVersion: string }
+		>;
 		pickExportSavePath: (
 			fileName: string,
 			exportFolder?: string,

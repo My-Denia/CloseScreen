@@ -42,5 +42,15 @@
 	"locale": {
 		"name": "عربي",
 		"short": "AR"
+	},
+	"updates": {
+		"availableTitle": "يتوفر CloseScreen {{version}}",
+		"availableDescription": "إصدارك الحالي {{current}}",
+		"download": "تنزيل",
+		"dontRemind": "عدم التذكير مجددًا",
+		"upToDate": "لديك أحدث إصدار",
+		"upToDateDescription": "CloseScreen {{current}} هو أحدث إصدار",
+		"checkFailed": "تعذّر التحقق من التحديثات",
+		"checkFailedDescription": "تحقق من اتصالك وحاول مرة أخرى."
 	}
 }

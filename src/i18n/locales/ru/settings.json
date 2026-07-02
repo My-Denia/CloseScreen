@@ -113,7 +113,8 @@
 	"support": {
 		"reportBug": "Сообщить об ошибке",
 		"saveDiagnostics": "Сохранить диагностику",
-		"starOnGithub": "Звезда на GitHub"
+		"starOnGithub": "Звезда на GitHub",
+		"checkForUpdates": "Проверить обновления"
 	},
 	"imageUpload": {
 		"invalidFileType": "Неверный тип файла",

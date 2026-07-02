@@ -42,5 +42,15 @@
 	"locale": {
 		"name": "日本語",
 		"short": "JA"
+	},
+	"updates": {
+		"availableTitle": "CloseScreen {{version}} が利用可能です",
+		"availableDescription": "現在のバージョン: {{current}}",
+		"download": "ダウンロード",
+		"dontRemind": "今後通知しない",
+		"upToDate": "最新の状態です",
+		"upToDateDescription": "CloseScreen {{current}} は最新バージョンです",
+		"checkFailed": "更新を確認できませんでした",
+		"checkFailedDescription": "接続を確認して再試行してください。"
 	}
 }

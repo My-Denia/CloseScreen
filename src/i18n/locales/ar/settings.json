@@ -113,7 +113,8 @@
 	"support": {
 		"reportBug": "الإبلاغ عن خطأ",
 		"saveDiagnostics": "حفظ التشخيصات",
-		"starOnGithub": "إعطاء نجمة على GitHub"
+		"starOnGithub": "إعطاء نجمة على GitHub",
+		"checkForUpdates": "التحقق من التحديثات"
 	},
 	"imageUpload": {
 		"invalidFileType": "نوع ملف غير صالح",

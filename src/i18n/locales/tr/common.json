@@ -42,5 +42,15 @@
 	"locale": {
 		"name": "Türkçe",
 		"short": "TR"
+	},
+	"updates": {
+		"availableTitle": "CloseScreen {{version}} kullanılabilir",
+		"availableDescription": "Şu anki sürümünüz {{current}}",
+		"download": "İndir",
+		"dontRemind": "Bir daha hatırlatma",
+		"upToDate": "Güncelsiniz",
+		"upToDateDescription": "CloseScreen {{current}} en son sürüm",
+		"checkFailed": "Güncellemeler kontrol edilemedi",
+		"checkFailedDescription": "Bağlantınızı kontrol edip yeniden deneyin."
 	}
 }
