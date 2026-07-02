@@ -54,6 +54,15 @@ describe("mergeWithDefaults", () => {
 		expect(merged.addTrim).toEqual(DEFAULT_SHORTCUTS.addTrim);
 	});
 
+	it("resets a saved custom binding that collides with a newly added default (h for addHighlight)", () => {
+		// A pre-#26 config could have bound another action to plain "h"; the new
+		// addHighlight default claims it, and the duplicate-resolution pass moves the
+		// off-default action back to its own default.
+		const merged = mergeWithDefaults({ addTrim: { key: "h" } });
+		expect(merged.addHighlight).toEqual(DEFAULT_SHORTCUTS.addHighlight); // h
+		expect(merged.addTrim).toEqual(DEFAULT_SHORTCUTS.addTrim); // t
+	});
+
 	it("resolves the duplicate a reserved-binding fallback would reintroduce", () => {
 		// Old config: addTrim legitimately swapped onto Z, addZoom bound to the now-reserved
 		// Ctrl+C. Remapping addZoom to its default Z must not leave two actions on Z.

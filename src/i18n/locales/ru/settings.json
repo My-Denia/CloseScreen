@@ -219,7 +219,13 @@
 		"motionBlur": "Размытие движения",
 		"clickBounce": "Отскок при клике",
 		"clipToBounds": "Обрезать по холсту",
-		"clipToBoundsDescription": "Keeps the cursor inside the video frame. Turn off to let the cursor extend past the edges - useful when zoomed in or panned."
+		"clipToBoundsDescription": "Keeps the cursor inside the video frame. Turn off to let the cursor extend past the edges - useful when zoomed in or panned.",
+		"highlightTitle": "Подсветка курсора",
+		"highlightRing": "Кольцо",
+		"highlightDot": "Точка",
+		"highlightColor": "Цвет подсветки",
+		"highlightSize": "Размер",
+		"highlightOpacity": "Непрозрачность"
 	},
 	"language": {
 		"title": "Язык"

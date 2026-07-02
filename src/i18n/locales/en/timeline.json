@@ -9,14 +9,16 @@
 		"addTrim": "Add Trim (T)",
 		"addAnnotation": "Add Annotation (A)",
 		"addBlur": "Add Blur (B)",
-		"addSpeed": "Add Speed (S)"
+		"addSpeed": "Add Speed (S)",
+		"addHighlight": "Add Cursor Highlight (H)"
 	},
 	"hints": {
 		"pressZoom": "Press Z to add zoom",
 		"pressTrim": "Press T to add trim",
 		"pressAnnotation": "Press A to add annotation",
 		"pressBlur": "Press B to add blur region",
-		"pressSpeed": "Press S to add speed"
+		"pressSpeed": "Press S to add speed",
+		"pressHighlight": "Press H to add cursor highlight"
 	},
 	"labels": {
 		"pan": "Pan",
@@ -29,7 +31,9 @@
 		"annotationItem": "Annotation",
 		"blurItem": "Blur {{index}}",
 		"imageItem": "Image",
-		"emptyText": "Empty text"
+		"emptyText": "Empty text",
+		"highlight": "Highlight",
+		"highlightItem": "Highlight {{index}}"
 	},
 	"emptyState": {
 		"noVideo": "No Video Loaded",
@@ -50,7 +54,9 @@
 		"cannotPlaceTrim": "Cannot place trim here",
 		"trimExistsAtLocation": "Trim already exists at this location or not enough space available.",
 		"cannotPlaceSpeed": "Cannot place speed here",
-		"speedExistsAtLocation": "Speed region already exists at this location or not enough space available."
+		"speedExistsAtLocation": "Speed region already exists at this location or not enough space available.",
+		"cannotPlaceHighlight": "Cannot place highlight here",
+		"highlightExistsAtLocation": "A highlight already exists at this location or there is not enough space."
 	},
 	"success": {
 		"addedZoomSuggestions": "Added {{count}} cursor-based zoom suggestion",

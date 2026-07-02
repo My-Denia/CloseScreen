@@ -78,6 +78,7 @@ import type {
 	AnnotationType,
 	BlurData,
 	CropRegion,
+	CursorHighlightStyle,
 	FigureData,
 	PlaybackSpeed,
 	Rotation3DPreset,
@@ -89,6 +90,8 @@ import type {
 	ZoomFocusMode,
 } from "./types";
 import {
+	CURSOR_HIGHLIGHT_SIZE_RANGE,
+	DEFAULT_CURSOR_HIGHLIGHT_STYLE,
 	DEFAULT_WEBCAM_MIRRORED,
 	DEFAULT_WEBCAM_REACTIVE_ZOOM,
 	MAX_ZOOM_SCALE,
@@ -349,6 +352,10 @@ interface SettingsPanelProps {
 	onCursorClipToBoundsChange?: (clip: boolean) => void;
 	cursorTheme?: string;
 	onCursorThemeChange?: (theme: string) => void;
+	/** Cursor highlight styling (issue #26); regions on the timeline gate when it shows. */
+	cursorHighlight?: CursorHighlightStyle;
+	onCursorHighlightChange?: (patch: Partial<CursorHighlightStyle>) => void;
+	onCursorHighlightCommit?: () => void;
 	hasCursorData?: boolean;
 	showCursorSettings?: boolean;
 }
@@ -486,6 +493,9 @@ export function SettingsPanel({
 	onCursorClipToBoundsChange,
 	cursorTheme = DEFAULT_CURSOR_SETTINGS.theme,
 	onCursorThemeChange,
+	cursorHighlight = DEFAULT_CURSOR_HIGHLIGHT_STYLE,
+	onCursorHighlightChange,
+	onCursorHighlightCommit,
 	hasCursorData = false,
 	showCursorSettings = true,
 }: SettingsPanelProps) {
@@ -1701,6 +1711,92 @@ export function SettingsPanel({
 																	step={0.1}
 																	className="w-full [&_[role=slider]]:bg-[#34B27B] [&_[role=slider]]:border-[#34B27B] [&_[role=slider]]:h-3 [&_[role=slider]]:w-3"
 																/>
+															</div>
+														</div>
+														{/* Cursor highlight styling (issue #26). WHEN it shows is set on the
+														    timeline (highlight regions); these controls only style it. */}
+														<div className="space-y-2 pt-1 border-t border-white/5">
+															<div className="flex items-center justify-between">
+																<div className="text-[10px] font-medium text-slate-300">
+																	{t("cursor.highlightTitle")}
+																</div>
+																<div className="flex items-center gap-1">
+																	{(["ring", "dot"] as const).map((styleOption) => (
+																		<button
+																			type="button"
+																			key={styleOption}
+																			aria-pressed={cursorHighlight.style === styleOption}
+																			onClick={() => {
+																				onCursorHighlightChange?.({ style: styleOption });
+																				onCursorHighlightCommit?.();
+																			}}
+																			className={cn(
+																				"px-2 py-0.5 rounded-md text-[10px] border transition-colors",
+																				cursorHighlight.style === styleOption
+																					? "border-[#34B27B] text-[#34B27B] bg-[#34B27B]/10"
+																					: "border-white/10 text-slate-400 hover:text-slate-200",
+																			)}
+																		>
+																			{styleOption === "ring"
+																				? t("cursor.highlightRing")
+																				: t("cursor.highlightDot")}
+																		</button>
+																	))}
+																	<input
+																		type="color"
+																		value={cursorHighlight.color}
+																		aria-label={t("cursor.highlightColor")}
+																		onChange={(event) =>
+																			onCursorHighlightChange?.({ color: event.target.value })
+																		}
+																		onBlur={() => onCursorHighlightCommit?.()}
+																		className="h-5 w-6 cursor-pointer rounded border border-white/10 bg-transparent p-0"
+																	/>
+																</div>
+															</div>
+															<div className="grid grid-cols-2 gap-2">
+																<div className="p-2 rounded-lg bg-white/5 border border-white/5">
+																	<div className="flex items-center justify-between mb-1">
+																		<div className="text-[10px] font-medium text-slate-300">
+																			{t("cursor.highlightSize")}
+																		</div>
+																		<span className="text-[10px] text-slate-500 font-mono">
+																			{Math.round(cursorHighlight.sizePx)}
+																		</span>
+																	</div>
+																	<Slider
+																		value={[cursorHighlight.sizePx]}
+																		onValueChange={(values) =>
+																			onCursorHighlightChange?.({ sizePx: values[0] })
+																		}
+																		onValueCommit={() => onCursorHighlightCommit?.()}
+																		min={CURSOR_HIGHLIGHT_SIZE_RANGE.min}
+																		max={CURSOR_HIGHLIGHT_SIZE_RANGE.max}
+																		step={1}
+																		className="w-full [&_[role=slider]]:bg-[#34B27B] [&_[role=slider]]:border-[#34B27B] [&_[role=slider]]:h-3 [&_[role=slider]]:w-3"
+																	/>
+																</div>
+																<div className="p-2 rounded-lg bg-white/5 border border-white/5">
+																	<div className="flex items-center justify-between mb-1">
+																		<div className="text-[10px] font-medium text-slate-300">
+																			{t("cursor.highlightOpacity")}
+																		</div>
+																		<span className="text-[10px] text-slate-500 font-mono">
+																			{cursorHighlight.opacity.toFixed(2)}
+																		</span>
+																	</div>
+																	<Slider
+																		value={[cursorHighlight.opacity]}
+																		onValueChange={(values) =>
+																			onCursorHighlightChange?.({ opacity: values[0] })
+																		}
+																		onValueCommit={() => onCursorHighlightCommit?.()}
+																		min={0.05}
+																		max={1}
+																		step={0.05}
+																		className="w-full [&_[role=slider]]:bg-[#34B27B] [&_[role=slider]]:border-[#34B27B] [&_[role=slider]]:h-3 [&_[role=slider]]:w-3"
+																	/>
+																</div>
 															</div>
 														</div>
 													</>

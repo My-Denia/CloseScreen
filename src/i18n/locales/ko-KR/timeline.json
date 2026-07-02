@@ -9,14 +9,16 @@
 		"addTrim": "트림 추가 (T)",
 		"addAnnotation": "주석 추가 (A)",
 		"addBlur": "블러 추가 (B)",
-		"addSpeed": "속도 추가 (S)"
+		"addSpeed": "속도 추가 (S)",
+		"addHighlight": "커서 하이라이트 추가 (H)"
 	},
 	"hints": {
 		"pressZoom": "Z를 눌러 줌 추가",
 		"pressTrim": "T를 눌러 트림 추가",
 		"pressAnnotation": "A를 눌러 주석 추가",
 		"pressBlur": "B 키를 눌러 블러 영역을 추가하세요",
-		"pressSpeed": "S를 눌러 속도 추가"
+		"pressSpeed": "S를 눌러 속도 추가",
+		"pressHighlight": "H 키로 커서 하이라이트 추가"
 	},
 	"labels": {
 		"pan": "이동",
@@ -29,7 +31,9 @@
 		"annotationItem": "주석",
 		"blurItem": "블러 {{index}}",
 		"imageItem": "이미지",
-		"emptyText": "빈 텍스트"
+		"emptyText": "빈 텍스트",
+		"highlight": "하이라이트",
+		"highlightItem": "하이라이트 {{index}}"
 	},
 	"emptyState": {
 		"noVideo": "불러온 비디오 없음",
@@ -50,7 +54,9 @@
 		"cannotPlaceTrim": "이 위치에 트림을 추가할 수 없습니다",
 		"trimExistsAtLocation": "이 위치에 이미 트림이 있거나 공간이 부족합니다.",
 		"cannotPlaceSpeed": "이 위치에 속도를 추가할 수 없습니다",
-		"speedExistsAtLocation": "이 위치에 이미 속도 구간이 있거나 공간이 부족합니다."
+		"speedExistsAtLocation": "이 위치에 이미 속도 구간이 있거나 공간이 부족합니다.",
+		"cannotPlaceHighlight": "여기에 하이라이트를 배치할 수 없습니다",
+		"highlightExistsAtLocation": "이 위치에 이미 하이라이트가 있거나 공간이 부족합니다."
 	},
 	"success": {
 		"addedZoomSuggestions": "커서 기반 줌 제안 {{count}}개가 추가되었습니다",

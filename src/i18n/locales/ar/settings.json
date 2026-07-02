@@ -219,7 +219,13 @@
 		"motionBlur": "ضبابية الحركة",
 		"clickBounce": "ارتداد النقر",
 		"clipToBounds": "القص ضمن اللوحة",
-		"clipToBoundsDescription": "Keeps the cursor inside the video frame. Turn off to let the cursor extend past the edges - useful when zoomed in or panned."
+		"clipToBoundsDescription": "Keeps the cursor inside the video frame. Turn off to let the cursor extend past the edges - useful when zoomed in or panned.",
+		"highlightTitle": "تمييز المؤشر",
+		"highlightRing": "حلقة",
+		"highlightDot": "نقطة",
+		"highlightColor": "لون التمييز",
+		"highlightSize": "الحجم",
+		"highlightOpacity": "الشفافية"
 	},
 	"language": {
 		"title": "اللغة"

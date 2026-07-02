@@ -21,6 +21,7 @@
 		"addSpeed": "Agregar velocidad",
 		"addAnnotation": "Agregar anotación",
 		"addBlur": "Agregar desenfoque",
+		"addHighlight": "Añadir resaltado del cursor",
 		"addKeyframe": "Agregar fotograma clave",
 		"deleteSelected": "Eliminar seleccionado",
 		"playPause": "Reproducir / Pausar"

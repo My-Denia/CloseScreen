@@ -21,6 +21,7 @@
 		"addSpeed": "إضافة سرعة",
 		"addAnnotation": "إضافة شرح",
 		"addBlur": "إضافة تمويه",
+		"addHighlight": "إضافة تمييز المؤشر",
 		"addKeyframe": "إضافة إطار رئيسي",
 		"deleteSelected": "حذف المحدد",
 		"playPause": "تشغيل / إيقاف مؤقت"

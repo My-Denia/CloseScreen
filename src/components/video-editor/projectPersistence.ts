@@ -16,6 +16,8 @@ import {
 import {
 	type AnnotationRegion,
 	type CropRegion,
+	CURSOR_HIGHLIGHT_SIZE_RANGE,
+	type CursorHighlightStyle,
 	clampPlaybackSpeed,
 	DEFAULT_ANNOTATION_POSITION,
 	DEFAULT_ANNOTATION_SIZE,
@@ -24,12 +26,14 @@ import {
 	DEFAULT_BLUR_DATA,
 	DEFAULT_BLUR_FREEHAND_POINTS,
 	DEFAULT_BLUR_INTENSITY,
+	DEFAULT_CURSOR_HIGHLIGHT_STYLE,
 	DEFAULT_FIGURE_DATA,
 	DEFAULT_PLAYBACK_SPEED,
 	DEFAULT_WEBCAM_MIRRORED,
 	DEFAULT_WEBCAM_REACTIVE_ZOOM,
 	DEFAULT_ZOOM_DEPTH,
 	DEFAULT_ZOOM_MOTION_BLUR,
+	type HighlightRegion,
 	MAX_BLUR_BLOCK_SIZE,
 	MAX_BLUR_INTENSITY,
 	MAX_PLAYBACK_SPEED,
@@ -88,6 +92,10 @@ export interface ProjectEditorState {
 	trimRegions: TrimRegion[];
 	speedRegions: SpeedRegion[];
 	annotationRegions: AnnotationRegion[];
+	/** Cursor-highlight time ranges (issue #26); absent in pre-#26 projects. */
+	highlightRegions: HighlightRegion[];
+	/** Global cursor-highlight styling; absent in pre-#26 projects. */
+	cursorHighlight: CursorHighlightStyle;
 	aspectRatio: AspectRatio;
 	webcamLayoutPreset: WebcamLayoutPreset;
 	webcamMaskShape: WebcamMaskShape;
@@ -339,6 +347,41 @@ export function normalizeProjectEditor(editor: Partial<ProjectEditorState>): Pro
 				})
 		: [];
 
+	const normalizedHighlightRegions: HighlightRegion[] = Array.isArray(editor.highlightRegions)
+		? editor.highlightRegions
+				.filter((region): region is HighlightRegion =>
+					Boolean(region && typeof region.id === "string"),
+				)
+				.map((region) => {
+					const rawStart = isFiniteNumber(region.startMs) ? Math.round(region.startMs) : 0;
+					const rawEnd = isFiniteNumber(region.endMs) ? Math.round(region.endMs) : rawStart + 1000;
+					const startMs = Math.max(0, Math.min(rawStart, rawEnd));
+					const endMs = Math.max(startMs + 1, rawEnd);
+					return { id: region.id, startMs, endMs };
+				})
+		: [];
+
+	const rawHighlightStyle: Partial<CursorHighlightStyle> =
+		editor.cursorHighlight && typeof editor.cursorHighlight === "object"
+			? editor.cursorHighlight
+			: {};
+	const normalizedCursorHighlight: CursorHighlightStyle = {
+		style: rawHighlightStyle.style === "dot" ? "dot" : DEFAULT_CURSOR_HIGHLIGHT_STYLE.style,
+		sizePx: isFiniteNumber(rawHighlightStyle.sizePx)
+			? clamp(
+					rawHighlightStyle.sizePx,
+					CURSOR_HIGHLIGHT_SIZE_RANGE.min,
+					CURSOR_HIGHLIGHT_SIZE_RANGE.max,
+				)
+			: DEFAULT_CURSOR_HIGHLIGHT_STYLE.sizePx,
+		color: /^#[0-9a-fA-F]{6}$/.test(rawHighlightStyle.color ?? "")
+			? (rawHighlightStyle.color as string)
+			: DEFAULT_CURSOR_HIGHLIGHT_STYLE.color,
+		opacity: isFiniteNumber(rawHighlightStyle.opacity)
+			? clamp(rawHighlightStyle.opacity, 0, 1)
+			: DEFAULT_CURSOR_HIGHLIGHT_STYLE.opacity,
+	};
+
 	const normalizedAnnotationRegions: AnnotationRegion[] = Array.isArray(editor.annotationRegions)
 		? editor.annotationRegions
 				.filter((region): region is AnnotationRegion =>
@@ -518,6 +561,8 @@ export function normalizeProjectEditor(editor: Partial<ProjectEditorState>): Pro
 		trimRegions: normalizedTrimRegions,
 		speedRegions: normalizedSpeedRegions,
 		annotationRegions: normalizedAnnotationRegions,
+		highlightRegions: normalizedHighlightRegions,
+		cursorHighlight: normalizedCursorHighlight,
 		aspectRatio: normalizedAspectRatio,
 		webcamLayoutPreset: normalizedWebcamLayoutPreset,
 		webcamMaskShape:

@@ -6,6 +6,7 @@ import {
 	ChevronDown,
 	Gauge,
 	MessageSquare,
+	MousePointer2,
 	Plus,
 	ScanEye,
 	Scissors,
@@ -30,7 +31,13 @@ import { cn } from "@/lib/utils";
 import { ASPECT_RATIOS, type AspectRatio, getAspectRatioLabel } from "@/utils/aspectRatioUtils";
 import { formatShortcut } from "@/utils/platformUtils";
 import { BLUR_REGIONS_ENABLED } from "../featureFlags";
-import type { AnnotationRegion, SpeedRegion, TrimRegion, ZoomRegion } from "../types";
+import type {
+	AnnotationRegion,
+	HighlightRegion,
+	SpeedRegion,
+	TrimRegion,
+	ZoomRegion,
+} from "../types";
 import BackgroundWaveform from "./BackgroundWaveform";
 import Item from "./Item";
 import KeyframeMarkers from "./KeyframeMarkers";
@@ -42,6 +49,7 @@ const TRIM_ROW_ID = "row-trim";
 const ANNOTATION_ROW_ID = "row-annotation";
 const BLUR_ROW_ID = "row-blur";
 const SPEED_ROW_ID = "row-speed";
+const HIGHLIGHT_ROW_ID = "row-highlight";
 const FALLBACK_RANGE_MS = 1000;
 const TARGET_MARKER_COUNT = 12;
 
@@ -86,6 +94,14 @@ interface TimelineEditorProps {
 	onSpeedDelete?: (id: string) => void;
 	selectedSpeedId?: string | null;
 	onSelectSpeed?: (id: string | null) => void;
+	/** Cursor-highlight row (issue #26); only rendered for editable-overlay native cursor recordings. */
+	highlightRegionsEnabled?: boolean;
+	highlightRegions?: HighlightRegion[];
+	onHighlightAdded?: (span: Span) => void;
+	onHighlightSpanChange?: (id: string, span: Span) => void;
+	onHighlightDelete?: (id: string) => void;
+	selectedHighlightId?: string | null;
+	onSelectHighlight?: (id: string | null) => void;
 	/** Timeline clipboard (issue #29): mod+C copies the selected element, mod+V pastes at the playhead. */
 	canCopySelectedItem?: boolean;
 	canPasteTimelineItem?: boolean;
@@ -117,7 +133,7 @@ interface TimelineRenderItem {
 	zoomCustomScale?: number;
 	speedValue?: number;
 	isAutoFocus?: boolean;
-	variant: "zoom" | "trim" | "annotation" | "speed" | "blur";
+	variant: "zoom" | "trim" | "annotation" | "speed" | "blur" | "highlight";
 }
 
 const SCALE_CANDIDATES = [
@@ -568,11 +584,14 @@ function Timeline({
 	onSelectAnnotation,
 	onSelectBlur,
 	onSelectSpeed,
+	onSelectHighlight,
 	selectedZoomId,
 	selectedTrimId,
 	selectedAnnotationId,
 	selectedBlurId,
 	selectedSpeedId,
+	selectedHighlightId,
+	highlightRowVisible = false,
 	keyframes = [],
 	videoUrl,
 	showTrimWaveform = false,
@@ -587,11 +606,14 @@ function Timeline({
 	onSelectAnnotation?: (id: string | null) => void;
 	onSelectBlur?: (id: string | null) => void;
 	onSelectSpeed?: (id: string | null) => void;
+	onSelectHighlight?: (id: string | null) => void;
 	selectedZoomId: string | null;
 	selectedTrimId?: string | null;
 	selectedAnnotationId?: string | null;
 	selectedBlurId?: string | null;
 	selectedSpeedId?: string | null;
+	selectedHighlightId?: string | null;
+	highlightRowVisible?: boolean;
 	keyframes?: { id: string; time: number }[];
 	videoUrl?: string;
 	showTrimWaveform?: boolean;
@@ -635,7 +657,15 @@ function Timeline({
 		onSelectAnnotation?.(null);
 		onSelectBlur?.(null);
 		onSelectSpeed?.(null);
-	}, [onSelectZoom, onSelectTrim, onSelectAnnotation, onSelectBlur, onSelectSpeed]);
+		onSelectHighlight?.(null);
+	}, [
+		onSelectZoom,
+		onSelectTrim,
+		onSelectAnnotation,
+		onSelectBlur,
+		onSelectSpeed,
+		onSelectHighlight,
+	]);
 
 	const handleTimelineClick = useCallback(
 		(e: React.MouseEvent<HTMLDivElement>) => {
@@ -754,6 +784,7 @@ function Timeline({
 	const annotationItems = items.filter((item) => item.rowId === ANNOTATION_ROW_ID);
 	const blurItems = items.filter((item) => item.rowId === BLUR_ROW_ID);
 	const speedItems = items.filter((item) => item.rowId === SPEED_ROW_ID);
+	const highlightItems = items.filter((item) => item.rowId === HIGHLIGHT_ROW_ID);
 
 	return (
 		<div
@@ -883,6 +914,28 @@ function Timeline({
 					</Item>
 				))}
 			</Row>
+
+			{highlightRowVisible && (
+				<Row
+					id={HIGHLIGHT_ROW_ID}
+					isEmpty={highlightItems.length === 0}
+					hint={t("hints.pressHighlight")}
+				>
+					{highlightItems.map((item) => (
+						<Item
+							id={item.id}
+							key={item.id}
+							rowId={item.rowId}
+							span={item.span}
+							isSelected={item.id === selectedHighlightId}
+							onSelect={() => onSelectHighlight?.(item.id)}
+							variant="highlight"
+						>
+							{item.label}
+						</Item>
+					))}
+				</Row>
+			)}
 		</div>
 	);
 }
@@ -926,6 +979,13 @@ export default function TimelineEditor({
 	onSpeedDelete,
 	selectedSpeedId,
 	onSelectSpeed,
+	highlightRegionsEnabled = false,
+	highlightRegions = [],
+	onHighlightAdded,
+	onHighlightSpanChange,
+	onHighlightDelete,
+	selectedHighlightId,
+	onSelectHighlight,
 	canCopySelectedItem = false,
 	canPasteTimelineItem = false,
 	onCopySelectedItem,
@@ -1020,6 +1080,12 @@ export default function TimelineEditor({
 		onSelectSpeed(null);
 	}, [selectedSpeedId, onSpeedDelete, onSelectSpeed]);
 
+	const deleteSelectedHighlight = useCallback(() => {
+		if (!selectedHighlightId || !onHighlightDelete || !onSelectHighlight) return;
+		onHighlightDelete(selectedHighlightId);
+		onSelectHighlight(null);
+	}, [selectedHighlightId, onHighlightDelete, onSelectHighlight]);
+
 	useEffect(() => {
 		setRange(createInitialRange(totalMs));
 	}, [totalMs]);
@@ -1029,51 +1095,59 @@ export default function TimelineEditor({
 	const zoomRegionsRef = useRef(zoomRegions);
 	const trimRegionsRef = useRef(trimRegions);
 	const speedRegionsRef = useRef(speedRegions);
+	const highlightRegionsRef = useRef(highlightRegions);
 	zoomRegionsRef.current = zoomRegions;
 	trimRegionsRef.current = trimRegions;
 	speedRegionsRef.current = speedRegions;
+	highlightRegionsRef.current = highlightRegions;
 
 	useEffect(() => {
 		if (totalMs === 0 || safeMinDurationMs <= 0) {
 			return;
 		}
 
-		zoomRegionsRef.current.forEach((region) => {
-			const clampedStart = Math.max(0, Math.min(region.startMs, totalMs));
-			const minEnd = clampedStart + safeMinDurationMs;
-			const clampedEnd = Math.min(totalMs, Math.max(minEnd, region.endMs));
-			const normalizedStart = Math.max(0, Math.min(clampedStart, totalMs - safeMinDurationMs));
-			const normalizedEnd = Math.max(minEnd, Math.min(clampedEnd, totalMs));
+		// Normalize the start FIRST, then derive the end from it: computing minEnd from a
+		// start merely clamped to totalMs could push the end to totalMs + minDuration when a
+		// saved region starts past the real video duration (e.g. the source was shortened).
+		const normalizeSpan = (region: { startMs: number; endMs: number }) => {
+			const normalizedStart = Math.max(
+				0,
+				Math.min(region.startMs, Math.max(0, totalMs - safeMinDurationMs)),
+			);
+			const minEnd = Math.min(totalMs, normalizedStart + safeMinDurationMs);
+			const normalizedEnd = Math.min(totalMs, Math.max(minEnd, region.endMs));
+			return normalizedStart !== region.startMs || normalizedEnd !== region.endMs
+				? { start: normalizedStart, end: normalizedEnd }
+				: null;
+		};
 
-			if (normalizedStart !== region.startMs || normalizedEnd !== region.endMs) {
-				onZoomSpanChange(region.id, { start: normalizedStart, end: normalizedEnd });
-			}
+		zoomRegionsRef.current.forEach((region) => {
+			const span = normalizeSpan(region);
+			if (span) onZoomSpanChange(region.id, span);
 		});
 
 		trimRegionsRef.current.forEach((region) => {
-			const clampedStart = Math.max(0, Math.min(region.startMs, totalMs));
-			const minEnd = clampedStart + safeMinDurationMs;
-			const clampedEnd = Math.min(totalMs, Math.max(minEnd, region.endMs));
-			const normalizedStart = Math.max(0, Math.min(clampedStart, totalMs - safeMinDurationMs));
-			const normalizedEnd = Math.max(minEnd, Math.min(clampedEnd, totalMs));
-
-			if (normalizedStart !== region.startMs || normalizedEnd !== region.endMs) {
-				onTrimSpanChange?.(region.id, { start: normalizedStart, end: normalizedEnd });
-			}
+			const span = normalizeSpan(region);
+			if (span) onTrimSpanChange?.(region.id, span);
 		});
 
 		speedRegionsRef.current.forEach((region) => {
-			const clampedStart = Math.max(0, Math.min(region.startMs, totalMs));
-			const minEnd = clampedStart + safeMinDurationMs;
-			const clampedEnd = Math.min(totalMs, Math.max(minEnd, region.endMs));
-			const normalizedStart = Math.max(0, Math.min(clampedStart, totalMs - safeMinDurationMs));
-			const normalizedEnd = Math.max(minEnd, Math.min(clampedEnd, totalMs));
-
-			if (normalizedStart !== region.startMs || normalizedEnd !== region.endMs) {
-				onSpeedSpanChange?.(region.id, { start: normalizedStart, end: normalizedEnd });
-			}
+			const span = normalizeSpan(region);
+			if (span) onSpeedSpanChange?.(region.id, span);
 		});
-	}, [totalMs, safeMinDurationMs, onZoomSpanChange, onTrimSpanChange, onSpeedSpanChange]);
+
+		highlightRegionsRef.current.forEach((region) => {
+			const span = normalizeSpan(region);
+			if (span) onHighlightSpanChange?.(region.id, span);
+		});
+	}, [
+		totalMs,
+		safeMinDurationMs,
+		onZoomSpanChange,
+		onTrimSpanChange,
+		onSpeedSpanChange,
+		onHighlightSpanChange,
+	]);
 
 	const hasOverlap = useCallback(
 		(newSpan: Span, excludeId?: string): boolean => {
@@ -1082,12 +1156,15 @@ export default function TimelineEditor({
 			const isAnnotationItem = annotationRegions.some((r) => r.id === excludeId);
 			const isBlurItem = blurRegions.some((r) => r.id === excludeId);
 			const isSpeedItem = speedRegions.some((r) => r.id === excludeId);
+			const isHighlightItem = highlightRegions.some((r) => r.id === excludeId);
 
 			if (isAnnotationItem || isBlurItem) {
 				return false;
 			}
 
-			const checkOverlap = (regions: (ZoomRegion | TrimRegion | SpeedRegion)[]) => {
+			const checkOverlap = (
+				regions: (ZoomRegion | TrimRegion | SpeedRegion | HighlightRegion)[],
+			) => {
 				return regions.some((region) => {
 					if (region.id === excludeId) return false;
 					// True intersection, adjacency is allowed
@@ -1107,9 +1184,13 @@ export default function TimelineEditor({
 				return checkOverlap(speedRegions);
 			}
 
+			if (isHighlightItem) {
+				return checkOverlap(highlightRegions);
+			}
+
 			return false;
 		},
-		[zoomRegions, trimRegions, annotationRegions, blurRegions, speedRegions],
+		[zoomRegions, trimRegions, annotationRegions, blurRegions, speedRegions, highlightRegions],
 	);
 
 	// 5% of the timeline or 1000ms, whichever is larger, so it's wide enough to grab.
@@ -1213,6 +1294,43 @@ export default function TimelineEditor({
 		t,
 	]);
 
+	const handleAddHighlight = useCallback(() => {
+		if (!videoDuration || videoDuration === 0 || totalMs === 0 || !onHighlightAdded) {
+			return;
+		}
+
+		const defaultDuration = Math.min(defaultRegionDurationMs, totalMs);
+		if (defaultDuration <= 0) {
+			return;
+		}
+
+		const startPos = Math.max(0, Math.min(currentTimeMs, totalMs));
+		const sorted = [...highlightRegions].sort((a, b) => a.startMs - b.startMs);
+		const nextRegion = sorted.find((region) => region.startMs > startPos);
+		const gapToNext = nextRegion ? nextRegion.startMs - startPos : totalMs - startPos;
+
+		const isOverlapping = sorted.some(
+			(region) => startPos >= region.startMs && startPos < region.endMs,
+		);
+		if (isOverlapping || gapToNext <= 0) {
+			toast.error(t("errors.cannotPlaceHighlight"), {
+				description: t("errors.highlightExistsAtLocation"),
+			});
+			return;
+		}
+
+		const actualDuration = Math.min(defaultRegionDurationMs, gapToNext);
+		onHighlightAdded({ start: startPos, end: startPos + actualDuration });
+	}, [
+		videoDuration,
+		totalMs,
+		currentTimeMs,
+		highlightRegions,
+		onHighlightAdded,
+		defaultRegionDurationMs,
+		t,
+	]);
+
 	const handleAddAnnotation = useCallback(() => {
 		if (!videoDuration || videoDuration === 0 || totalMs === 0 || !onAnnotationAdded) {
 			return;
@@ -1304,6 +1422,9 @@ export default function TimelineEditor({
 			if (matchesShortcut(e, keyShortcuts.addSpeed)) {
 				handleAddSpeed();
 			}
+			if (highlightRegionsEnabled && matchesShortcut(e, keyShortcuts.addHighlight)) {
+				handleAddHighlight();
+			}
 
 			// Tab cycles through overlapping annotations at the current time
 			if (e.key === "Tab" && annotationRegions.length > 0) {
@@ -1344,6 +1465,8 @@ export default function TimelineEditor({
 					deleteSelectedBlur();
 				} else if (selectedSpeedId) {
 					deleteSelectedSpeed();
+				} else if (selectedHighlightId) {
+					deleteSelectedHighlight();
 				}
 			}
 		};
@@ -1356,18 +1479,22 @@ export default function TimelineEditor({
 		handleAddAnnotation,
 		handleAddBlur,
 		handleAddSpeed,
+		handleAddHighlight,
+		highlightRegionsEnabled,
 		deleteSelectedKeyframe,
 		deleteSelectedZoom,
 		deleteSelectedTrim,
 		deleteSelectedAnnotation,
 		deleteSelectedBlur,
 		deleteSelectedSpeed,
+		deleteSelectedHighlight,
 		selectedKeyframeId,
 		selectedZoomId,
 		selectedTrimId,
 		selectedAnnotationId,
 		selectedBlurId,
 		selectedSpeedId,
+		selectedHighlightId,
 		annotationRegions,
 		currentTime,
 		onSelectAnnotation,
@@ -1447,8 +1574,16 @@ export default function TimelineEditor({
 			variant: "speed",
 		}));
 
-		return [...zooms, ...trims, ...annotations, ...blurs, ...speeds];
-	}, [zoomRegions, trimRegions, annotationRegions, blurRegions, speedRegions, t]);
+		const highlights: TimelineRenderItem[] = highlightRegions.map((region, index) => ({
+			id: region.id,
+			rowId: HIGHLIGHT_ROW_ID,
+			span: { start: region.startMs, end: region.endMs },
+			label: t("labels.highlightItem", { index: String(index + 1) }),
+			variant: "highlight",
+		}));
+
+		return [...zooms, ...trims, ...annotations, ...blurs, ...speeds, ...highlights];
+	}, [zoomRegions, trimRegions, annotationRegions, blurRegions, speedRegions, highlightRegions, t]);
 
 	// Spans that participate in overlap resolution (clampToNeighbours). Annotation
 	// and blur are excluded since they may overlap and shouldn't constrain a drag.
@@ -1456,8 +1591,14 @@ export default function TimelineEditor({
 		const zooms = zoomRegions.map((r) => ({ id: r.id, start: r.startMs, end: r.endMs }));
 		const trims = trimRegions.map((r) => ({ id: r.id, start: r.startMs, end: r.endMs }));
 		const speeds = speedRegions.map((r) => ({ id: r.id, start: r.startMs, end: r.endMs }));
-		return [...zooms, ...trims, ...speeds];
-	}, [zoomRegions, trimRegions, speedRegions]);
+		// Only when the highlight row is visible: a project can carry saved highlights while
+		// the editable cursor recording (and thus the row) is unavailable, and invisible spans
+		// must not snap/clamp drags of the visible kinds.
+		const highlights = highlightRegionsEnabled
+			? highlightRegions.map((r) => ({ id: r.id, start: r.startMs, end: r.endMs }))
+			: [];
+		return [...zooms, ...trims, ...speeds, ...highlights];
+	}, [zoomRegions, trimRegions, speedRegions, highlightRegions, highlightRegionsEnabled]);
 
 	// Snap targets whose edges pull during a snap but don't push anyone away.
 	const softSnapSpans = useMemo(() => {
@@ -1484,6 +1625,8 @@ export default function TimelineEditor({
 				onAnnotationSpanChange?.(id, span);
 			} else if (blurRegions.some((r) => r.id === id)) {
 				onBlurSpanChange?.(id, span);
+			} else if (highlightRegions.some((r) => r.id === id)) {
+				onHighlightSpanChange?.(id, span);
 			}
 		},
 		[
@@ -1492,11 +1635,13 @@ export default function TimelineEditor({
 			speedRegions,
 			annotationRegions,
 			blurRegions,
+			highlightRegions,
 			onZoomSpanChange,
 			onTrimSpanChange,
 			onSpeedSpanChange,
 			onAnnotationSpanChange,
 			onBlurSpanChange,
+			onHighlightSpanChange,
 		],
 	);
 
@@ -1607,6 +1752,18 @@ export default function TimelineEditor({
 					>
 						<Gauge className="w-4 h-4" />
 					</Button>
+					{highlightRegionsEnabled && (
+						<Button
+							onClick={handleAddHighlight}
+							variant="ghost"
+							size="icon"
+							className="h-7 w-7 rounded-lg text-slate-400 hover:text-[#38bdf8] hover:bg-[#38bdf8]/10 transition-all"
+							title={t("buttons.addHighlight")}
+							data-testid="timeline-add-highlight-button"
+						>
+							<MousePointer2 className="w-4 h-4" />
+						</Button>
+					)}
 					{onGenerateCaptions && (
 						<Button
 							onClick={onGenerateCaptions}
@@ -1699,11 +1856,14 @@ export default function TimelineEditor({
 						onSelectAnnotation={onSelectAnnotation}
 						onSelectBlur={onSelectBlur}
 						onSelectSpeed={onSelectSpeed}
+						onSelectHighlight={onSelectHighlight}
 						selectedZoomId={selectedZoomId}
 						selectedTrimId={selectedTrimId}
 						selectedAnnotationId={selectedAnnotationId}
 						selectedBlurId={selectedBlurId}
 						selectedSpeedId={selectedSpeedId}
+						selectedHighlightId={selectedHighlightId}
+						highlightRowVisible={highlightRegionsEnabled}
 						keyframes={keyframes}
 						videoUrl={videoUrl}
 						showTrimWaveform={showTrimWaveform}

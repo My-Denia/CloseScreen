@@ -9,14 +9,16 @@
 		"addTrim": "Ajouter une coupe (T)",
 		"addAnnotation": "Ajouter une annotation (A)",
 		"addBlur": "Ajouter un flou (B)",
-		"addSpeed": "Ajouter une vitesse (S)"
+		"addSpeed": "Ajouter une vitesse (S)",
+		"addHighlight": "Ajouter la surbrillance du curseur (H)"
 	},
 	"hints": {
 		"pressZoom": "Appuyez sur Z pour ajouter un zoom",
 		"pressTrim": "Appuyez sur T pour ajouter une coupe",
 		"pressAnnotation": "Appuyez sur A pour ajouter une annotation",
 		"pressBlur": "Appuyez sur B pour ajouter une zone de flou",
-		"pressSpeed": "Appuyez sur S pour ajouter une vitesse"
+		"pressSpeed": "Appuyez sur S pour ajouter une vitesse",
+		"pressHighlight": "Appuyez sur H pour ajouter la surbrillance du curseur"
 	},
 	"labels": {
 		"pan": "Panoramique",
@@ -29,7 +31,9 @@
 		"annotationItem": "Annotation",
 		"blurItem": "Flou {{index}}",
 		"imageItem": "Image",
-		"emptyText": "Texte vide"
+		"emptyText": "Texte vide",
+		"highlight": "Surbrillance",
+		"highlightItem": "Surbrillance {{index}}"
 	},
 	"emptyState": {
 		"noVideo": "Aucune vidéo chargée",
@@ -50,7 +54,9 @@
 		"cannotPlaceTrim": "Impossible de placer la coupe ici",
 		"trimExistsAtLocation": "Une coupe existe déjà à cet emplacement ou l'espace disponible est insuffisant.",
 		"cannotPlaceSpeed": "Impossible de placer la vitesse ici",
-		"speedExistsAtLocation": "Une région de vitesse existe déjà à cet emplacement ou l'espace disponible est insuffisant."
+		"speedExistsAtLocation": "Une région de vitesse existe déjà à cet emplacement ou l'espace disponible est insuffisant.",
+		"cannotPlaceHighlight": "Impossible de placer la surbrillance ici",
+		"highlightExistsAtLocation": "Une surbrillance existe déjà à cet emplacement ou l'espace disponible est insuffisant."
 	},
 	"success": {
 		"addedZoomSuggestions": "{{count}} suggestion de zoom basée sur le curseur ajoutée",

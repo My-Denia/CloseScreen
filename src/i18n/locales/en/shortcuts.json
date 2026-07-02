@@ -21,6 +21,7 @@
 		"addSpeed": "Add Speed",
 		"addAnnotation": "Add Annotation",
 		"addBlur": "Add Blur",
+		"addHighlight": "Add Cursor Highlight",
 		"addKeyframe": "Add Keyframe",
 		"deleteSelected": "Delete Selected",
 		"playPause": "Play / Pause"

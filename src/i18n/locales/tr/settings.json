@@ -219,7 +219,13 @@
 		"motionBlur": "Hareket Bulanıklığı",
 		"clickBounce": "Tıklama Sıçraması",
 		"clipToBounds": "Tuvale Kırp",
-		"clipToBoundsDescription": "Keeps the cursor inside the video frame. Turn off to let the cursor extend past the edges - useful when zoomed in or panned."
+		"clipToBoundsDescription": "Keeps the cursor inside the video frame. Turn off to let the cursor extend past the edges - useful when zoomed in or panned.",
+		"highlightTitle": "İmleç vurgusu",
+		"highlightRing": "Halka",
+		"highlightDot": "Nokta",
+		"highlightColor": "Vurgu rengi",
+		"highlightSize": "Boyut",
+		"highlightOpacity": "Opaklık"
 	},
 	"language": {
 		"title": "Dil"

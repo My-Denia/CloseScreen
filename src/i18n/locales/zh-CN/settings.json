@@ -219,7 +219,13 @@
 		"motionBlur": "运动模糊",
 		"clickBounce": "点击弹跳",
 		"clipToBounds": "裁剪到画布",
-		"clipToBoundsDescription": "Keeps the cursor inside the video frame. Turn off to let the cursor extend past the edges - useful when zoomed in or panned."
+		"clipToBoundsDescription": "Keeps the cursor inside the video frame. Turn off to let the cursor extend past the edges - useful when zoomed in or panned.",
+		"highlightTitle": "光标高亮",
+		"highlightRing": "圆环",
+		"highlightDot": "圆点",
+		"highlightColor": "高亮颜色",
+		"highlightSize": "大小",
+		"highlightOpacity": "不透明度"
 	},
 	"language": {
 		"title": "语言"

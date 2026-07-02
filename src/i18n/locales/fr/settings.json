@@ -219,7 +219,13 @@
 		"motionBlur": "Flou de mouvement",
 		"clickBounce": "Rebond au clic",
 		"clipToBounds": "Rogner au canevas",
-		"clipToBoundsDescription": "Keeps the cursor inside the video frame. Turn off to let the cursor extend past the edges - useful when zoomed in or panned."
+		"clipToBoundsDescription": "Keeps the cursor inside the video frame. Turn off to let the cursor extend past the edges - useful when zoomed in or panned.",
+		"highlightTitle": "Surbrillance du curseur",
+		"highlightRing": "Anneau",
+		"highlightDot": "Point",
+		"highlightColor": "Couleur de la surbrillance",
+		"highlightSize": "Taille",
+		"highlightOpacity": "Opacité"
 	},
 	"language": {
 		"title": "Langue"

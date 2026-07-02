@@ -9,14 +9,16 @@
 		"addTrim": "Aggiungi taglio (T)",
 		"addAnnotation": "Aggiungi annotazione (A)",
 		"addBlur": "Aggiungi sfocatura (B)",
-		"addSpeed": "Aggiungi velocità (S)"
+		"addSpeed": "Aggiungi velocità (S)",
+		"addHighlight": "Aggiungi evidenziazione cursore (H)"
 	},
 	"hints": {
 		"pressZoom": "Premi Z per aggiungere zoom",
 		"pressTrim": "Premi T per aggiungere taglio",
 		"pressAnnotation": "Premi A per aggiungere annotazione",
 		"pressBlur": "Premi B per aggiungere regione sfocatura",
-		"pressSpeed": "Premi S per aggiungere velocità"
+		"pressSpeed": "Premi S per aggiungere velocità",
+		"pressHighlight": "Premi H per aggiungere l'evidenziazione del cursore"
 	},
 	"labels": {
 		"pan": "Panoramica",
@@ -29,7 +31,9 @@
 		"annotationItem": "Annotazione",
 		"blurItem": "Sfocatura {{index}}",
 		"imageItem": "Immagine",
-		"emptyText": "Testo vuoto"
+		"emptyText": "Testo vuoto",
+		"highlight": "Evidenziazione",
+		"highlightItem": "Evidenziazione {{index}}"
 	},
 	"emptyState": {
 		"noVideo": "Nessun video caricato",
@@ -50,7 +54,9 @@
 		"cannotPlaceTrim": "Impossibile posizionare il taglio qui",
 		"trimExistsAtLocation": "Il taglio esiste già in questa posizione o non c'è spazio sufficiente.",
 		"cannotPlaceSpeed": "Impossibile posizionare la velocità qui",
-		"speedExistsAtLocation": "La regione velocità esiste già in questa posizione o non c'è spazio sufficiente."
+		"speedExistsAtLocation": "La regione velocità esiste già in questa posizione o non c'è spazio sufficiente.",
+		"cannotPlaceHighlight": "Impossibile posizionare l'evidenziazione qui",
+		"highlightExistsAtLocation": "Esiste già un'evidenziazione in questa posizione o non c'è spazio sufficiente."
 	},
 	"success": {
 		"addedZoomSuggestions": "Aggiunto {{count}} suggerimento zoom basato sul cursore",

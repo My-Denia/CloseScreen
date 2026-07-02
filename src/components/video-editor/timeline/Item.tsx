@@ -17,7 +17,7 @@ interface ItemProps {
 	zoomCustomScale?: number;
 	speedValue?: number;
 	isAutoFocus?: boolean;
-	variant?: "zoom" | "trim" | "annotation" | "speed" | "blur";
+	variant?: "zoom" | "trim" | "annotation" | "speed" | "blur" | "highlight";
 }
 
 // Map zoom depth to multiplier labels
@@ -63,6 +63,7 @@ export default function Item({
 	const isZoom = variant === "zoom";
 	const isTrim = variant === "trim";
 	const isSpeed = variant === "speed";
+	const isHighlight = variant === "highlight";
 
 	const glassClass = isZoom
 		? glassStyles.glassGreen
@@ -70,9 +71,19 @@ export default function Item({
 			? glassStyles.glassRed
 			: isSpeed
 				? glassStyles.glassAmber
-				: glassStyles.glassYellow;
+				: isHighlight
+					? glassStyles.glassBlue
+					: glassStyles.glassYellow;
 
-	const endCapColor = isZoom ? "#21916A" : isTrim ? "#ef4444" : isSpeed ? "#d97706" : "#B4A046";
+	const endCapColor = isZoom
+		? "#21916A"
+		: isTrim
+			? "#ef4444"
+			: isSpeed
+				? "#d97706"
+				: isHighlight
+					? "#0ea5e9"
+					: "#B4A046";
 
 	const timeLabel = useMemo(
 		() => `${formatMs(span.start)} – ${formatMs(span.end)}`,
@@ -158,6 +169,13 @@ export default function Item({
 									<Gauge className="w-3.5 h-3.5 shrink-0" />
 									<span className="text-[11px] font-semibold whitespace-nowrap">
 										{speedValue !== undefined ? `${speedValue}×` : t("labels.speed")}
+									</span>
+								</>
+							) : isHighlight ? (
+								<>
+									<MousePointer2 className="w-3.5 h-3.5 shrink-0" />
+									<span className="text-[11px] font-semibold whitespace-nowrap">
+										{t("labels.highlight")}
 									</span>
 								</>
 							) : (

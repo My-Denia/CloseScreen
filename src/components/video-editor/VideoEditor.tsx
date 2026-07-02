@@ -114,6 +114,7 @@ import {
 	DEFAULT_PLAYBACK_SPEED,
 	DEFAULT_ZOOM_DEPTH,
 	type FigureData,
+	type HighlightRegion,
 	type PlaybackSpeed,
 	type Rotation3DPreset,
 	type SpeedRegion,
@@ -207,6 +208,8 @@ export default function VideoEditor() {
 		trimRegions,
 		speedRegions,
 		annotationRegions,
+		highlightRegions,
+		cursorHighlight,
 		cropRegion,
 		wallpaper,
 		shadowIntensity,
@@ -249,6 +252,7 @@ export default function VideoEditor() {
 	const [isPreviewingZoom, setIsPreviewingZoom] = useState(false);
 	const [selectedTrimId, setSelectedTrimId] = useState<string | null>(null);
 	const [selectedSpeedId, setSelectedSpeedId] = useState<string | null>(null);
+	const [selectedHighlightId, setSelectedHighlightId] = useState<string | null>(null);
 	const [selectedAnnotationId, setSelectedAnnotationId] = useState<string | null>(null);
 	const [selectedBlurId, setSelectedBlurId] = useState<string | null>(null);
 	// In-memory timeline clipboard (issue #29). Deliberately not the OS clipboard: regions only
@@ -321,6 +325,7 @@ export default function VideoEditor() {
 	const nextZoomIdRef = useRef(1);
 	const nextTrimIdRef = useRef(1);
 	const nextSpeedIdRef = useRef(1);
+	const nextHighlightIdRef = useRef(1);
 
 	const { shortcuts } = useShortcuts();
 	const hasEditableCursorRecording =
@@ -396,6 +401,7 @@ export default function VideoEditor() {
 				...normalizedEditor.trimRegions.map((region) => region.endMs),
 				...normalizedEditor.speedRegions.map((region) => region.endMs),
 				...normalizedEditor.annotationRegions.map((region) => region.endMs),
+				...normalizedEditor.highlightRegions.map((region) => region.endMs),
 			);
 
 			try {
@@ -434,6 +440,8 @@ export default function VideoEditor() {
 				trimRegions: normalizedEditor.trimRegions,
 				speedRegions: normalizedEditor.speedRegions,
 				annotationRegions: normalizedEditor.annotationRegions,
+				highlightRegions: normalizedEditor.highlightRegions,
+				cursorHighlight: normalizedEditor.cursorHighlight,
 				aspectRatio: normalizedEditor.aspectRatio,
 				webcamLayoutPreset: normalizedEditor.webcamLayoutPreset,
 				webcamMaskShape: normalizedEditor.webcamMaskShape,
@@ -454,6 +462,7 @@ export default function VideoEditor() {
 			setSelectedSpeedId(null);
 			setSelectedAnnotationId(null);
 			setSelectedBlurId(null);
+			setSelectedHighlightId(null);
 
 			nextZoomIdRef.current = deriveNextId(
 				"zoom",
@@ -466,6 +475,10 @@ export default function VideoEditor() {
 			nextSpeedIdRef.current = deriveNextId(
 				"speed",
 				normalizedEditor.speedRegions.map((region) => region.id),
+			);
+			nextHighlightIdRef.current = deriveNextId(
+				"highlight",
+				normalizedEditor.highlightRegions.map((region) => region.id),
 			);
 			nextAnnotationIdRef.current = deriveNextId(
 				"annotation",
@@ -511,6 +524,8 @@ export default function VideoEditor() {
 			trimRegions,
 			speedRegions,
 			annotationRegions,
+			highlightRegions,
+			cursorHighlight,
 			aspectRatio,
 			webcamLayoutPreset,
 			webcamMaskShape,
@@ -542,6 +557,8 @@ export default function VideoEditor() {
 		trimRegions,
 		speedRegions,
 		annotationRegions,
+		highlightRegions,
+		cursorHighlight,
 		aspectRatio,
 		webcamLayoutPreset,
 		webcamMaskShape,
@@ -670,6 +687,8 @@ export default function VideoEditor() {
 				trimRegions,
 				speedRegions,
 				annotationRegions,
+				highlightRegions,
+				cursorHighlight,
 				aspectRatio,
 				webcamLayoutPreset,
 				webcamMaskShape,
@@ -735,6 +754,8 @@ export default function VideoEditor() {
 			trimRegions,
 			speedRegions,
 			annotationRegions,
+			highlightRegions,
+			cursorHighlight,
 			aspectRatio,
 			webcamLayoutPreset,
 			webcamMaskShape,
@@ -871,6 +892,7 @@ export default function VideoEditor() {
 		setSelectedSpeedId(null);
 		setSelectedAnnotationId(null);
 		setSelectedBlurId(null);
+		setSelectedHighlightId(null);
 		// Reset playback.
 		setCurrentTime(0);
 		setIsPlaying(false);
@@ -998,6 +1020,7 @@ export default function VideoEditor() {
 			setSelectedSpeedId(null);
 			setSelectedAnnotationId(null);
 			setSelectedBlurId(null);
+			setSelectedHighlightId(null);
 		}
 	}, []);
 
@@ -1008,6 +1031,7 @@ export default function VideoEditor() {
 			setSelectedSpeedId(null);
 			setSelectedAnnotationId(null);
 			setSelectedBlurId(null);
+			setSelectedHighlightId(null);
 		}
 	}, []);
 
@@ -1018,6 +1042,7 @@ export default function VideoEditor() {
 			setSelectedTrimId(null);
 			setSelectedSpeedId(null);
 			setSelectedBlurId(null);
+			setSelectedHighlightId(null);
 		}
 	}, []);
 
@@ -1028,6 +1053,7 @@ export default function VideoEditor() {
 			setSelectedTrimId(null);
 			setSelectedAnnotationId(null);
 			setSelectedSpeedId(null);
+			setSelectedHighlightId(null);
 		}
 	}, []);
 
@@ -1072,6 +1098,14 @@ export default function VideoEditor() {
 				setTimelineClipboard({ kind: "speed", region: { ...region } });
 				notifyCopied();
 			}
+			return;
+		}
+		if (selectedHighlightId) {
+			const region = highlightRegions.find((item) => item.id === selectedHighlightId);
+			if (region) {
+				setTimelineClipboard({ kind: "highlight", region: { ...region } });
+				notifyCopied();
+			}
 		}
 	}, [
 		selectedAnnotationId,
@@ -1079,11 +1113,13 @@ export default function VideoEditor() {
 		selectedZoomId,
 		selectedTrimId,
 		selectedSpeedId,
+		selectedHighlightId,
 		annotationOnlyRegions,
 		blurRegions,
 		zoomRegions,
 		trimRegions,
 		speedRegions,
+		highlightRegions,
 		notifyCopied,
 	]);
 
@@ -1107,6 +1143,7 @@ export default function VideoEditor() {
 			setSelectedSpeedId(null);
 			setSelectedAnnotationId(null);
 			setSelectedBlurId(null);
+			setSelectedHighlightId(null);
 			select(id);
 		};
 
@@ -1180,6 +1217,24 @@ export default function VideoEditor() {
 			return;
 		}
 
+		if (timelineClipboard.kind === "highlight") {
+			// The clipboard can outlive the project it was copied from; without an editable
+			// cursor recording the highlight row is hidden and a pasted region would be
+			// invisible and unremovable from the UI.
+			if (!hasEditableCursorRecording) return;
+			pasteSpanRegion({
+				existingRegions: highlightRegions,
+				createId: () => `highlight-${nextHighlightIdRef.current++}`,
+				createRegion: (id) => ({ ...timelineClipboard.region, id, ...span }),
+				pushRegion: (region) =>
+					pushState((prev) => ({ highlightRegions: [...prev.highlightRegions, region] })),
+				selectRegion: setSelectedHighlightId,
+				errorTitle: tt("errors.cannotPlaceHighlight"),
+				errorDescription: tt("errors.highlightExistsAtLocation"),
+			});
+			return;
+		}
+
 		pasteSpanRegion({
 			existingRegions: speedRegions,
 			createId: () => `speed-${nextSpeedIdRef.current++}`,
@@ -1198,6 +1253,8 @@ export default function VideoEditor() {
 		zoomRegions,
 		trimRegions,
 		speedRegions,
+		highlightRegions,
+		hasEditableCursorRecording,
 		autoFocusAll,
 		tt,
 		notifyPasted,
@@ -1223,6 +1280,7 @@ export default function VideoEditor() {
 			setSelectedSpeedId(null);
 			setSelectedAnnotationId(null);
 			setSelectedBlurId(null);
+			setSelectedHighlightId(null);
 		},
 		[pushState, autoFocusAll],
 	);
@@ -1327,6 +1385,7 @@ export default function VideoEditor() {
 			setSelectedSpeedId(null);
 			setSelectedAnnotationId(null);
 			setSelectedBlurId(null);
+			setSelectedHighlightId(null);
 		},
 		[pushState],
 	);
@@ -1480,8 +1539,70 @@ export default function VideoEditor() {
 			setSelectedTrimId(null);
 			setSelectedAnnotationId(null);
 			setSelectedBlurId(null);
+			setSelectedHighlightId(null);
 		}
 	}, []);
+
+	const handleSelectHighlight = useCallback((id: string | null) => {
+		setSelectedHighlightId(id);
+		if (id) {
+			setSelectedZoomId(null);
+			setSelectedTrimId(null);
+			setSelectedSpeedId(null);
+			setSelectedAnnotationId(null);
+			setSelectedBlurId(null);
+		}
+	}, []);
+
+	const handleHighlightAdded = useCallback(
+		(span: Span) => {
+			const id = `highlight-${nextHighlightIdRef.current++}`;
+			const newRegion: HighlightRegion = {
+				id,
+				startMs: Math.round(span.start),
+				endMs: Math.round(span.end),
+			};
+			pushState((prev) => ({
+				highlightRegions: [...prev.highlightRegions, newRegion],
+			}));
+			setSelectedHighlightId(id);
+			setSelectedZoomId(null);
+			setSelectedTrimId(null);
+			setSelectedSpeedId(null);
+			setSelectedAnnotationId(null);
+			setSelectedBlurId(null);
+		},
+		[pushState],
+	);
+
+	const handleHighlightSpanChange = useCallback(
+		(id: string, span: Span) => {
+			pushState((prev) => ({
+				highlightRegions: prev.highlightRegions.map((region) =>
+					region.id === id
+						? {
+								...region,
+								startMs: Math.round(span.start),
+								endMs: Math.round(span.end),
+							}
+						: region,
+				),
+			}));
+		},
+		[pushState],
+	);
+
+	const handleHighlightDelete = useCallback(
+		(id: string) => {
+			pushState((prev) => ({
+				highlightRegions: prev.highlightRegions.filter((region) => region.id !== id),
+			}));
+			if (selectedHighlightId === id) {
+				setSelectedHighlightId(null);
+			}
+		},
+		[selectedHighlightId, pushState],
+	);
 
 	const handleSpeedAdded = useCallback(
 		(span: Span) => {
@@ -1500,6 +1621,7 @@ export default function VideoEditor() {
 			setSelectedTrimId(null);
 			setSelectedAnnotationId(null);
 			setSelectedBlurId(null);
+			setSelectedHighlightId(null);
 		},
 		[pushState],
 	);
@@ -1568,6 +1690,7 @@ export default function VideoEditor() {
 			setSelectedTrimId(null);
 			setSelectedSpeedId(null);
 			setSelectedBlurId(null);
+			setSelectedHighlightId(null);
 		},
 		[pushState],
 	);
@@ -1596,6 +1719,7 @@ export default function VideoEditor() {
 			setSelectedZoomId(null);
 			setSelectedTrimId(null);
 			setSelectedSpeedId(null);
+			setSelectedHighlightId(null);
 		},
 		[pushState],
 	);
@@ -1650,6 +1774,7 @@ export default function VideoEditor() {
 			setSelectedTrimId(null);
 			setSelectedSpeedId(null);
 			setSelectedBlurId(null);
+			setSelectedHighlightId(null);
 		},
 		[pushState],
 	);
@@ -1939,6 +2064,15 @@ export default function VideoEditor() {
 		}
 	}, [selectedSpeedId, speedRegions]);
 
+	useEffect(() => {
+		if (
+			selectedHighlightId &&
+			!highlightRegions.some((region) => region.id === selectedHighlightId)
+		) {
+			setSelectedHighlightId(null);
+		}
+	}, [selectedHighlightId, highlightRegions]);
+
 	const handleShowExportedFile = useCallback(async (filePath: string) => {
 		try {
 			const result = await window.electronAPI.revealInFolder(filePath);
@@ -2159,6 +2293,8 @@ export default function VideoEditor() {
 						cursorClickBounce,
 						cursorClipToBounds,
 						cursorTheme,
+						highlightRegions,
+						cursorHighlight,
 						annotationRegions,
 						webcamLayoutPreset,
 						webcamMaskShape,
@@ -2253,6 +2389,8 @@ export default function VideoEditor() {
 						cursorClickBounce,
 						cursorClipToBounds,
 						cursorTheme,
+						highlightRegions,
+						cursorHighlight,
 						annotationRegions,
 						webcamLayoutPreset,
 						webcamMaskShape,
@@ -2363,6 +2501,8 @@ export default function VideoEditor() {
 			zoomRegions,
 			trimRegions,
 			speedRegions,
+			highlightRegions,
+			cursorHighlight,
 			shadowIntensity,
 			showBlur,
 			motionBlurAmount,
@@ -2887,6 +3027,8 @@ export default function VideoEditor() {
 													cursorRecordingData={cursorRecordingData}
 													trimRegions={trimRegions}
 													speedRegions={speedRegions}
+													highlightRegions={highlightRegions}
+													cursorHighlight={cursorHighlight}
 													annotationRegions={annotationOnlyRegions}
 													selectedAnnotationId={selectedAnnotationId}
 													onSelectAnnotation={handleSelectAnnotation}
@@ -3098,6 +3240,13 @@ export default function VideoEditor() {
 										onCursorClipToBoundsChange={setCursorClipToBounds}
 										cursorTheme={cursorTheme}
 										onCursorThemeChange={setCursorTheme}
+										cursorHighlight={cursorHighlight}
+										onCursorHighlightChange={(patch) =>
+											updateState((prev) => ({
+												cursorHighlight: { ...prev.cursorHighlight, ...patch },
+											}))
+										}
+										onCursorHighlightCommit={commitState}
 										hasCursorData={
 											cursorTelemetry.length > 0 ||
 											hasNativeCursorRecordingData(cursorRecordingData)
@@ -3141,6 +3290,13 @@ export default function VideoEditor() {
 									onSpeedDelete={handleSpeedDelete}
 									selectedSpeedId={selectedSpeedId}
 									onSelectSpeed={handleSelectSpeed}
+									highlightRegionsEnabled={hasEditableCursorRecording}
+									highlightRegions={highlightRegions}
+									onHighlightAdded={handleHighlightAdded}
+									onHighlightSpanChange={handleHighlightSpanChange}
+									onHighlightDelete={handleHighlightDelete}
+									selectedHighlightId={selectedHighlightId}
+									onSelectHighlight={handleSelectHighlight}
 									annotationRegions={annotationOnlyRegions}
 									onAnnotationAdded={handleAnnotationAdded}
 									onAnnotationSpanChange={handleAnnotationSpanChange}
@@ -3158,9 +3314,14 @@ export default function VideoEditor() {
 										!!selectedTrimId ||
 										!!selectedSpeedId ||
 										!!selectedAnnotationId ||
-										!!selectedBlurId
+										!!selectedBlurId ||
+										!!selectedHighlightId
 									}
-									canPasteTimelineItem={!!timelineClipboard && duration > 0}
+									canPasteTimelineItem={
+										!!timelineClipboard &&
+										duration > 0 &&
+										(timelineClipboard.kind !== "highlight" || hasEditableCursorRecording)
+									}
 									onCopySelectedItem={handleCopySelectedTimelineItem}
 									onPasteTimelineItem={handlePasteTimelineItem}
 									aspectRatio={aspectRatio}

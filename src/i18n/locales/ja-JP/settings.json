@@ -219,7 +219,13 @@
 		"motionBlur": "モーションブラー",
 		"clickBounce": "クリックバウンス",
 		"clipToBounds": "キャンバスにクリップ",
-		"clipToBoundsDescription": "Keeps the cursor inside the video frame. Turn off to let the cursor extend past the edges - useful when zoomed in or panned."
+		"clipToBoundsDescription": "Keeps the cursor inside the video frame. Turn off to let the cursor extend past the edges - useful when zoomed in or panned.",
+		"highlightTitle": "カーソルハイライト",
+		"highlightRing": "リング",
+		"highlightDot": "ドット",
+		"highlightColor": "ハイライトの色",
+		"highlightSize": "サイズ",
+		"highlightOpacity": "不透明度"
 	},
 	"language": {
 		"title": "言語"
