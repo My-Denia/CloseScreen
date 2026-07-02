@@ -1384,6 +1384,13 @@ export function registerIpcHandlers(
 			const session: RecordingSession = webcamVideoPath
 				? { screenVideoPath, webcamVideoPath, createdAt: recordingId, cursorCaptureMode }
 				: { screenVideoPath, createdAt: recordingId, cursorCaptureMode };
+			// The main process wrote these files itself — approve them for reading now,
+			// so the session keeps loading even if the user switches the storage folder
+			// before opening the editor (the old dir leaves the auto-approved scope).
+			approveFilePath(screenVideoPath);
+			if (webcamVideoPath) {
+				approveFilePath(webcamVideoPath);
+			}
 			setCurrentRecordingSessionState(session);
 			currentProjectPath = null;
 
@@ -1434,23 +1441,29 @@ export function registerIpcHandlers(
 	// resolves paths against the current dir — both must block folder changes.
 	let browserRecordingActive = false;
 	let storeOperationsInFlight = 0;
-	// Buffered-finalize hold: the renderer reports recording=false BEFORE it drains
+	// Buffered-finalize holds: the renderer reports recording=false BEFORE it drains
 	// the blob, fixes the WebM duration and calls store — seconds in which none of
-	// the other gate signals is up. The hold starts when recording flips false and
-	// ends on an explicit finalize notification, a completed store, or a new
-	// recording; the timer is a backstop so a crashed renderer can't wedge the gate.
-	let browserRecordingSettlingTimer: NodeJS.Timeout | null = null;
+	// the other gate signals is up. Holds are keyed by recordingId so overlapping
+	// finalizes can't release each other (a quick second recording must not lose its
+	// hold when the FIRST recording's store or finalize notification lands); each
+	// hold ends on its own store / finalize notification, with a per-hold backstop
+	// timer so a crashed renderer can't wedge the gate.
+	const storageSettlingHolds = new Map<number, NodeJS.Timeout>();
 	const BROWSER_SETTLING_BACKSTOP_MS = 300_000;
-	function enterStorageSettling(): void {
-		clearStorageSettling();
-		browserRecordingSettlingTimer = setTimeout(() => {
-			browserRecordingSettlingTimer = null;
-		}, BROWSER_SETTLING_BACKSTOP_MS);
+	function enterStorageSettling(recordingId: number): void {
+		releaseStorageSettling(recordingId);
+		storageSettlingHolds.set(
+			recordingId,
+			setTimeout(() => {
+				storageSettlingHolds.delete(recordingId);
+			}, BROWSER_SETTLING_BACKSTOP_MS),
+		);
 	}
-	function clearStorageSettling(): void {
-		if (browserRecordingSettlingTimer) {
-			clearTimeout(browserRecordingSettlingTimer);
-			browserRecordingSettlingTimer = null;
+	function releaseStorageSettling(recordingId: number): void {
+		const timer = storageSettlingHolds.get(recordingId);
+		if (timer) {
+			clearTimeout(timer);
+			storageSettlingHolds.delete(recordingId);
 		}
 	}
 
@@ -1509,9 +1522,12 @@ export function registerIpcHandlers(
 			return await storeRecordedSessionFilesInner(payload);
 		} finally {
 			storeOperationsInFlight -= 1;
-			// The finalize this store belongs to is over either way (the renderer also
-			// notifies, but a completed store is the stronger signal).
-			clearStorageSettling();
+			// The finalize THIS store belongs to is over either way (the renderer also
+			// notifies, but a completed store is the stronger signal). createdAt is the
+			// recordingId for renderer-initiated stores; only that hold is released.
+			if (typeof payload.createdAt === "number" && Number.isFinite(payload.createdAt)) {
+				releaseStorageSettling(payload.createdAt);
+			}
 		}
 	}
 
@@ -1578,6 +1594,13 @@ export function registerIpcHandlers(
 					...(cursorCaptureMode ? { cursorCaptureMode } : {}),
 				}
 			: { screenVideoPath, createdAt, ...(cursorCaptureMode ? { cursorCaptureMode } : {}) };
+		// The main process wrote these files itself — approve them for reading now, so
+		// the session keeps loading even if the user switches the storage folder before
+		// opening the editor (the old dir leaves the auto-approved scope).
+		approveFilePath(screenVideoPath);
+		if (webcamVideoPath) {
+			approveFilePath(webcamVideoPath);
+		}
 		setCurrentRecordingSessionState(session);
 		currentProjectPath = null;
 
@@ -1673,13 +1696,13 @@ export function registerIpcHandlers(
 			// pending or has fallen back to in-memory buffering is invisible to
 			// recordingStreams.size but must still block folder changes. `false` means
 			// finalize BEGINS (blob drain + duration fix + store still ahead), so the
-			// gate transitions to the settling hold rather than unlocking.
+			// gate transitions to a per-recording settling hold rather than unlocking.
+			// Earlier recordings' pending holds are deliberately left alone on `true`.
 			if (recording) {
 				browserRecordingActive = true;
-				clearStorageSettling();
 			} else {
-				if (browserRecordingActive) {
-					enterStorageSettling();
+				if (browserRecordingActive && typeof recordingId === "number") {
+					enterStorageSettling(recordingId);
 				}
 				browserRecordingActive = false;
 			}
@@ -2236,17 +2259,20 @@ export function registerIpcHandlers(
 			recordingStreams.size > 0 ||
 			nativeWindowsCaptureProcess !== null ||
 			browserRecordingActive ||
-			browserRecordingSettlingTimer !== null ||
+			storageSettlingHolds.size > 0 ||
 			storeOperationsInFlight > 0
 		);
 	}
 
 	// Finalize-complete notification from the renderer: fires in finalizeRecording's
-	// finally for every exit path — success (store already cleared the hold), store
+	// finally for every exit path — success (store already released the hold), store
 	// failure, discard, and the empty-recording early return, the last two of which
-	// produce no store call at all.
-	ipcMain.handle("notify-recording-finalized", async () => {
-		clearStorageSettling();
+	// produce no store call at all. Releases only the caller's own hold so an older
+	// finalize can't unlock a newer recording's settling window.
+	ipcMain.handle("notify-recording-finalized", async (_, recordingId?: number) => {
+		if (typeof recordingId === "number" && Number.isFinite(recordingId)) {
+			releaseStorageSettling(recordingId);
+		}
 		return { success: true };
 	});
 

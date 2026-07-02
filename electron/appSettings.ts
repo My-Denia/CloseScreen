@@ -253,6 +253,19 @@ export async function setRecordingsDir(
 					error: code ? `Folder is not writable (${code}).` : "Folder is not writable.",
 				};
 			}
+			// The lexical checks above can be defeated by a symlink/junction alias: a
+			// picked folder that LINKS to a drive root or the profile would smuggle the
+			// broad target into the auto-approved read scope. Guard and store the REAL
+			// path instead (realpath also normalizes 8.3 short names on Windows).
+			try {
+				resolved = await fs.realpath(resolved);
+			} catch {
+				return { success: false, error: "Folder is not accessible." };
+			}
+			const realShapeError = validateRecordingsDirShape(resolved, s);
+			if (realShapeError) {
+				return { success: false, error: realShapeError };
+			}
 		}
 
 		// Mutate in-memory state only together with a successful disk write: if the

@@ -634,7 +634,11 @@ export function LaunchWindow() {
 				}
 			}}
 		>
-			{systemLocaleSuggestion && (
+			{/* Top panels are strictly mutually exclusive (exactly one mounts — the shared
+			    topPanelRef sizes the window for it): storage panel (user-invoked) >
+			    storage alert (a save failure must never be invisible, even on first run
+			    while the language prompt wants the spot) > language prompt > update. */}
+			{systemLocaleSuggestion && !storageAlert && !isStoragePanelOpen && (
 				<div
 					ref={setTopPanelEl}
 					data-hud-interactive="true"
@@ -675,7 +679,7 @@ export function LaunchWindow() {
 			{/* Storage problem alert (issue #23): low free space at record start, or a
 			    recording that could not be saved — previously the latter was silent and the
 			    editor just never opened. Same panel mechanics as the update notice below. */}
-			{storageAlert && !systemLocaleSuggestion && !isStoragePanelOpen && (
+			{storageAlert && !isStoragePanelOpen && (
 				<div
 					ref={setTopPanelEl}
 					data-hud-interactive="true"
@@ -733,7 +737,7 @@ export function LaunchWindow() {
 			)}
 
 			{/* Recording storage folder panel (issue #23). */}
-			{isStoragePanelOpen && !systemLocaleSuggestion && (
+			{isStoragePanelOpen && (
 				<div
 					ref={setTopPanelEl}
 					data-hud-interactive="true"

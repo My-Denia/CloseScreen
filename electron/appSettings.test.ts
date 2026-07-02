@@ -1,4 +1,4 @@
-import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, symlink, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
@@ -115,6 +115,19 @@ describe("setRecordingsDir", () => {
 	it("rejects the user profile folder and the app data folder themselves", async () => {
 		expect((await setRecordingsDir(homeDir)).success).toBe(false);
 		expect((await setRecordingsDir(userDataDir)).success).toBe(false);
+	});
+
+	it("rejects a junction/symlink alias of a guarded location (realpath check)", async () => {
+		// A directory link laundering the profile folder through an innocent-looking
+		// path must not smuggle it into the auto-approved read scope.
+		await mkdir(homeDir, { recursive: true });
+		const linkPath = path.join(userDataDir, "innocent-looking-folder");
+		await symlink(homeDir, linkPath, "junction");
+
+		const result = await setRecordingsDir(linkPath);
+		expect(result.success).toBe(false);
+		expect(getRecordingsDir()).toBe(getDefaultRecordingsDir());
+		expect(getAllowedRecordingDirs()).toEqual([getDefaultRecordingsDir()]);
 	});
 
 	it("rejects a target that cannot be created", async () => {

@@ -344,7 +344,9 @@ export function useScreenRecorder(): UseScreenRecorderReturn {
 			setElapsedSeconds(0);
 			accumulatedDurationMs.current = 0;
 			segmentStartedAt.current = null;
-			window.electronAPI?.setRecordingState(false);
+			// recordingId scopes the main process's storage-settling hold to THIS
+			// finalize, so overlapping finalizes can't release each other's hold.
+			window.electronAPI?.setRecordingState(false, activeRecordingId);
 
 			void (async () => {
 				// Each disk stream must end up either saved or explicitly discarded.
@@ -448,7 +450,7 @@ export function useScreenRecorder(): UseScreenRecorderReturn {
 					// recording=false report fires BEFORE the blob drains and stores, so the
 					// gate waits for this end-of-finalize signal on every exit path —
 					// including discard and the empty-recording return, which never store.
-					window.electronAPI?.notifyRecordingFinalized?.().catch(() => undefined);
+					window.electronAPI?.notifyRecordingFinalized?.(activeRecordingId).catch(() => undefined);
 				}
 			})();
 		},

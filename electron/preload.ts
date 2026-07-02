@@ -220,8 +220,8 @@ contextBridge.exposeInMainWorld("electronAPI", {
 	openRecordingsDirectory: () => {
 		return ipcRenderer.invoke("open-recordings-directory");
 	},
-	notifyRecordingFinalized: () => {
-		return ipcRenderer.invoke("notify-recording-finalized");
+	notifyRecordingFinalized: (recordingId: number) => {
+		return ipcRenderer.invoke("notify-recording-finalized", recordingId);
 	},
 	updateGlobalShortcut: (binding: ShortcutBinding) => {
 		return ipcRenderer.invoke("update-global-shortcut", binding);
