@@ -148,7 +148,14 @@ export function useScreenRecorder(): UseScreenRecorderReturn {
 			?.getRecordingStorageStatus?.()
 			.then((status) => {
 				if (status?.lowSpace) {
-					setStorageAlert({ kind: "low-disk", freeBytes: status.freeBytes });
+					// A slow probe (network/removable folder) can resolve AFTER the
+					// recording already failed to save; the warning must never replace
+					// that more important alert.
+					setStorageAlert((current) =>
+						current?.kind === "save-failed"
+							? current
+							: { kind: "low-disk", freeBytes: status.freeBytes },
+					);
 				}
 			})
 			.catch(() => undefined);

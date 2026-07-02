@@ -1497,21 +1497,22 @@ export function registerIpcHandlers(
 	 * attach-webcam flow, whose screen file never enters the stream registry — the
 	 * session path recorded at native stop time. The sanitized current-dir path is
 	 * computed first so file-name traversal checks always run, and is the fallback.
+	 *
+	 * The session-path match is restricted to stores that carry NO screen bytes (the
+	 * attach signature, which only reads/annotates the existing file): with bytes in
+	 * the payload it would WRITE, and the current session can be an imported or
+	 * project video outside the recordings dir — a matching fileName would clobber
+	 * that user-approved source file.
 	 */
-	function resolveStoredRecordingPath(fileName: string): string {
+	function resolveStoredRecordingPath(fileName: string, hasVideoData: boolean): string {
 		const fallback = resolveRecordingOutputPath(fileName);
 		const pinned = recordingStreams.getOpenPath(fileName);
 		if (pinned) {
 			return pinned;
 		}
-		const sessionPaths = [
-			currentRecordingSession?.screenVideoPath,
-			currentRecordingSession?.webcamVideoPath,
-		];
-		for (const sessionPath of sessionPaths) {
-			if (sessionPath && path.basename(sessionPath) === fileName) {
-				return sessionPath;
-			}
+		const sessionScreenPath = currentRecordingSession?.screenVideoPath;
+		if (!hasVideoData && sessionScreenPath && path.basename(sessionScreenPath) === fileName) {
+			return sessionScreenPath;
 		}
 		return fallback;
 	}
@@ -1537,7 +1538,10 @@ export function registerIpcHandlers(
 				? payload.createdAt
 				: Date.now();
 		const cursorCaptureMode = normalizeCursorCaptureMode(payload.cursorCaptureMode);
-		const screenVideoPath = resolveStoredRecordingPath(payload.screen.fileName);
+		const screenVideoPath = resolveStoredRecordingPath(
+			payload.screen.fileName,
+			Boolean(payload.screen.videoData && payload.screen.videoData.byteLength > 0),
+		);
 		const screenStreamed = await finalizeRecordingFile(
 			recordingStreams,
 			payload.screen.fileName,
@@ -1701,7 +1705,11 @@ export function registerIpcHandlers(
 			if (recording) {
 				browserRecordingActive = true;
 			} else {
-				if (browserRecordingActive && typeof recordingId === "number") {
+				if (
+					browserRecordingActive &&
+					typeof recordingId === "number" &&
+					Number.isFinite(recordingId)
+				) {
 					enterStorageSettling(recordingId);
 				}
 				browserRecordingActive = false;

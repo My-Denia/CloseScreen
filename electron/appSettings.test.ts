@@ -57,6 +57,20 @@ describe("initAppSettings", () => {
 		expect(getRecordingsDir()).toBe(getDefaultRecordingsDir());
 	});
 
+	it("rejects a persisted junction/symlink alias of a guarded location at startup", async () => {
+		// A settings file written before the realpath guard existed (or restored from
+		// another machine) must not smuggle a guarded root into the read scope.
+		await mkdir(homeDir, { recursive: true });
+		const linkPath = path.join(userDataDir, "sneaky-persisted");
+		await symlink(homeDir, linkPath, "junction");
+		await writeFile(settingsPath(), JSON.stringify({ recordingsDir: linkPath }), "utf-8");
+
+		await initFresh();
+		expect(getRecordingsDir()).toBe(getDefaultRecordingsDir());
+		expect(getAllowedRecordingDirs()).toEqual([getDefaultRecordingsDir()]);
+		expect(getRecordingStorageInfo()).toMatchObject({ isCustom: false, unavailable: false });
+	});
+
 	it("falls back to default when the stored dir has vanished, without erasing it", async () => {
 		await writeFile(settingsPath(), JSON.stringify({ recordingsDir: customDir }), "utf-8");
 		await initFresh(); // customDir was never created on disk

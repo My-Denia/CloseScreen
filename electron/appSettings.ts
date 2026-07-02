@@ -108,6 +108,14 @@ function validateRecordingsDirShape(dir: string, s: AppSettingsState): string | 
 	return null;
 }
 
+function describeUnwritableFolder(error: unknown): string {
+	const code =
+		typeof error === "object" && error !== null && "code" in error
+			? String((error as { code?: unknown }).code ?? "")
+			: "";
+	return code ? `Folder is not writable (${code}).` : "Folder is not writable.";
+}
+
 function parseStoredSettings(text: string): Record<string, unknown> {
 	try {
 		const parsed: unknown = JSON.parse(text);
@@ -153,12 +161,31 @@ export async function initAppSettings(options: {
 	const stored = next.raw.recordingsDir;
 	if (typeof stored === "string" && validateRecordingsDirShape(stored, next) === null) {
 		const resolved = path.resolve(stored);
-		next.storedRecordingsDir = resolved;
 		// Existence only — no mkdir and no write probe at startup, so a dead network
 		// path can't stall launch and no probe files are dropped on every boot. Write
 		// failures at record time surface through the recording error paths.
 		const available = await statWithTimeout(resolved, STARTUP_STAT_TIMEOUT_MS);
-		if (!available) {
+		if (available) {
+			// The persisted value can predate the realpath guard (or come from a
+			// restored profile): re-run the alias check every launch so a stored
+			// symlink/junction to a guarded root never joins the read scope. A guard
+			// violation makes the value INVALID (default takes over), unlike a mere
+			// availability failure which preserves it for when the drive returns.
+			try {
+				const real = await fs.realpath(resolved);
+				if (validateRecordingsDirShape(real, next) === null) {
+					next.storedRecordingsDir = real;
+				} else {
+					console.error(
+						`Custom recordings folder resolves to a disallowed location, ignoring: ${resolved}`,
+					);
+				}
+			} catch {
+				next.storedRecordingsDir = resolved;
+				next.recordingsDirUnavailable = true;
+			}
+		} else {
+			next.storedRecordingsDir = resolved;
 			next.recordingsDirUnavailable = true;
 			console.error(
 				`Custom recordings folder is unavailable, falling back to default: ${resolved}`,
@@ -238,25 +265,14 @@ export async function setRecordingsDir(
 			resolved = path.resolve(dir);
 			try {
 				await fs.mkdir(resolved, { recursive: true });
-				// Unique name + exclusive create: a fixed probe name could overwrite (and
-				// then delete) a user's own file in a pre-existing folder.
-				const probePath = path.join(resolved, `${WRITE_PROBE_FILE_NAME}-${crypto.randomUUID()}`);
-				await fs.writeFile(probePath, "probe", { encoding: "utf-8", flag: "wx" });
-				await fs.unlink(probePath).catch(() => undefined);
 			} catch (error) {
-				const code =
-					typeof error === "object" && error !== null && "code" in error
-						? String((error as { code?: unknown }).code ?? "")
-						: "";
-				return {
-					success: false,
-					error: code ? `Folder is not writable (${code}).` : "Folder is not writable.",
-				};
+				return { success: false, error: describeUnwritableFolder(error) };
 			}
 			// The lexical checks above can be defeated by a symlink/junction alias: a
 			// picked folder that LINKS to a drive root or the profile would smuggle the
 			// broad target into the auto-approved read scope. Guard and store the REAL
-			// path instead (realpath also normalizes 8.3 short names on Windows).
+			// path instead (realpath also normalizes 8.3 short names on Windows). Runs
+			// BEFORE the write probe so a guarded target is never even touched.
 			try {
 				resolved = await fs.realpath(resolved);
 			} catch {
@@ -265,6 +281,15 @@ export async function setRecordingsDir(
 			const realShapeError = validateRecordingsDirShape(resolved, s);
 			if (realShapeError) {
 				return { success: false, error: realShapeError };
+			}
+			try {
+				// Unique name + exclusive create: a fixed probe name could overwrite (and
+				// then delete) a user's own file in a pre-existing folder.
+				const probePath = path.join(resolved, `${WRITE_PROBE_FILE_NAME}-${crypto.randomUUID()}`);
+				await fs.writeFile(probePath, "probe", { encoding: "utf-8", flag: "wx" });
+				await fs.unlink(probePath).catch(() => undefined);
+			} catch (error) {
+				return { success: false, error: describeUnwritableFolder(error) };
 			}
 		}
 
