@@ -37,6 +37,14 @@
 		"failedCameraAccess": "Échec de la demande d'accès à la caméra.",
 		"cameraBlocked": "L'accès à la caméra est bloqué. Activez-le dans les paramètres système pour utiliser la webcam.",
 		"systemAudioUnavailable": "Audio système non disponible. Enregistrement sans audio système.",
+		"systemAudioUnavailableReasons": {
+			"noRenderEndpoint": "Aucun périphérique de sortie actif n'a été trouvé. Activez un haut-parleur ou un casque, puis réessayez.",
+			"deviceInUse": "Le périphérique de sortie est utilisé en mode exclusif par une autre application. Fermez-la ou désactivez le mode exclusif.",
+			"unsupportedFormat": "Le périphérique de sortie utilise un format audio que cet enregistreur ne peut pas capturer. Essayez un autre périphérique ou format.",
+			"initFailed": "Windows n'a pas pu initialiser la capture audio loopback pour le périphérique de sortie sélectionné.",
+			"captureFailed": "Windows n'a pas pu démarrer la capture audio système. Vérifiez le périphérique de sortie sélectionné et les applications en mode exclusif.",
+			"noAudioTrack": "Windows n'a renvoyé aucune piste audio système. Vérifiez qu'un périphérique de sortie est actif et sélectionné."
+		},
 		"microphoneDenied": "Accès au microphone refusé. L'enregistrement continuera sans audio.",
 		"cameraDenied": "Accès à la caméra refusé. L'enregistrement continuera sans webcam.",
 		"cameraDisconnected": "Webcam déconnectée.",

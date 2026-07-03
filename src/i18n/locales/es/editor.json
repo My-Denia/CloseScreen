@@ -37,6 +37,14 @@
 		"failedCameraAccess": "Error al solicitar acceso a la cámara.",
 		"cameraBlocked": "El acceso a la cámara está bloqueado. Actívalo en la configuración del sistema para usar la cámara web.",
 		"systemAudioUnavailable": "Audio del sistema no disponible. Grabando sin audio del sistema.",
+		"systemAudioUnavailableReasons": {
+			"noRenderEndpoint": "No se encontró ningún dispositivo de salida activo. Activa un altavoz o auriculares e inténtalo de nuevo.",
+			"deviceInUse": "Otra app está usando el dispositivo de salida en modo exclusivo. Cierra esa app o desactiva el modo exclusivo.",
+			"unsupportedFormat": "El dispositivo de salida usa un formato de audio que esta grabadora no puede capturar. Prueba otro dispositivo o formato.",
+			"initFailed": "Windows no pudo inicializar la captura de audio loopback para el dispositivo de salida seleccionado.",
+			"captureFailed": "Windows no pudo iniciar la captura de audio del sistema. Revisa el dispositivo de salida seleccionado y las apps en modo exclusivo.",
+			"noAudioTrack": "Windows no devolvió una pista de audio del sistema. Comprueba que haya un dispositivo de salida activo y seleccionado."
+		},
 		"microphoneDenied": "Acceso al micrófono denegado. La grabación continuará sin audio.",
 		"cameraDenied": "Acceso a la cámara denegado. La grabación continuará sin cámara web.",
 		"cameraDisconnected": "Cámara web desconectada.",

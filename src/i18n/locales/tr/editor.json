@@ -37,6 +37,14 @@
 		"failedCameraAccess": "Kamera erişimi istenemedi.",
 		"cameraBlocked": "Kamera erişimi engellendi. Kamerayı kullanmak için sistem ayarlarından izin verin.",
 		"systemAudioUnavailable": "Sistem sesi kullanılamıyor. Sistem sesi olmadan kaydediliyor.",
+		"systemAudioUnavailableReasons": {
+			"noRenderEndpoint": "Etkin bir çıkış aygıtı bulunamadı. Bir hoparlör veya kulaklık etkinleştirip yeniden deneyin.",
+			"deviceInUse": "Çıkış aygıtı başka bir uygulama tarafından özel modda kullanılıyor. O uygulamayı kapatın veya özel modu devre dışı bırakın.",
+			"unsupportedFormat": "Çıkış aygıtı bu kaydedicinin yakalayamadığı bir ses biçimi kullanıyor. Başka bir aygıt veya biçim deneyin.",
+			"initFailed": "Windows, seçili çıkış aygıtı için loopback ses yakalamayı başlatamadı.",
+			"captureFailed": "Windows sistem sesi yakalamayı başlatamadı. Seçili çıkış aygıtını ve özel moddaki uygulamaları kontrol edin.",
+			"noAudioTrack": "Windows bir sistem sesi izi döndürmedi. Bir çıkış aygıtının etkin ve seçili olduğunu kontrol edin."
+		},
 		"microphoneDenied": "Mikrofon erişimi reddedildi. Kayıt ses olmadan devam edecek.",
 		"cameraDenied": "Kamera erişimi reddedildi. Kayıt kamera olmadan devam edecek.",
 		"cameraDisconnected": "Webcam bağlantısı kesildi.",

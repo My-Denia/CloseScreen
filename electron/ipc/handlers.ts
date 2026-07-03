@@ -38,6 +38,11 @@ import { patchWebmDurationOnDisk } from "../recording/webm-duration";
 import { createCursorRecordingState } from "./cursorRecordingState";
 import { isAllowedExternalUrl } from "./externalUrl";
 import { registerNativeBridgeHandlers } from "./nativeBridge";
+import {
+	createNativeWindowsRecordingStartResult,
+	readNativeWindowsSystemAudioUnavailableReason,
+	readNativeWindowsWebcamFormat,
+} from "./nativeWindowsCaptureOutput";
 import { RecordingStreamRegistry, registerRecordingStreamHandlers } from "./recordingStream";
 import { describeSaveError, fsErrorCode } from "./saveError";
 
@@ -886,25 +891,6 @@ function waitForNativeWindowsCaptureStop(proc: ChildProcessWithoutNullStreams) {
 	});
 }
 
-function readNativeWindowsWebcamFormat(output: string) {
-	const lines = output.split(/\r?\n/).filter((line) => line.includes('"event":"webcam-format"'));
-	const lastLine = lines.at(-1);
-	if (!lastLine) {
-		return null;
-	}
-
-	try {
-		return JSON.parse(lastLine) as {
-			width?: number;
-			height?: number;
-			fps?: number;
-			deviceName?: string;
-		};
-	} catch {
-		return null;
-	}
-}
-
 function setCurrentRecordingSessionState(session: RecordingSession | null) {
 	currentRecordingSession = session;
 	currentVideoPath = session?.screenVideoPath ?? null;
@@ -1271,10 +1257,14 @@ export function registerIpcHandlers(
 						? Math.max(0, captureStartedAtMs - cursorStartTimeMs)
 						: 0;
 				const webcamFormat = readNativeWindowsWebcamFormat(nativeWindowsCaptureOutput);
+				const systemAudioUnavailableReason = readNativeWindowsSystemAudioUnavailableReason(
+					nativeWindowsCaptureOutput,
+				);
 				console.info("[native-wgc] capture started", {
 					captureStartedAtMs,
 					cursorOffsetMs: nativeWindowsCursorOffsetMs,
 					webcamFormat,
+					systemAudioUnavailableReason: systemAudioUnavailableReason ?? null,
 				});
 
 				const source = selectedSource || { name: "Screen" };
@@ -1282,12 +1272,12 @@ export function registerIpcHandlers(
 					onRecordingStateChange(true, source.name);
 				}
 
-				return {
-					success: true,
+				return createNativeWindowsRecordingStartResult(
 					recordingId,
-					path: outputPath,
+					outputPath,
 					helperPath,
-				};
+					nativeWindowsCaptureOutput,
+				);
 			} catch (error) {
 				console.error("Failed to start native Windows recording:", error);
 				nativeWindowsCaptureProcess?.kill();

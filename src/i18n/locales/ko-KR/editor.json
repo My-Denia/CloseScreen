@@ -37,6 +37,14 @@
 		"failedCameraAccess": "카메라 접근 권한 요청에 실패했습니다.",
 		"cameraBlocked": "카메라 접근이 차단되어 있습니다. 시스템 설정에서 권한을 허용해 주세요.",
 		"systemAudioUnavailable": "시스템 오디오를 사용할 수 없습니다. 시스템 오디오 없이 녹화합니다.",
+		"systemAudioUnavailableReasons": {
+			"noRenderEndpoint": "활성 출력 장치를 찾을 수 없습니다. 스피커나 헤드셋을 활성화한 뒤 다시 시도하세요.",
+			"deviceInUse": "출력 장치가 다른 앱에서 단독 모드로 사용 중입니다. 해당 앱을 닫거나 단독 모드를 끄세요.",
+			"unsupportedFormat": "출력 장치가 이 녹화기가 캡처할 수 없는 오디오 형식을 사용합니다. 다른 장치나 형식을 시도하세요.",
+			"initFailed": "Windows가 선택한 출력 장치의 루프백 오디오 캡처를 초기화하지 못했습니다.",
+			"captureFailed": "Windows가 시스템 오디오 캡처를 시작하지 못했습니다. 선택한 출력 장치와 단독 모드 앱을 확인하세요.",
+			"noAudioTrack": "Windows가 시스템 오디오 트랙을 반환하지 않았습니다. 출력 장치가 활성화되어 있고 선택되어 있는지 확인하세요."
+		},
 		"microphoneDenied": "마이크 접근이 거부되었습니다. 오디오 없이 녹화를 계속합니다.",
 		"cameraDenied": "카메라 접근이 거부되었습니다. 웹캠 없이 녹화를 계속합니다.",
 		"cameraDisconnected": "웹캠 연결이 끊어졌습니다.",

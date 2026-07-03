@@ -133,6 +133,22 @@ std::string jsonEscape(const std::string& value) {
     return result;
 }
 
+std::string normalizeSystemAudioUnavailableReason(const std::string& reason) {
+    if (reason == "no-render-endpoint" ||
+        reason == "device-in-use" ||
+        reason == "unsupported-format" ||
+        reason == "init-failed") {
+        return reason;
+    }
+    return "init-failed";
+}
+
+void emitSystemAudioUnavailable(const std::string& reason) {
+    std::cout << "{\"event\":\"system-audio-unavailable\",\"schemaVersion\":2,\"reason\":\""
+              << normalizeSystemAudioUnavailableReason(reason)
+              << "\"}" << std::endl;
+}
+
 bool hasVisibleBgraContent(const std::vector<BYTE>& frame) {
     if (frame.size() < 4) {
         return false;
@@ -464,13 +480,21 @@ int main(int argc, char* argv[]) {
     AudioInputFormat encoderAudioFormat{};
     AudioInputFormat systemAudioFormat{};
     AudioInputFormat microphoneAudioFormat{};
+    bool captureSystemAudio = config.captureSystemAudio;
     if (config.captureSystemAudio) {
         if (!loopbackCapture.initializeSystemLoopback()) {
             std::cerr << "ERROR: Failed to initialize WASAPI loopback capture" << std::endl;
-            return 1;
+            emitSystemAudioUnavailable(loopbackCapture.lastFailureReason());
+            captureSystemAudio = false;
+        } else if (!loopbackCapture.verifyStartable()) {
+            std::cerr << "ERROR: Failed to start WASAPI loopback capture probe" << std::endl;
+            emitSystemAudioUnavailable(loopbackCapture.lastFailureReason());
+            captureSystemAudio = false;
         }
-        systemAudioFormat = loopbackCapture.inputFormat();
-        audioFormat = &loopbackCapture.inputFormat();
+        if (captureSystemAudio) {
+            systemAudioFormat = loopbackCapture.inputFormat();
+            audioFormat = &loopbackCapture.inputFormat();
+        }
     }
     if (config.captureMic) {
         if (!microphoneCapture.initializeMicrophone(
@@ -488,7 +512,7 @@ int main(int argc, char* argv[]) {
         std::cout << "{\"event\":\"audio-format\",\"schemaVersion\":2,\"sampleRate\":" << audioFormat->sampleRate
                   << ",\"channels\":" << audioFormat->channels
                   << ",\"bitsPerSample\":" << audioFormat->bitsPerSample
-                  << ",\"system\":" << (config.captureSystemAudio ? "true" : "false")
+                  << ",\"system\":" << (captureSystemAudio ? "true" : "false")
                   << ",\"microphone\":" << (config.captureMic ? "true" : "false");
         if (config.captureMic) {
             std::cout << ",\"microphoneDeviceName\":\""
@@ -724,9 +748,9 @@ int main(int argc, char* argv[]) {
 
         audioMixer = std::make_unique<AudioMixer>(
             encoderAudioFormat,
-            config.captureSystemAudio ? systemAudioFormat : encoderAudioFormat,
+            captureSystemAudio ? systemAudioFormat : encoderAudioFormat,
             config.captureMic ? microphoneAudioFormat : encoderAudioFormat,
-            config.captureSystemAudio,
+            captureSystemAudio,
             config.captureMic,
             config.microphoneGain,
             [&](const BYTE* data, DWORD byteCount, int64_t timestampHns, int64_t durationHns) {
@@ -760,7 +784,7 @@ int main(int argc, char* argv[]) {
             }
         }
 
-        if (config.captureSystemAudio) {
+        if (captureSystemAudio) {
             if (!loopbackCapture.start([&](const BYTE* data, DWORD byteCount, int64_t timestampHns, int64_t durationHns) {
                     (void)timestampHns;
                     (void)durationHns;
@@ -771,9 +795,11 @@ int main(int argc, char* argv[]) {
                     audioMixer->pushSystem(data, byteCount);
                 })) {
                 std::cerr << "ERROR: Failed to start WASAPI loopback capture" << std::endl;
-                microphoneCapture.stop();
-                audioMixer->stop();
-                return false;
+                emitSystemAudioUnavailable(loopbackCapture.lastFailureReason());
+                if (!config.captureMic) {
+                    audioMixer->stop();
+                    audioMixer.reset();
+                }
             }
         }
 

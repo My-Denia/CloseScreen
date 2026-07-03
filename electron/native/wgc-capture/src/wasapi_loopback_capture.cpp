@@ -14,6 +14,20 @@ namespace {
 constexpr REFERENCE_TIME BufferDurationHns = 10'000'000;
 constexpr int64_t HnsPerSecond = 10'000'000;
 
+std::string classifyWasapiFailure(HRESULT hr, WasapiCaptureEndpoint endpoint, const char* label) {
+    if (endpoint == WasapiCaptureEndpoint::SystemLoopback &&
+        std::string(label) == "GetDefaultAudioEndpoint") {
+        return "no-render-endpoint";
+    }
+    if (hr == AUDCLNT_E_DEVICE_IN_USE || hr == AUDCLNT_E_EXCLUSIVE_MODE_NOT_ALLOWED) {
+        return "device-in-use";
+    }
+    if (hr == AUDCLNT_E_UNSUPPORTED_FORMAT) {
+        return "unsupported-format";
+    }
+    return "init-failed";
+}
+
 bool succeeded(HRESULT hr, const char* label) {
     if (SUCCEEDED(hr)) {
         return true;
@@ -143,12 +157,14 @@ bool WasapiLoopbackCapture::initializeMicrophone(const std::wstring& deviceId, c
 }
 
 bool WasapiLoopbackCapture::initialize(WasapiCaptureEndpoint endpoint, const std::wstring& deviceId, const std::wstring& deviceName) {
+    lastFailureReason_.clear();
     HRESULT hr = CoCreateInstance(
         __uuidof(MMDeviceEnumerator),
         nullptr,
         CLSCTX_ALL,
         IID_PPV_ARGS(&deviceEnumerator_));
     if (!succeeded(hr, "CoCreateInstance(MMDeviceEnumerator)")) {
+        lastFailureReason_ = classifyWasapiFailure(hr, endpoint, "CoCreateInstance(MMDeviceEnumerator)");
         return false;
     }
 
@@ -173,6 +189,7 @@ bool WasapiLoopbackCapture::initialize(WasapiCaptureEndpoint endpoint, const std
             endpoint == WasapiCaptureEndpoint::SystemLoopback ? eRender : eCapture;
         hr = deviceEnumerator_->GetDefaultAudioEndpoint(flow, eConsole, &device_);
         if (!succeeded(hr, "GetDefaultAudioEndpoint")) {
+            lastFailureReason_ = classifyWasapiFailure(hr, endpoint, "GetDefaultAudioEndpoint");
             return false;
         }
     }
@@ -181,16 +198,19 @@ bool WasapiLoopbackCapture::initialize(WasapiCaptureEndpoint endpoint, const std
 
     hr = device_->Activate(__uuidof(IAudioClient), CLSCTX_ALL, nullptr, &audioClient_);
     if (!succeeded(hr, "IMMDevice::Activate(IAudioClient)")) {
+        lastFailureReason_ = classifyWasapiFailure(hr, endpoint, "IMMDevice::Activate(IAudioClient)");
         return false;
     }
 
     hr = audioClient_->GetMixFormat(&mixFormat_);
     if (!succeeded(hr, "IAudioClient::GetMixFormat") || !mixFormat_) {
+        lastFailureReason_ = classifyWasapiFailure(hr, endpoint, "IAudioClient::GetMixFormat");
         return false;
     }
 
     if (!resolveInputFormat(mixFormat_)) {
         std::cerr << "ERROR: Unsupported WASAPI loopback mix format" << std::endl;
+        lastFailureReason_ = "unsupported-format";
         return false;
     }
 
@@ -204,14 +224,35 @@ bool WasapiLoopbackCapture::initialize(WasapiCaptureEndpoint endpoint, const std
         mixFormat_,
         nullptr);
     if (!succeeded(hr, "IAudioClient::Initialize(loopback)")) {
+        lastFailureReason_ = classifyWasapiFailure(hr, endpoint, "IAudioClient::Initialize(loopback)");
         return false;
     }
 
     hr = audioClient_->GetService(IID_PPV_ARGS(&captureClient_));
     if (!succeeded(hr, "IAudioClient::GetService(IAudioCaptureClient)")) {
+        lastFailureReason_ = classifyWasapiFailure(hr, endpoint, "IAudioClient::GetService(IAudioCaptureClient)");
         return false;
     }
 
+    return true;
+}
+
+bool WasapiLoopbackCapture::verifyStartable() {
+    if (!audioClient_) {
+        lastFailureReason_ = "init-failed";
+        return false;
+    }
+
+    HRESULT hr = audioClient_->Start();
+    if (!succeeded(hr, "IAudioClient::Start(probe)")) {
+        lastFailureReason_ = classifyWasapiFailure(
+            hr,
+            WasapiCaptureEndpoint::SystemLoopback,
+            "IAudioClient::Start(probe)");
+        return false;
+    }
+
+    audioClient_->Stop();
     return true;
 }
 
@@ -298,6 +339,10 @@ bool WasapiLoopbackCapture::start(AudioCallback callback) {
 
     HRESULT hr = audioClient_->Start();
     if (!succeeded(hr, "IAudioClient::Start")) {
+        lastFailureReason_ = classifyWasapiFailure(
+            hr,
+            WasapiCaptureEndpoint::SystemLoopback,
+            "IAudioClient::Start");
         return false;
     }
 
@@ -323,6 +368,10 @@ const AudioInputFormat& WasapiLoopbackCapture::inputFormat() const {
 
 const std::wstring& WasapiLoopbackCapture::selectedDeviceName() const {
     return selectedDeviceName_;
+}
+
+const std::string& WasapiLoopbackCapture::lastFailureReason() const {
+    return lastFailureReason_;
 }
 
 void WasapiLoopbackCapture::captureLoop() {

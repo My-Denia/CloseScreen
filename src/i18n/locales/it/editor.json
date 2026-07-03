@@ -37,6 +37,14 @@
 		"failedCameraAccess": "Impossibile richiedere l'accesso alla fotocamera.",
 		"cameraBlocked": "L'accesso alla fotocamera è bloccato. Abilita nelle impostazioni di sistema l'utilizzo della webcam.",
 		"systemAudioUnavailable": "Audio di sistema non disponibile. Registrazione senza audio di sistema.",
+		"systemAudioUnavailableReasons": {
+			"noRenderEndpoint": "Non è stato trovato alcun dispositivo di uscita attivo. Abilita un altoparlante o una cuffia, quindi riprova.",
+			"deviceInUse": "Il dispositivo di uscita è usato in modalità esclusiva da un'altra app. Chiudi l'app o disattiva la modalità esclusiva.",
+			"unsupportedFormat": "Il dispositivo di uscita usa un formato audio che questo registratore non può catturare. Prova un altro dispositivo o formato.",
+			"initFailed": "Windows non ha potuto inizializzare la cattura audio loopback per il dispositivo di uscita selezionato.",
+			"captureFailed": "Windows non ha potuto avviare la cattura dell'audio di sistema. Controlla il dispositivo di uscita selezionato e le app in modalità esclusiva.",
+			"noAudioTrack": "Windows non ha restituito una traccia audio di sistema. Controlla che un dispositivo di uscita sia attivo e selezionato."
+		},
 		"microphoneDenied": "Accesso al microfono negato. La registrazione continuerà senza audio.",
 		"cameraDenied": "Accesso alla fotocamera negato. La registrazione continuerà senza webcam.",
 		"cameraDisconnected": "Webcam disconnessa.",
