@@ -652,22 +652,33 @@ async function resolveDirectShowWebcamClsid(deviceName?: string) {
 	return best.clsid;
 }
 
-async function startCursorRecording(recordingId?: number) {
+// recordingId stamps the pending batch; startTimeMs is the sample time base. They
+// coincide on the browser path (recordingId is a Date.now() timestamp) but differ
+// on native (a real recordingId plus a separate cursor-start timestamp), so they
+// are passed separately — otherwise a native batch would be keyed by a timestamp
+// and its store lookup (by real recordingId) would miss it.
+async function startCursorRecording(recordingId?: number, startTimeMs?: number) {
 	if (cursorRecordingSession) {
 		await cursorRecordingSession.stop();
 		cursorRecordingSession = null;
 	}
 
-	cursorRecordingState.clearPending();
+	// No clearPending here: a still-finalizing earlier recording's batch must survive
+	// until its own store writes it (issue: single-slot clobber on rapid stop/start).
 	cursorRecordingState.setActiveRecording(recordingId);
+	const resolvedStartTimeMs =
+		typeof startTimeMs === "number" && Number.isFinite(startTimeMs)
+			? startTimeMs
+			: typeof recordingId === "number" && Number.isFinite(recordingId)
+				? recordingId
+				: undefined;
 	cursorRecordingSession = createCursorRecordingSession({
 		getDisplayBounds: getSelectedSourceBounds,
 		maxSamples: MAX_CURSOR_SAMPLES,
 		platform: process.platform,
 		sampleIntervalMs: CURSOR_SAMPLE_INTERVAL_MS,
 		sourceId: getSelectedSourceId(),
-		startTimeMs:
-			typeof recordingId === "number" && Number.isFinite(recordingId) ? recordingId : undefined,
+		startTimeMs: resolvedStartTimeMs,
 	});
 
 	try {
@@ -675,7 +686,7 @@ async function startCursorRecording(recordingId?: number) {
 	} catch (error) {
 		console.error("Failed to start cursor recording session:", error);
 		cursorRecordingSession = null;
-		cursorRecordingState.reset();
+		cursorRecordingState.clearActiveRecording();
 	}
 }
 
@@ -688,28 +699,28 @@ async function stopCursorRecording() {
 		cursorRecordingState.setPending(await cursorRecordingSession.stop());
 	} catch (error) {
 		console.error("Failed to stop cursor recording session:", error);
-		cursorRecordingState.reset();
+		cursorRecordingState.clearActiveRecording();
 	} finally {
 		cursorRecordingSession = null;
 	}
 }
 
-async function writePendingCursorTelemetry(videoPath: string) {
+async function writePendingCursorTelemetry(videoPath: string, recordingId: number) {
 	const telemetryPath = `${videoPath}.cursor.json`;
-	const pendingCursorRecordingData = cursorRecordingState.getPendingData();
+	const pendingCursorRecordingData = cursorRecordingState.getPendingData(recordingId);
 	if (pendingCursorRecordingData && pendingCursorRecordingData.samples.length > 0) {
 		await fs.writeFile(telemetryPath, JSON.stringify(pendingCursorRecordingData, null, 2), "utf-8");
 	}
-	cursorRecordingState.clearPending();
+	cursorRecordingState.clearPending(recordingId);
 }
 
-function shiftPendingCursorTelemetry(offsetMs: number) {
-	const pendingCursorRecordingData = cursorRecordingState.getPendingData();
+function shiftPendingCursorTelemetry(recordingId: number, offsetMs: number) {
+	const pendingCursorRecordingData = cursorRecordingState.getPendingData(recordingId);
 	if (!pendingCursorRecordingData || !Number.isFinite(offsetMs) || offsetMs <= 0) {
 		return;
 	}
 
-	cursorRecordingState.updatePendingData((data) => ({
+	cursorRecordingState.updatePendingData(recordingId, (data) => ({
 		...data,
 		samples: data.samples
 			.map((sample) => ({
@@ -721,9 +732,10 @@ function shiftPendingCursorTelemetry(offsetMs: number) {
 }
 
 function compactPendingCursorTelemetryPauseRanges(
+	recordingId: number,
 	ranges: Array<{ startMs: number; endMs: number }>,
 ) {
-	const pendingCursorRecordingData = cursorRecordingState.getPendingData();
+	const pendingCursorRecordingData = cursorRecordingState.getPendingData(recordingId);
 	if (!pendingCursorRecordingData || ranges.length === 0) {
 		return;
 	}
@@ -741,7 +753,7 @@ function compactPendingCursorTelemetryPauseRanges(
 		return;
 	}
 
-	cursorRecordingState.updatePendingData((data) => ({
+	cursorRecordingState.updatePendingData(recordingId, (data) => ({
 		...data,
 		samples: data.samples
 			.map((sample) => {
@@ -1234,13 +1246,15 @@ export function registerIpcHandlers(
 				const cursorStartTimeMs = Date.now();
 				if (cursorCaptureMode === "editable-overlay") {
 					nativeWindowsCursorRecordingStartMs = cursorStartTimeMs;
-					await startCursorRecording(cursorStartTimeMs);
+					// Stamp with the real recordingId, keep the timestamp as the sample base.
+					await startCursorRecording(recordingId, cursorStartTimeMs);
 					console.info("[native-wgc] cursor sampler ready", {
 						cursorStartTimeMs,
 						warmupMs: Date.now() - cursorStartTimeMs,
 					});
 				} else {
-					cursorRecordingState.clearPending();
+					// Non-editable native recording produces no batch of its own.
+					cursorRecordingState.clearActiveRecording();
 				}
 
 				const proc = spawn(helperPath, [JSON.stringify(config)], {
@@ -1361,10 +1375,10 @@ export function registerIpcHandlers(
 			if (cursorCaptureMode === "editable-overlay") {
 				await stopCursorRecording();
 			} else {
-				cursorRecordingState.clearPending();
+				cursorRecordingState.clearActiveRecording();
 			}
 			if (discard) {
-				cursorRecordingState.clearPending();
+				cursorRecordingState.clearPending(recordingId);
 				await Promise.all([
 					fs.rm(screenVideoPath, { force: true }),
 					preferredWebcamPath ? fs.rm(preferredWebcamPath, { force: true }) : Promise.resolve(),
@@ -1374,9 +1388,9 @@ export function registerIpcHandlers(
 			}
 
 			if (cursorCaptureMode === "editable-overlay") {
-				compactPendingCursorTelemetryPauseRanges(nativeWindowsPauseRanges);
-				shiftPendingCursorTelemetry(nativeWindowsCursorOffsetMs);
-				await writePendingCursorTelemetry(screenVideoPath);
+				compactPendingCursorTelemetryPauseRanges(recordingId, nativeWindowsPauseRanges);
+				shiftPendingCursorTelemetry(recordingId, nativeWindowsCursorOffsetMs);
+				await writePendingCursorTelemetry(screenVideoPath, recordingId);
 			}
 			let webcamVideoPath: string | undefined;
 			if (preferredWebcamPath) {
@@ -1614,7 +1628,9 @@ export function registerIpcHandlers(
 		setCurrentRecordingSessionState(session);
 		currentProjectPath = null;
 
-		await writePendingCursorTelemetry(screenVideoPath);
+		// createdAt is this recording's id — write THIS recording's cursor batch, not
+		// whatever a later overlapping recording most recently stopped.
+		await writePendingCursorTelemetry(screenVideoPath, createdAt);
 
 		// Manifest follows the video (like the cursor sidecar) so a mid-recording
 		// settings change can't split them across directories.
