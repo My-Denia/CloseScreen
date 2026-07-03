@@ -1,5 +1,13 @@
 export type NativeWindowsSourceType = "display" | "window";
 
+export type SystemAudioUnavailableReason =
+	| "no-render-endpoint"
+	| "device-in-use"
+	| "unsupported-format"
+	| "init-failed"
+	| "capture-failed"
+	| "no-audio-track";
+
 export type NativeWindowsRecordingRequest = {
 	recordingId?: number;
 	source: {
@@ -43,6 +51,7 @@ export type NativeWindowsRecordingStartResult = {
 	recordingId?: number;
 	path?: string;
 	helperPath?: string;
+	systemAudioUnavailableReason?: SystemAudioUnavailableReason;
 	error?: string;
 };
 

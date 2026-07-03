@@ -37,6 +37,14 @@
 		"failedCameraAccess": "Failed to request camera access.",
 		"cameraBlocked": "Camera access is blocked. Enable it in system settings to use the webcam.",
 		"systemAudioUnavailable": "System audio not available. Recording without system audio.",
+		"systemAudioUnavailableReasons": {
+			"noRenderEndpoint": "No active output device was found. Enable a speaker or headset, then try again.",
+			"deviceInUse": "The output device is in exclusive use by another app. Close that app or disable exclusive mode.",
+			"unsupportedFormat": "The output device uses an audio format this recorder cannot capture. Try another output device or format.",
+			"initFailed": "Windows could not initialize loopback audio capture for the selected output device.",
+			"captureFailed": "Windows could not start system-audio capture. Check the selected output device and exclusive-mode audio apps.",
+			"noAudioTrack": "Windows did not return a system-audio track. Check that an output device is active and selected."
+		},
 		"microphoneDenied": "Microphone access denied. Recording will continue without audio.",
 		"cameraDenied": "Camera access denied. Recording will continue without webcam.",
 		"cameraDisconnected": "Webcam disconnected.",

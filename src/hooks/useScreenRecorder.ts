@@ -5,6 +5,7 @@ import { useScopedT } from "@/contexts/I18nContext";
 import {
 	type NativeWindowsRecordingRequest,
 	parseWindowHandleFromSourceId,
+	type SystemAudioUnavailableReason,
 } from "@/lib/nativeWindowsRecording";
 import type { CursorCaptureMode } from "@/lib/recordingSession";
 import { requestCameraAccess } from "@/lib/requestCameraAccess";
@@ -89,6 +90,15 @@ type NativeWindowsRecordingHandle = {
 	webcamRecorder: RecorderHandle | null;
 };
 
+const SYSTEM_AUDIO_UNAVAILABLE_REASON_KEYS: Record<SystemAudioUnavailableReason, string> = {
+	"no-render-endpoint": "recording.systemAudioUnavailableReasons.noRenderEndpoint",
+	"device-in-use": "recording.systemAudioUnavailableReasons.deviceInUse",
+	"unsupported-format": "recording.systemAudioUnavailableReasons.unsupportedFormat",
+	"init-failed": "recording.systemAudioUnavailableReasons.initFailed",
+	"capture-failed": "recording.systemAudioUnavailableReasons.captureFailed",
+	"no-audio-track": "recording.systemAudioUnavailableReasons.noAudioTrack",
+};
+
 export function useScreenRecorder(): UseScreenRecorderReturn {
 	const t = useScopedT("editor");
 	const [recording, setRecording] = useState(false);
@@ -160,6 +170,16 @@ export function useScreenRecorder(): UseScreenRecorderReturn {
 			})
 			.catch(() => undefined);
 	}, []);
+
+	const warnSystemAudioUnavailable = useCallback(
+		(reason?: SystemAudioUnavailableReason) => {
+			const baseMessage = t("recording.systemAudioUnavailable");
+			const reasonKey = reason ? SYSTEM_AUDIO_UNAVAILABLE_REASON_KEYS[reason] : undefined;
+			const reasonMessage = reasonKey ? t(reasonKey) : "";
+			toast.error(reasonMessage ? `${baseMessage} ${reasonMessage}` : baseMessage);
+		},
+		[t],
+	);
 
 	const selectMimeType = () => {
 		// H.264 first: hardware-accelerated, so sharp real-time output. AV1/VP9 are
@@ -814,6 +834,9 @@ export function useScreenRecorder(): UseScreenRecorderReturn {
 				}
 				throw new Error(result.error ?? "Native Windows capture failed.");
 			}
+			if (systemAudioEnabled && result.systemAudioUnavailableReason) {
+				warnSystemAudioUnavailable(result.systemAudioUnavailableReason);
+			}
 
 			recordingId.current = result.recordingId;
 			nativeWindowsRecording.current = {
@@ -934,21 +957,43 @@ export function useScreenRecorder(): UseScreenRecorderReturn {
 			}
 
 			let screenMediaStream: MediaStream;
+			let systemAudioUnavailableWarningShown = false;
 			const platform = await window.electronAPI.getPlatform();
 
 			if (platform === "win32") {
 				// getDisplayMedia + setDisplayMediaRequestHandler (main.ts) supplies the
 				// pre-selected source. Editable cursor mode excludes the system cursor so
 				// the editor can render a replacement; system mode bakes it into the video.
-				screenMediaStream = await navigator.mediaDevices.getDisplayMedia({
-					video: {
-						cursor: cursorCaptureMode === "editable-overlay" ? "never" : "always",
-						width: { max: TARGET_WIDTH },
-						height: { max: TARGET_HEIGHT },
-						frameRate: { ideal: TARGET_FRAME_RATE },
-					} as MediaTrackConstraints,
-					audio: systemAudioEnabled,
-				} as DisplayMediaStreamOptions);
+				const video = {
+					cursor: cursorCaptureMode === "editable-overlay" ? "never" : "always",
+					width: { max: TARGET_WIDTH },
+					height: { max: TARGET_HEIGHT },
+					frameRate: { ideal: TARGET_FRAME_RATE },
+				} as MediaTrackConstraints;
+				if (systemAudioEnabled) {
+					try {
+						screenMediaStream = await navigator.mediaDevices.getDisplayMedia({
+							video,
+							audio: true,
+						} as DisplayMediaStreamOptions);
+					} catch (audioErr) {
+						console.warn(
+							"Windows system audio capture failed, falling back to video-only:",
+							audioErr,
+						);
+						warnSystemAudioUnavailable("capture-failed");
+						systemAudioUnavailableWarningShown = true;
+						screenMediaStream = await navigator.mediaDevices.getDisplayMedia({
+							video,
+							audio: false,
+						} as DisplayMediaStreamOptions);
+					}
+				} else {
+					screenMediaStream = await navigator.mediaDevices.getDisplayMedia({
+						video,
+						audio: false,
+					} as DisplayMediaStreamOptions);
+				}
 			} else {
 				const videoConstraints = {
 					mandatory: {
@@ -974,7 +1019,8 @@ export function useScreenRecorder(): UseScreenRecorderReturn {
 						} as unknown as MediaStreamConstraints);
 					} catch (audioErr) {
 						console.warn("System audio capture failed, falling back to video-only:", audioErr);
-						toast.error(t("recording.systemAudioUnavailable"));
+						warnSystemAudioUnavailable();
+						systemAudioUnavailableWarningShown = true;
 						screenMediaStream = await navigator.mediaDevices.getUserMedia({
 							audio: false,
 							video: videoConstraints,
@@ -1058,6 +1104,14 @@ export function useScreenRecorder(): UseScreenRecorderReturn {
 
 			const systemAudioTrack = screenMediaStream.getAudioTracks()[0];
 			const micAudioTrack = microphoneStream.current?.getAudioTracks()[0];
+			if (
+				platform === "win32" &&
+				systemAudioEnabled &&
+				!systemAudioTrack &&
+				!systemAudioUnavailableWarningShown
+			) {
+				warnSystemAudioUnavailable("no-audio-track");
+			}
 
 			if (systemAudioTrack && micAudioTrack) {
 				const ctx = new AudioContext();

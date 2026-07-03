@@ -31,11 +31,13 @@ public:
 
     bool initializeSystemLoopback();
     bool initializeMicrophone(const std::wstring& deviceId, const std::wstring& deviceName);
+    bool verifyStartable();
     bool start(AudioCallback callback);
     void stop();
 
     const AudioInputFormat& inputFormat() const;
     const std::wstring& selectedDeviceName() const;
+    const std::string& lastFailureReason() const;
 
 private:
     bool initialize(WasapiCaptureEndpoint endpoint, const std::wstring& deviceId, const std::wstring& deviceName);
@@ -50,6 +52,7 @@ private:
     WAVEFORMATEX* mixFormat_ = nullptr;
     AudioInputFormat inputFormat_{};
     std::wstring selectedDeviceName_;
+    std::string lastFailureReason_;
     AudioCallback callback_;
     std::thread thread_;
     std::atomic<bool> stopRequested_ = false;

@@ -37,6 +37,14 @@
 		"failedCameraAccess": "Yêu cầu quyền truy cập máy ảnh thất bại.",
 		"cameraBlocked": "Quyền truy cập máy ảnh bị chặn. Hãy bật nó trong cài đặt hệ thống để sử dụng webcam.",
 		"systemAudioUnavailable": "Âm thanh hệ thống không khả dụng. Ghi hình không có âm thanh hệ thống.",
+		"systemAudioUnavailableReasons": {
+			"noRenderEndpoint": "Không tìm thấy thiết bị đầu ra đang hoạt động. Hãy bật loa hoặc tai nghe rồi thử lại.",
+			"deviceInUse": "Thiết bị đầu ra đang được ứng dụng khác dùng ở chế độ độc quyền. Hãy đóng ứng dụng đó hoặc tắt chế độ độc quyền.",
+			"unsupportedFormat": "Thiết bị đầu ra dùng định dạng âm thanh mà trình ghi này không thể thu. Hãy thử thiết bị hoặc định dạng khác.",
+			"initFailed": "Windows không thể khởi tạo thu âm loopback cho thiết bị đầu ra đã chọn.",
+			"captureFailed": "Windows không thể bắt đầu thu âm thanh hệ thống. Kiểm tra thiết bị đầu ra đã chọn và các ứng dụng ở chế độ độc quyền.",
+			"noAudioTrack": "Windows không trả về track âm thanh hệ thống. Hãy kiểm tra thiết bị đầu ra đang hoạt động và được chọn."
+		},
 		"microphoneDenied": "Quyền truy cập micro bị từ chối. Sẽ tiếp tục ghi hình không có âm thanh.",
 		"cameraDenied": "Quyền truy cập máy ảnh bị từ chối. Sẽ tiếp tục ghi hình không có webcam.",
 		"cameraDisconnected": "Webcam bị ngắt kết nối.",

@@ -37,6 +37,14 @@
 		"failedCameraAccess": "請求攝影機權限失敗。",
 		"cameraBlocked": "攝影機權限已被封鎖。請在系統設定中啟用以使用攝影機。",
 		"systemAudioUnavailable": "系統音訊不可用。將在無系統音訊的情況下錄製。",
+		"systemAudioUnavailableReasons": {
+			"noRenderEndpoint": "找不到作用中的輸出裝置。請啟用喇叭或耳機後再試一次。",
+			"deviceInUse": "輸出裝置正被其他應用程式以獨佔模式使用。請關閉該應用程式或停用獨佔模式。",
+			"unsupportedFormat": "輸出裝置使用了此錄製器無法擷取的音訊格式。請嘗試其他輸出裝置或格式。",
+			"initFailed": "Windows 無法為所選輸出裝置初始化 loopback 音訊擷取。",
+			"captureFailed": "Windows 無法啟動系統音訊擷取。請檢查所選輸出裝置和獨佔模式應用程式。",
+			"noAudioTrack": "Windows 未傳回系統音訊軌。請確認輸出裝置處於作用中且已被選取。"
+		},
 		"microphoneDenied": "麥克風權限被拒絕。錄製將繼續，但不包含音訊。",
 		"cameraDenied": "攝影機權限被拒絕。錄製將繼續，但不包含攝影機畫面。",
 		"cameraDisconnected": "網路攝影機已中斷連線。",

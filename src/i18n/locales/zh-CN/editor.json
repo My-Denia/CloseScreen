@@ -37,6 +37,14 @@
 		"failedCameraAccess": "请求摄像头权限失败。",
 		"cameraBlocked": "摄像头权限已被阻止。请在系统设置中启用以使用摄像头。",
 		"systemAudioUnavailable": "系统音频不可用。将在无系统音频的情况下录制。",
+		"systemAudioUnavailableReasons": {
+			"noRenderEndpoint": "未找到活动的输出设备。请启用扬声器或耳机后重试。",
+			"deviceInUse": "输出设备正被其他应用以独占模式使用。请关闭该应用或停用独占模式。",
+			"unsupportedFormat": "输出设备使用了当前录制器无法捕获的音频格式。请尝试其他输出设备或格式。",
+			"initFailed": "Windows 无法为所选输出设备初始化环回音频捕获。",
+			"captureFailed": "Windows 无法启动系统音频捕获。请检查所选输出设备和独占模式应用。",
+			"noAudioTrack": "Windows 未返回系统音频轨道。请确认输出设备处于活动状态并已被选中。"
+		},
 		"microphoneDenied": "麦克风权限被拒绝。录制将继续，但不包含音频。",
 		"cameraDenied": "摄像头权限被拒绝。录制将继续，但不包含摄像头画面。",
 		"cameraDisconnected": "摄像头已断开连接。",
