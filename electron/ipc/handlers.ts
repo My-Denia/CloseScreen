@@ -35,6 +35,7 @@ import { mainT } from "../i18n";
 import { createCursorRecordingSession } from "../native-bridge/cursor/recording/factory";
 import type { CursorRecordingSession } from "../native-bridge/cursor/recording/session";
 import { patchWebmDurationOnDisk } from "../recording/webm-duration";
+import { createCursorRecordingState } from "./cursorRecordingState";
 import { isAllowedExternalUrl } from "./externalUrl";
 import { registerNativeBridgeHandlers } from "./nativeBridge";
 import { RecordingStreamRegistry, registerRecordingStreamHandlers } from "./recordingStream";
@@ -310,7 +311,7 @@ const CURSOR_SAMPLE_INTERVAL_MS = 33;
 const MAX_CURSOR_SAMPLES = 60 * 60 * 30; // 1 hour @ 30Hz
 
 let cursorRecordingSession: CursorRecordingSession | null = null;
-let pendingCursorRecordingData: CursorRecordingData | null = null;
+const cursorRecordingState = createCursorRecordingState();
 let nativeWindowsCaptureProcess: ChildProcessWithoutNullStreams | null = null;
 let nativeWindowsCaptureOutput = "";
 let nativeWindowsCaptureTargetPath: string | null = null;
@@ -653,11 +654,12 @@ async function resolveDirectShowWebcamClsid(deviceName?: string) {
 
 async function startCursorRecording(recordingId?: number) {
 	if (cursorRecordingSession) {
-		pendingCursorRecordingData = await cursorRecordingSession.stop();
+		await cursorRecordingSession.stop();
 		cursorRecordingSession = null;
 	}
 
-	pendingCursorRecordingData = null;
+	cursorRecordingState.clearPending();
+	cursorRecordingState.setActiveRecording(recordingId);
 	cursorRecordingSession = createCursorRecordingSession({
 		getDisplayBounds: getSelectedSourceBounds,
 		maxSamples: MAX_CURSOR_SAMPLES,
@@ -673,6 +675,7 @@ async function startCursorRecording(recordingId?: number) {
 	} catch (error) {
 		console.error("Failed to start cursor recording session:", error);
 		cursorRecordingSession = null;
+		cursorRecordingState.reset();
 	}
 }
 
@@ -682,10 +685,10 @@ async function stopCursorRecording() {
 	}
 
 	try {
-		pendingCursorRecordingData = await cursorRecordingSession.stop();
+		cursorRecordingState.setPending(await cursorRecordingSession.stop());
 	} catch (error) {
 		console.error("Failed to stop cursor recording session:", error);
-		pendingCursorRecordingData = null;
+		cursorRecordingState.reset();
 	} finally {
 		cursorRecordingSession = null;
 	}
@@ -693,31 +696,34 @@ async function stopCursorRecording() {
 
 async function writePendingCursorTelemetry(videoPath: string) {
 	const telemetryPath = `${videoPath}.cursor.json`;
+	const pendingCursorRecordingData = cursorRecordingState.getPendingData();
 	if (pendingCursorRecordingData && pendingCursorRecordingData.samples.length > 0) {
 		await fs.writeFile(telemetryPath, JSON.stringify(pendingCursorRecordingData, null, 2), "utf-8");
 	}
-	pendingCursorRecordingData = null;
+	cursorRecordingState.clearPending();
 }
 
 function shiftPendingCursorTelemetry(offsetMs: number) {
+	const pendingCursorRecordingData = cursorRecordingState.getPendingData();
 	if (!pendingCursorRecordingData || !Number.isFinite(offsetMs) || offsetMs <= 0) {
 		return;
 	}
 
-	pendingCursorRecordingData = {
-		...pendingCursorRecordingData,
-		samples: pendingCursorRecordingData.samples
+	cursorRecordingState.updatePendingData((data) => ({
+		...data,
+		samples: data.samples
 			.map((sample) => ({
 				...sample,
 				timeMs: Math.max(0, sample.timeMs - offsetMs),
 			}))
 			.sort((a, b) => a.timeMs - b.timeMs),
-	};
+	}));
 }
 
 function compactPendingCursorTelemetryPauseRanges(
 	ranges: Array<{ startMs: number; endMs: number }>,
 ) {
+	const pendingCursorRecordingData = cursorRecordingState.getPendingData();
 	if (!pendingCursorRecordingData || ranges.length === 0) {
 		return;
 	}
@@ -735,9 +741,9 @@ function compactPendingCursorTelemetryPauseRanges(
 		return;
 	}
 
-	pendingCursorRecordingData = {
-		...pendingCursorRecordingData,
-		samples: pendingCursorRecordingData.samples
+	cursorRecordingState.updatePendingData((data) => ({
+		...data,
+		samples: data.samples
 			.map((sample) => {
 				let pausedBeforeSampleMs = 0;
 				for (const range of normalizedRanges) {
@@ -756,7 +762,7 @@ function compactPendingCursorTelemetryPauseRanges(
 			})
 			.filter((sample): sample is CursorRecordingSample => Boolean(sample))
 			.sort((a, b) => a.timeMs - b.timeMs),
-	};
+	}));
 }
 
 function completeNativeWindowsCursorPauseRange(endMs = Date.now()) {
@@ -1234,7 +1240,7 @@ export function registerIpcHandlers(
 						warmupMs: Date.now() - cursorStartTimeMs,
 					});
 				} else {
-					pendingCursorRecordingData = null;
+					cursorRecordingState.clearPending();
 				}
 
 				const proc = spawn(helperPath, [JSON.stringify(config)], {
@@ -1355,10 +1361,10 @@ export function registerIpcHandlers(
 			if (cursorCaptureMode === "editable-overlay") {
 				await stopCursorRecording();
 			} else {
-				pendingCursorRecordingData = null;
+				cursorRecordingState.clearPending();
 			}
 			if (discard) {
-				pendingCursorRecordingData = null;
+				cursorRecordingState.clearPending();
 				await Promise.all([
 					fs.rm(screenVideoPath, { force: true }),
 					preferredWebcamPath ? fs.rm(preferredWebcamPath, { force: true }) : Promise.resolve(),
@@ -1728,6 +1734,10 @@ export function registerIpcHandlers(
 			}
 		},
 	);
+
+	ipcMain.handle("discard-cursor-telemetry", (_, recordingId: number) => {
+		cursorRecordingState.discardPending(recordingId);
+	});
 
 	ipcMain.handle("get-cursor-telemetry", async (_, videoPath?: string) => {
 		const targetVideoPath = resolveApprovedVideoPath(
