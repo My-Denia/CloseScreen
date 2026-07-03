@@ -4,6 +4,7 @@ import { fileURLToPath } from "node:url";
 import { app, BrowserWindow, ipcMain, Menu, nativeImage, session, Tray } from "electron";
 import { ShortcutBinding } from "../src/lib/shortcuts";
 import { registerAppProtocolHandler, registerAppScheme } from "./appProtocol";
+import { getDefaultRecordingsDir, getRecordingsDir, initAppSettings } from "./appSettings";
 import {
 	loadAndRegisterGlobalShortcut,
 	registerOpenAppShortcut,
@@ -33,12 +34,13 @@ if (process.platform === "linux") {
 	}
 }
 
-export const RECORDINGS_DIR = path.join(app.getPath("userData"), "recordings");
-
+// Only the DEFAULT dir is created eagerly: a custom recordings dir (issue #23) was
+// availability-checked by initAppSettings, and mkdir on a dead network path could
+// stall first paint. Recording-time writes create the custom dir on demand.
 async function ensureRecordingsDir() {
 	try {
-		await fs.mkdir(RECORDINGS_DIR, { recursive: true });
-		console.log("RECORDINGS_DIR:", RECORDINGS_DIR);
+		await fs.mkdir(getDefaultRecordingsDir(), { recursive: true });
+		console.log("Recordings dir (effective):", getRecordingsDir());
 		console.log("User Data Path:", app.getPath("userData"));
 	} catch (error) {
 		console.error("Failed to create recordings directory:", error);
@@ -455,6 +457,10 @@ app.whenReady().then(async () => {
 	createTray();
 	updateTrayMenu();
 	setupApplicationMenu();
+	// Settings must load before anything resolves the recordings dir (issue #23:
+	// the dir is user-configurable). registerIpcHandlers and all recording writes
+	// run strictly after this point.
+	await initAppSettings({ userDataDir: app.getPath("userData") });
 	await ensureRecordingsDir();
 
 	function switchToHudWrapper() {

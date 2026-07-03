@@ -49,5 +49,22 @@
 		"description": "システム言語として{{language}}が検出されました。CloseScreenを{{language}}に切り替えますか？",
 		"switch": "{{language}}に切り替え",
 		"keepDefault": "現在の言語を保持"
+	},
+	"storage": {
+		"title": "録画の保存フォルダー",
+		"tooltip": "録画の保存設定",
+		"browse": "変更…",
+		"reset": "既定に戻す",
+		"openFolder": "フォルダーを開く",
+		"close": "閉じる",
+		"manage": "管理…",
+		"dismiss": "閉じる",
+		"freeSpace": "空き {{free}}",
+		"freeSpaceUnknown": "空き容量不明",
+		"lowSpaceWarning": "ディスク空き容量が不足しています（残り {{free}}）。録画に失敗する可能性があります。",
+		"saveFailedTitle": "録画を保存できませんでした",
+		"appliesToNew": "新しい録画にのみ適用されます。既存のファイルは移動しません",
+		"unavailableFallback": "カスタムフォルダーを使用できないため、既定のフォルダーを使用しています",
+		"recordingActive": "保存フォルダーを変更するには録画を停止してください"
 	}
 }

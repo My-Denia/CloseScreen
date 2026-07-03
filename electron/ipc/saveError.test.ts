@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { describeSaveError } from "./saveError";
+import { describeSaveError, fsErrorCode } from "./saveError";
 
 describe("describeSaveError", () => {
 	const withCode = (code: string) => Object.assign(new Error(code), { code });
@@ -34,5 +34,24 @@ describe("describeSaveError", () => {
 		expect(describeSaveError("weird")).toBe("Failed to save exported video.");
 		expect(describeSaveError(null)).toBe("Failed to save exported video.");
 		expect(describeSaveError(undefined)).toBe("Failed to save exported video.");
+	});
+
+	it("interpolates the caller's subject only into the fallback messages (issue #23)", () => {
+		expect(describeSaveError(withCode("ESOMETHING"), "recording")).toBe(
+			"Failed to save recording (ESOMETHING).",
+		);
+		expect(describeSaveError(new Error("boom"), "recording")).toBe("Failed to save recording.");
+		// Code-mapped messages are already subject-neutral and stay byte-identical.
+		expect(describeSaveError(withCode("ENOSPC"), "recording")).toBe(
+			describeSaveError(withCode("ENOSPC")),
+		);
+	});
+});
+
+describe("fsErrorCode", () => {
+	it("extracts the code from fs-style errors and returns empty otherwise", () => {
+		expect(fsErrorCode(Object.assign(new Error("x"), { code: "ENOSPC" }))).toBe("ENOSPC");
+		expect(fsErrorCode(new Error("x"))).toBe("");
+		expect(fsErrorCode(null)).toBe("");
 	});
 });

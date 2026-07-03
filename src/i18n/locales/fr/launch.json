@@ -49,5 +49,22 @@
 		"description": "Nous avons détecté {{language}} comme langue système. Voulez-vous passer CloseScreen en {{language}} ?",
 		"switch": "Passer en {{language}}",
 		"keepDefault": "Conserver la langue actuelle"
+	},
+	"storage": {
+		"title": "Dossier de stockage des enregistrements",
+		"tooltip": "Stockage des enregistrements",
+		"browse": "Modifier…",
+		"reset": "Utiliser le dossier par défaut",
+		"openFolder": "Ouvrir le dossier",
+		"close": "Fermer",
+		"manage": "Gérer…",
+		"dismiss": "Ignorer",
+		"freeSpace": "{{free}} libres",
+		"freeSpaceUnknown": "Espace libre inconnu",
+		"lowSpaceWarning": "Espace disque faible : {{free}} sur le disque d'enregistrement. L'enregistrement peut échouer.",
+		"saveFailedTitle": "Impossible d'enregistrer la capture",
+		"appliesToNew": "S'applique aux nouveaux enregistrements ; les fichiers existants restent en place",
+		"unavailableFallback": "Dossier personnalisé indisponible — utilisation du dossier par défaut",
+		"recordingActive": "Arrêtez l'enregistrement pour changer le dossier de stockage"
 	}
 }

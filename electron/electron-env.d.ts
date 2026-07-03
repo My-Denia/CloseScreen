@@ -223,6 +223,24 @@ interface Window {
 		) => Promise<{ success: boolean; error?: string; message?: string }>;
 		getShortcuts: () => Promise<Record<string, unknown> | null>;
 		saveShortcuts: (shortcuts: unknown) => Promise<{ success: boolean; error?: string }>;
+		getRecordingStorageStatus: () => Promise<{
+			dir: string;
+			defaultDir: string;
+			isCustom: boolean;
+			unavailable: boolean;
+			freeBytes: number | null;
+			lowSpace: boolean;
+			locked: boolean;
+		}>;
+		pickRecordingsDirectory: () => Promise<{
+			success: boolean;
+			dir?: string;
+			canceled?: boolean;
+			error?: string;
+		}>;
+		resetRecordingsDirectory: () => Promise<{ success: boolean; dir?: string; error?: string }>;
+		openRecordingsDirectory: () => Promise<{ success: boolean; error?: string }>;
+		notifyRecordingFinalized: (recordingId: number) => Promise<{ success: boolean }>;
 		updateGlobalShortcut: (binding: {
 			key: string;
 			ctrl?: boolean;

@@ -49,5 +49,22 @@
 		"description": "اكتشفنا أن {{language}} هي لغة نظامك. هل تريد تبديل CloseScreen إلى {{language}}؟",
 		"switch": "التبديل إلى {{language}}",
 		"keepDefault": "الاحتفاظ باللغة الحالية"
+	},
+	"storage": {
+		"title": "مجلد حفظ التسجيلات",
+		"tooltip": "تخزين التسجيلات",
+		"browse": "تغيير…",
+		"reset": "استخدام الافتراضي",
+		"openFolder": "فتح المجلد",
+		"close": "إغلاق",
+		"manage": "إدارة…",
+		"dismiss": "تجاهل",
+		"freeSpace": "المتوفر {{free}}",
+		"freeSpaceUnknown": "المساحة المتوفرة غير معروفة",
+		"lowSpaceWarning": "مساحة القرص منخفضة — {{free}} على قرص التسجيل. قد يفشل التسجيل.",
+		"saveFailedTitle": "تعذر حفظ التسجيل",
+		"appliesToNew": "يسري على التسجيلات الجديدة؛ تبقى الملفات الحالية في مكانها",
+		"unavailableFallback": "المجلد المخصص غير متاح — يُستخدم المجلد الافتراضي",
+		"recordingActive": "أوقف التسجيل لتغيير مجلد الحفظ"
 	}
 }

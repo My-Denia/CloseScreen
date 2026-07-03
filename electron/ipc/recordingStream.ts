@@ -1,5 +1,6 @@
 import { createWriteStream, type WriteStream } from "node:fs";
-import { unlink } from "node:fs/promises";
+import { mkdir, unlink } from "node:fs/promises";
+import path from "node:path";
 import type { IpcMain } from "electron";
 
 /**
@@ -7,9 +8,13 @@ import type { IpcMain } from "electron";
  * MediaRecorder chunks are appended as they arrive so a long recording never
  * buffers the whole video in the renderer (#616 fix). File name is the key
  * because it's already exchanged across IPC and is unique per recording.
+ *
+ * Each entry pins the file path captured at open() (issue #23: the recordings dir
+ * is user-configurable, so re-resolving the path at finalize/discard time could
+ * point at a different directory than the one the bytes went to).
  */
 export class RecordingStreamRegistry {
-	private readonly streams = new Map<string, WriteStream>();
+	private readonly streams = new Map<string, { ws: WriteStream; filePath: string }>();
 
 	/**
 	 * Open a write stream, resolving only on the `open` event so a bad path or
@@ -19,6 +24,9 @@ export class RecordingStreamRegistry {
 	async open(fileName: string, filePath: string): Promise<void> {
 		await this.endStream(fileName);
 
+		// The custom recordings dir can vanish between startup and record (drive
+		// unplugged, folder deleted); recreate it instead of failing the open.
+		await mkdir(path.dirname(filePath), { recursive: true });
 		const ws = createWriteStream(filePath, { flags: "w" });
 		await new Promise<void>((resolve, reject) => {
 			const onError = (error: Error) => reject(error);
@@ -34,21 +42,34 @@ export class RecordingStreamRegistry {
 			console.error(`[recording-stream] ${fileName}:`, error);
 		});
 
-		this.streams.set(fileName, ws);
+		this.streams.set(fileName, { ws, filePath });
 	}
 
 	has(fileName: string): boolean {
 		return this.streams.has(fileName);
 	}
 
+	/** Number of streams currently open (gates recordings-dir changes mid-recording). */
+	get size(): number {
+		return this.streams.size;
+	}
+
+	/**
+	 * Path pinned at open() for a still-open stream. Read this BEFORE finalize —
+	 * finalize removes the entry.
+	 */
+	getOpenPath(fileName: string): string | undefined {
+		return this.streams.get(fileName)?.filePath;
+	}
+
 	/** Append a chunk; rejects if no stream is open or the write fails. */
 	async append(fileName: string, chunk: Buffer): Promise<void> {
-		const ws = this.streams.get(fileName);
-		if (!ws) {
+		const entry = this.streams.get(fileName);
+		if (!entry) {
 			throw new Error(`No active recording stream for ${fileName}`);
 		}
 		await new Promise<void>((resolve, reject) => {
-			ws.write(chunk, (error) => (error ? reject(error) : resolve()));
+			entry.ws.write(chunk, (error) => (error ? reject(error) : resolve()));
 		});
 	}
 
@@ -57,13 +78,13 @@ export class RecordingStreamRegistry {
 	 * open (streamed to disk) or false if the caller still needs to write its buffer.
 	 */
 	async finalize(fileName: string): Promise<boolean> {
-		const ws = this.streams.get(fileName);
-		if (!ws) {
+		const entry = this.streams.get(fileName);
+		if (!entry) {
 			return false;
 		}
 		this.streams.delete(fileName);
 		await new Promise<void>((resolve, reject) => {
-			ws.end((error?: Error | null) => (error ? reject(error) : resolve()));
+			entry.ws.end((error?: Error | null) => (error ? reject(error) : resolve()));
 		});
 		return true;
 	}
@@ -71,19 +92,22 @@ export class RecordingStreamRegistry {
 	/**
 	 * Close the stream (if any) and delete the partial file, so a discarded or
 	 * failed recording doesn't leak descriptors or orphan partial files on disk.
+	 * The pinned open-time path wins over the caller's path, which may have been
+	 * re-resolved against a since-changed recordings dir.
 	 */
 	async discard(fileName: string, filePath: string): Promise<void> {
+		const pinnedPath = this.streams.get(fileName)?.filePath;
 		await this.endStream(fileName);
-		await unlink(filePath).catch(() => undefined);
+		await unlink(pinnedPath ?? filePath).catch(() => undefined);
 	}
 
 	private async endStream(fileName: string): Promise<void> {
-		const ws = this.streams.get(fileName);
-		if (!ws) {
+		const entry = this.streams.get(fileName);
+		if (!entry) {
 			return;
 		}
 		this.streams.delete(fileName);
-		await new Promise<void>((resolve) => ws.end(() => resolve()));
+		await new Promise<void>((resolve) => entry.ws.end(() => resolve()));
 	}
 }
 

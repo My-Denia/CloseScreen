@@ -49,5 +49,22 @@
 		"description": "Sistem diliniz {{language}} olarak algılandı. CloseScreen i {{language}} diline geçirmek ister misiniz?",
 		"switch": "{{language}} diline geç",
 		"keepDefault": "Mevcut dili koru"
+	},
+	"storage": {
+		"title": "Kayıt depolama klasörü",
+		"tooltip": "Kayıt depolama",
+		"browse": "Değiştir…",
+		"reset": "Varsayılanı kullan",
+		"openFolder": "Klasörü aç",
+		"close": "Kapat",
+		"manage": "Yönet…",
+		"dismiss": "Kapat",
+		"freeSpace": "{{free}} boş",
+		"freeSpaceUnknown": "Boş alan bilinmiyor",
+		"lowSpaceWarning": "Disk alanı az — kayıt sürücüsünde {{free}} kaldı. Kayıt başarısız olabilir.",
+		"saveFailedTitle": "Kayıt kaydedilemedi",
+		"appliesToNew": "Yeni kayıtlar için geçerlidir; mevcut dosyalar yerinde kalır",
+		"unavailableFallback": "Özel klasör kullanılamıyor — varsayılan klasör kullanılıyor",
+		"recordingActive": "Depolama klasörünü değiştirmek için kaydı durdurun"
 	}
 }

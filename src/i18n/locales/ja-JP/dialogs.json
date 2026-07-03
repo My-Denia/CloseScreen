@@ -67,6 +67,7 @@
 		"saveGif": "エクスポートしたGIFを保存",
 		"saveVideo": "エクスポートした動画を保存",
 		"selectVideo": "動画ファイルを選択",
+		"selectRecordingsFolder": "録画の保存フォルダーを選択",
 		"saveProject": "CloseScreen プロジェクトを保存",
 		"openProject": "CloseScreen プロジェクトを開く",
 		"gifImage": "GIF 画像",

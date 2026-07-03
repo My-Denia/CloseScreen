@@ -1,4 +1,12 @@
-import { Check, ChevronDown, Clapperboard, Columns3, Languages, Rows3 } from "lucide-react";
+import {
+	Check,
+	ChevronDown,
+	Clapperboard,
+	Columns3,
+	FolderCog,
+	Languages,
+	Rows3,
+} from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { BsPauseCircle, BsPlayCircle, BsRecordCircle } from "react-icons/bs";
@@ -47,6 +55,10 @@ const ICON_SIZE = 20;
 const HUD_DEVICE_POPUP_GAP = 28;
 // Horizontal layout: mirrors the `bottom-[68px]` class on the popup element.
 const HUD_DEVICE_POPUP_HORIZONTAL_BOTTOM = 68;
+// Top-anchored panels sit at `top-2` (8px; the language prompt uses `top-8` — its
+// extra 24px rides on measureHudSize's TOP_MARGIN); this is the top-2 offset plus
+// breathing room between a panel's bottom edge and the tray bar's top edge.
+const HUD_TOP_PANEL_GAP = 16;
 
 const ICON_CONFIG = {
 	drag: { icon: RxDragHandleDots2, size: ICON_SIZE },
@@ -94,6 +106,21 @@ const hudSidebarClasses = "ml-0.5 pl-1.5 border-l border-white/10 flex items-cen
 const hudSidebarVerticalClasses =
 	"mt-0.5 pt-1.5 border-t border-white/10 flex flex-col items-center gap-0.5";
 
+type RecordingStorageStatus = {
+	dir: string;
+	defaultDir: string;
+	isCustom: boolean;
+	unavailable: boolean;
+	freeBytes: number | null;
+	lowSpace: boolean;
+	locked: boolean;
+};
+
+/** "12.3 GB" from bytes; free space needs one decimal, not byte precision. */
+function formatGigabytes(bytes: number): string {
+	return `${(bytes / 1024 ** 3).toFixed(1)} GB`;
+}
+
 /** Launches the floating recording HUD and its recorder controls. */
 export function LaunchWindow() {
 	const t = useScopedT("launch");
@@ -119,6 +146,18 @@ export function LaunchWindow() {
 			window.clearTimeout(id);
 		};
 	}, []);
+	// Recording storage folder (issue #23), same in-window panel mechanics as the
+	// update notice: the HUD only accepts clicks inside [data-hud-interactive] regions.
+	const [isStoragePanelOpen, setIsStoragePanelOpen] = useState(false);
+	const [storageStatus, setStorageStatus] = useState<RecordingStorageStatus | null>(null);
+	const [storageActionError, setStorageActionError] = useState<string | null>(null);
+	const refreshStorageStatus = useCallback(() => {
+		window.electronAPI
+			?.getRecordingStorageStatus?.()
+			.then((status) => setStorageStatus(status ?? null))
+			.catch(() => setStorageStatus(null));
+	}, []);
+
 	const {
 		locale,
 		setLocale,
@@ -139,6 +178,8 @@ export function LaunchWindow() {
 		canPauseRecording,
 		restartRecording,
 		cancelRecording,
+		storageAlert,
+		dismissStorageAlert,
 		microphoneEnabled,
 		setMicrophoneEnabled,
 		microphoneDeviceId,
@@ -154,6 +195,36 @@ export function LaunchWindow() {
 		cursorCaptureMode,
 		setCursorCaptureMode,
 	} = useScreenRecorder();
+
+	// Status is fetched when the panel opens and when recording toggles (the locked
+	// flag and free space both change with recording activity).
+	// biome-ignore lint/correctness/useExhaustiveDependencies: `recording` is an intentional extra input — the fetched locked flag and free space change with recording activity, so the open panel refetches on toggle.
+	useEffect(() => {
+		if (isStoragePanelOpen) {
+			setStorageActionError(null);
+			refreshStorageStatus();
+		}
+	}, [isStoragePanelOpen, recording, refreshStorageStatus]);
+
+	const storageControlsDisabled = recording || Boolean(storageStatus?.locked);
+
+	const handlePickStorageFolder = useCallback(async () => {
+		setStorageActionError(null);
+		const result = await window.electronAPI?.pickRecordingsDirectory?.().catch(() => null);
+		if (result && !result.success && !result.canceled) {
+			setStorageActionError(result.error ?? null);
+		}
+		refreshStorageStatus();
+	}, [refreshStorageStatus]);
+
+	const handleResetStorageFolder = useCallback(async () => {
+		setStorageActionError(null);
+		const result = await window.electronAPI?.resetRecordingsDirectory?.().catch(() => null);
+		if (result && !result.success) {
+			setStorageActionError(result.error ?? null);
+		}
+		refreshStorageStatus();
+	}, [refreshStorageStatus]);
 
 	const showMicControls = microphoneEnabled && !recording;
 	const showWebcamControls = webcamEnabled && !recording;
@@ -174,6 +245,10 @@ export function LaunchWindow() {
 	const languageMenuPanelRef = useRef<HTMLDivElement | null>(null);
 	const hudBarRef = useRef<HTMLDivElement | null>(null);
 	const deviceSelectorRef = useRef<HTMLDivElement | null>(null);
+	// Whichever top-anchored panel is mounted (they are mutually exclusive): language
+	// prompt, update notice, storage panel or storage alert. Measured into the window
+	// height so panels never overlay the tray bar.
+	const topPanelRef = useRef<HTMLDivElement | null>(null);
 	// Measured bar height, anchors the popups above the tall vertical tray so they don't overlap it.
 	const [hudBarHeight, setHudBarHeight] = useState(0);
 	const [languageMenuStyle, setLanguageMenuStyle] = useState<{
@@ -350,6 +425,7 @@ export function LaunchWindow() {
 		// small-screen fallback, and reading clipped height would pin the window to it.
 		// scrollHeight gives full content height; the cap only engages when the main process clamps to screen.
 		let topFromBottom = viewportHeight - barEl.getBoundingClientRect().bottom + barEl.scrollHeight;
+		const barTopFromBottom = topFromBottom;
 		let halfWidth = barEl.scrollWidth / 2;
 
 		// Popups drive both dimensions too. Their vertical anchor depends on bar height,
@@ -373,6 +449,18 @@ export function LaunchWindow() {
 		if (languageMenuPanelRef.current) {
 			const rect = languageMenuPanelRef.current.getBoundingClientRect();
 			halfWidth = Math.max(halfWidth, centerX - rect.left, rect.right - centerX);
+		}
+
+		// Top-anchored panels (language prompt, update notice, storage panel/alert) are
+		// fixed to the window top while the bar hugs the bottom. The window must grow
+		// tall enough for both plus a gap — otherwise the panel overlays the tray bar
+		// and swallows its clicks (found live: the low-disk alert covered Stop).
+		if (topPanelRef.current) {
+			const rect = topPanelRef.current.getBoundingClientRect();
+			if (rect.width !== 0 || rect.height !== 0) {
+				topFromBottom = Math.max(topFromBottom, barTopFromBottom + rect.height + HUD_TOP_PANEL_GAP);
+				halfWidth = Math.max(halfWidth, rect.width / 2);
+			}
 		}
 
 		setHudBarHeight((prev) => {
@@ -424,6 +512,10 @@ export function LaunchWindow() {
 	);
 	const setLanguageMenuPanelEl = useCallback(
 		(el: HTMLDivElement | null) => observeHudElement(el, languageMenuPanelRef),
+		[observeHudElement],
+	);
+	const setTopPanelEl = useCallback(
+		(el: HTMLDivElement | null) => observeHudElement(el, topPanelRef),
 		[observeHudElement],
 	);
 
@@ -542,8 +634,13 @@ export function LaunchWindow() {
 				}
 			}}
 		>
-			{systemLocaleSuggestion && (
+			{/* Top panels are strictly mutually exclusive (exactly one mounts — the shared
+			    topPanelRef sizes the window for it): storage panel (user-invoked) >
+			    storage alert (a save failure must never be invisible, even on first run
+			    while the language prompt wants the spot) > language prompt > update. */}
+			{systemLocaleSuggestion && !storageAlert && !isStoragePanelOpen && (
 				<div
+					ref={setTopPanelEl}
 					data-hud-interactive="true"
 					className={`fixed top-8 left-1/2 z-30 w-[calc(100vw-1rem)] max-w-[520px] -translate-x-1/2 rounded-xl border border-white/15 bg-[rgba(20,20,28,0.95)] p-3 shadow-2xl backdrop-blur-xl text-white animate-in fade-in-0 zoom-in-95 duration-200 ${styles.electronNoDrag}`}
 				>
@@ -579,12 +676,159 @@ export function LaunchWindow() {
 				</div>
 			)}
 
+			{/* Storage problem alert (issue #23): low free space at record start, or a
+			    recording that could not be saved — previously the latter was silent and the
+			    editor just never opened. Same panel mechanics as the update notice below. */}
+			{storageAlert && !isStoragePanelOpen && (
+				<div
+					ref={setTopPanelEl}
+					data-hud-interactive="true"
+					data-testid="hud-storage-alert"
+					className={`fixed top-2 left-1/2 z-30 flex w-[calc(100vw-1rem)] max-w-[560px] -translate-x-1/2 items-center gap-3 rounded-xl border px-3 py-2 shadow-2xl backdrop-blur-xl text-white animate-in fade-in-0 zoom-in-95 duration-200 ${
+						storageAlert.kind === "save-failed"
+							? "border-red-400/40 bg-[rgba(40,16,20,0.95)]"
+							: "border-amber-400/40 bg-[rgba(40,32,12,0.95)]"
+					} ${styles.electronNoDrag}`}
+				>
+					<div className="min-w-0 flex-1">
+						{storageAlert.kind === "low-disk" ? (
+							<div className="text-[12px] font-semibold text-amber-200">
+								{t("storage.lowSpaceWarning", {
+									free:
+										storageAlert.freeBytes === null
+											? t("storage.freeSpaceUnknown")
+											: formatGigabytes(storageAlert.freeBytes),
+								})}
+							</div>
+						) : (
+							<>
+								<div className="truncate text-[12px] font-semibold text-red-200">
+									{t("storage.saveFailedTitle")}
+								</div>
+								<div className="truncate text-[10px] text-white/70" title={storageAlert.message}>
+									{storageAlert.message}
+								</div>
+							</>
+						)}
+					</div>
+					<div className="flex shrink-0 items-center gap-1.5">
+						<Button
+							type="button"
+							variant="ghost"
+							size="sm"
+							onClick={() => {
+								dismissStorageAlert();
+								setIsStoragePanelOpen(true);
+							}}
+							className="h-6 px-2 text-[11px] text-white/80 hover:bg-white/10 hover:text-white"
+						>
+							{t("storage.manage")}
+						</Button>
+						<Button
+							type="button"
+							size="sm"
+							onClick={dismissStorageAlert}
+							className="h-6 px-2.5 text-[11px] bg-white text-[#10121b] hover:bg-white/90"
+						>
+							{t("storage.dismiss")}
+						</Button>
+					</div>
+				</div>
+			)}
+
+			{/* Recording storage folder panel (issue #23). */}
+			{isStoragePanelOpen && (
+				<div
+					ref={setTopPanelEl}
+					data-hud-interactive="true"
+					data-testid="hud-storage-panel"
+					className={`fixed top-2 left-1/2 z-30 w-[calc(100vw-1rem)] max-w-[560px] -translate-x-1/2 rounded-xl border border-white/15 bg-[rgba(20,20,28,0.95)] px-3 py-2 shadow-2xl backdrop-blur-xl text-white animate-in fade-in-0 zoom-in-95 duration-200 ${styles.electronNoDrag}`}
+				>
+					<div className="flex items-center gap-3">
+						<div className="min-w-0 flex-1">
+							<div className="text-[11px] font-semibold text-white/60">{t("storage.title")}</div>
+							<div
+								data-testid="storage-current-path"
+								className="truncate text-[12px] font-medium text-white"
+								title={storageStatus?.dir}
+							>
+								{storageStatus?.dir ?? "…"}
+							</div>
+						</div>
+						<div className="flex shrink-0 items-center gap-1.5">
+							<Button
+								type="button"
+								variant="ghost"
+								size="sm"
+								data-testid="storage-open-folder"
+								onClick={() => void window.electronAPI?.openRecordingsDirectory?.()}
+								className="h-6 px-2 text-[11px] text-white/80 hover:bg-white/10 hover:text-white"
+							>
+								{t("storage.openFolder")}
+							</Button>
+							{storageStatus?.isCustom || storageStatus?.unavailable ? (
+								<Button
+									type="button"
+									variant="ghost"
+									size="sm"
+									data-testid="storage-reset"
+									disabled={storageControlsDisabled}
+									onClick={() => void handleResetStorageFolder()}
+									className="h-6 px-2 text-[11px] text-white/80 hover:bg-white/10 hover:text-white disabled:opacity-40"
+								>
+									{t("storage.reset")}
+								</Button>
+							) : null}
+							<Button
+								type="button"
+								size="sm"
+								data-testid="storage-browse"
+								disabled={storageControlsDisabled}
+								onClick={() => void handlePickStorageFolder()}
+								className="h-6 px-2.5 text-[11px] bg-white text-[#10121b] hover:bg-white/90 disabled:opacity-40"
+							>
+								{t("storage.browse")}
+							</Button>
+							<Button
+								type="button"
+								variant="ghost"
+								size="sm"
+								onClick={() => setIsStoragePanelOpen(false)}
+								className="h-6 px-2 text-[11px] text-white/50 hover:bg-white/10 hover:text-white"
+							>
+								{t("storage.close")}
+							</Button>
+						</div>
+					</div>
+					<div className="mt-1 truncate text-[10px] text-white/55" data-testid="storage-info-line">
+						{storageActionError ? (
+							<span className="text-red-300" title={storageActionError}>
+								{storageActionError}
+							</span>
+						) : storageControlsDisabled ? (
+							<span>{t("storage.recordingActive")}</span>
+						) : storageStatus?.unavailable ? (
+							<span className="text-amber-300">{t("storage.unavailableFallback")}</span>
+						) : (
+							<span className={storageStatus?.lowSpace ? "text-amber-300" : undefined}>
+								{storageStatus?.freeBytes != null
+									? t("storage.freeSpace", { free: formatGigabytes(storageStatus.freeBytes) })
+									: t("storage.freeSpaceUnknown")}
+								{" · "}
+								{t("storage.appliesToNew")}
+							</span>
+						)}
+					</div>
+				</div>
+			)}
+
 			{/* Update available (#27): same in-window panel mechanics as the language prompt
 			    above — the HUD only accepts clicks inside [data-hud-interactive] regions. Kept
 			    to a single compact row so it fits the 600x160 HUD window above the tray bar.
-			    The language prompt takes precedence when both want the same spot. */}
-			{availableUpdate && !systemLocaleSuggestion && (
+			    The language prompt and storage panels take precedence when they want the spot. */}
+			{availableUpdate && !systemLocaleSuggestion && !storageAlert && !isStoragePanelOpen && (
 				<div
+					ref={setTopPanelEl}
 					data-hud-interactive="true"
 					data-testid="hud-update-notice"
 					className={`fixed top-2 left-1/2 z-30 flex w-[calc(100vw-1rem)] max-w-[560px] -translate-x-1/2 items-center gap-3 rounded-xl border border-white/15 bg-[rgba(20,20,28,0.95)] px-3 py-2 shadow-2xl backdrop-blur-xl text-white animate-in fade-in-0 zoom-in-95 duration-200 ${styles.electronNoDrag}`}
@@ -999,6 +1243,19 @@ export function LaunchWindow() {
 				<div
 					className={`${trayLayout === "vertical" ? hudSidebarVerticalClasses : hudSidebarClasses} ${styles.electronNoDrag}`}
 				>
+					<Tooltip content={t("storage.tooltip")}>
+						<button
+							type="button"
+							data-testid="hud-storage-button"
+							aria-label={t("storage.tooltip")}
+							aria-expanded={isStoragePanelOpen}
+							onClick={() => setIsStoragePanelOpen((open) => !open)}
+							className={`${hudAuxIconBtnClasses} ${styles.electronNoDrag}`}
+						>
+							<FolderCog size={13} className="text-white/70" />
+						</button>
+					</Tooltip>
+
 					<div className={`${styles.languageMenuContainer} ${styles.electronNoDrag}`}>
 						<button
 							ref={languageTriggerRef}

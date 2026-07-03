@@ -67,6 +67,7 @@
 		"saveGif": "保存导出的 GIF",
 		"saveVideo": "保存导出的视频",
 		"selectVideo": "选择视频文件",
+		"selectRecordingsFolder": "选择录制文件保存文件夹",
 		"saveProject": "保存 CloseScreen 项目",
 		"openProject": "打开 CloseScreen 项目",
 		"gifImage": "GIF 图片",

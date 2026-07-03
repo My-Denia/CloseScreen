@@ -49,5 +49,22 @@
 		"description": "Detectamos {{language}} como o idioma do seu sistema. Deseja mudar o CloseScreen para {{language}}?",
 		"switch": "Mudar para {{language}}",
 		"keepDefault": "Manter idioma atual"
+	},
+	"storage": {
+		"title": "Pasta de armazenamento das gravações",
+		"tooltip": "Armazenamento de gravações",
+		"browse": "Alterar…",
+		"reset": "Usar padrão",
+		"openFolder": "Abrir pasta",
+		"close": "Fechar",
+		"manage": "Gerenciar…",
+		"dismiss": "Dispensar",
+		"freeSpace": "{{free}} livres",
+		"freeSpaceUnknown": "Espaço livre desconhecido",
+		"lowSpaceWarning": "Pouco espaço em disco: {{free}} na unidade de gravação. A gravação pode falhar.",
+		"saveFailedTitle": "Não foi possível salvar a gravação",
+		"appliesToNew": "Aplica-se às novas gravações; os arquivos existentes permanecem onde estão",
+		"unavailableFallback": "Pasta personalizada indisponível — usando a pasta padrão",
+		"recordingActive": "Pare a gravação para alterar a pasta de armazenamento"
 	}
 }

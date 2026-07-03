@@ -42,6 +42,17 @@ const AUDIO_BITRATE_SYSTEM = 192_000;
 const MIC_GAIN_BOOST = 1.4;
 const WEBCAM_TARGET_FRAME_RATE = 30;
 
+/**
+ * Storage problems the HUD must show in an in-window panel (issue #23). The HUD
+ * ignores mouse events outside [data-hud-interactive] regions and is sized to its
+ * content, so a floating toast can render clipped or unclickable there — same
+ * reasoning as the update notice (#27). Structured, not pre-rendered text, so the
+ * HUD can localize; `message` carries the main process's actionable English detail.
+ */
+export type RecordingStorageAlert =
+	| { kind: "low-disk"; freeBytes: number | null }
+	| { kind: "save-failed"; message: string };
+
 type UseScreenRecorderReturn = {
 	recording: boolean;
 	paused: boolean;
@@ -51,6 +62,8 @@ type UseScreenRecorderReturn = {
 	canPauseRecording: boolean;
 	restartRecording: () => void;
 	cancelRecording: () => void;
+	storageAlert: RecordingStorageAlert | null;
+	dismissStorageAlert: () => void;
 	microphoneEnabled: boolean;
 	setMicrophoneEnabled: (enabled: boolean) => void;
 	microphoneDeviceId: string | undefined;
@@ -89,6 +102,7 @@ export function useScreenRecorder(): UseScreenRecorderReturn {
 	const [systemAudioEnabled, setSystemAudioEnabled] = useState(false);
 	const [webcamEnabled, setWebcamEnabledState] = useState(false);
 	const [cursorCaptureMode, setCursorCaptureMode] = useState<CursorCaptureMode>("editable-overlay");
+	const [storageAlert, setStorageAlert] = useState<RecordingStorageAlert | null>(null);
 	const screenRecorder = useRef<RecorderHandle | null>(null);
 	const webcamRecorder = useRef<RecorderHandle | null>(null);
 	const nativeWindowsRecording = useRef<NativeWindowsRecordingHandle | null>(null);
@@ -119,6 +133,32 @@ export function useScreenRecorder(): UseScreenRecorderReturn {
 		const segmentDuration =
 			segmentStartedAt.current === null ? 0 : Date.now() - segmentStartedAt.current;
 		return accumulatedDurationMs.current + segmentDuration;
+	}, []);
+
+	const dismissStorageAlert = useCallback(() => setStorageAlert(null), []);
+
+	/**
+	 * Fire-and-forget free-space preflight when a recording starts (issue #23:
+	 * recording onto a nearly full drive used to fail only after the fact, silently).
+	 * Warns, never blocks — a probe failure or missing API is treated as "unknown".
+	 */
+	const warnIfLowDiskSpace = useCallback(() => {
+		setStorageAlert(null);
+		window.electronAPI
+			?.getRecordingStorageStatus?.()
+			.then((status) => {
+				if (status?.lowSpace) {
+					// A slow probe (network/removable folder) can resolve AFTER the
+					// recording already failed to save; the warning must never replace
+					// that more important alert.
+					setStorageAlert((current) =>
+						current?.kind === "save-failed"
+							? current
+							: { kind: "low-disk", freeBytes: status.freeBytes },
+					);
+				}
+			})
+			.catch(() => undefined);
 	}, []);
 
 	const selectMimeType = () => {
@@ -311,7 +351,9 @@ export function useScreenRecorder(): UseScreenRecorderReturn {
 			setElapsedSeconds(0);
 			accumulatedDurationMs.current = 0;
 			segmentStartedAt.current = null;
-			window.electronAPI?.setRecordingState(false);
+			// recordingId scopes the main process's storage-settling hold to THIS
+			// finalize, so overlapping finalizes can't release each other's hold.
+			window.electronAPI?.setRecordingState(false, activeRecordingId);
 
 			void (async () => {
 				// Each disk stream must end up either saved or explicitly discarded.
@@ -368,7 +410,13 @@ export function useScreenRecorder(): UseScreenRecorderReturn {
 					});
 
 					if (!result.success) {
+						// Silently returning here was issue #23's face: stop → nothing opens.
+						// The message carries the main process's code-aware reason (ENOSPC etc.).
 						console.error("Failed to store recording session:", result.message);
+						setStorageAlert({
+							kind: "save-failed",
+							message: result.message ?? "Failed to store recording session",
+						});
 						return;
 					}
 					// store-recorded-session has flushed and closed the saved streams.
@@ -382,7 +430,13 @@ export function useScreenRecorder(): UseScreenRecorderReturn {
 
 					await window.electronAPI.switchToEditor();
 				} catch (error) {
+					// Covers a mid-recording disk-write failure surfacing at finalize
+					// (recordedBlobPromise rejects with the append error, e.g. ENOSPC).
 					console.error("Error saving recording:", error);
+					setStorageAlert({
+						kind: "save-failed",
+						message: error instanceof Error ? error.message : "Failed to save recording",
+					});
 				} finally {
 					// Discard any recorder whose data wasn't part of a successful save (discarded
 					// run, failed save, or a webcam whose disk write failed while the screen still
@@ -399,6 +453,11 @@ export function useScreenRecorder(): UseScreenRecorderReturn {
 					if (discardRecordingId.current === activeRecordingId) {
 						discardRecordingId.current = null;
 					}
+					// Releases the main process's storage-settling hold (issue #23): the
+					// recording=false report fires BEFORE the blob drains and stores, so the
+					// gate waits for this end-of-finalize signal on every exit path —
+					// including discard and the empty-recording return, which never store.
+					window.electronAPI?.notifyRecordingFinalized?.(activeRecordingId).catch(() => undefined);
 				}
 			})();
 		},
@@ -446,7 +505,13 @@ export function useScreenRecorder(): UseScreenRecorderReturn {
 				}
 				if (!result.success) {
 					console.error("Failed to stop native Windows recording:", result.error);
+					// Toast plus HUD panel: the HUD is content-sized, so a floating toast
+					// can render clipped there (#27) — the panel is the reliable surface.
 					toast.error(result.error ?? "Failed to stop native Windows recording");
+					setStorageAlert({
+						kind: "save-failed",
+						message: result.error ?? "Failed to stop native Windows recording",
+					});
 					activeNativeRecording.finalizing = false;
 					return true;
 				}
@@ -492,6 +557,11 @@ export function useScreenRecorder(): UseScreenRecorderReturn {
 				toast.error(
 					error instanceof Error ? error.message : "Failed to save native Windows recording",
 				);
+				setStorageAlert({
+					kind: "save-failed",
+					message:
+						error instanceof Error ? error.message : "Failed to save native Windows recording",
+				});
 				activeNativeRecording.finalizing = false;
 				return true;
 			} finally {
@@ -759,6 +829,7 @@ export function useScreenRecorder(): UseScreenRecorderReturn {
 			setRecording(true);
 			setPaused(false);
 			setElapsedSeconds(0);
+			warnIfLowDiskSpace();
 			return true;
 		} catch (error) {
 			console.error("Native Windows capture failed:", error);
@@ -1082,6 +1153,7 @@ export function useScreenRecorder(): UseScreenRecorderReturn {
 			setRecording(true);
 			setPaused(false);
 			setElapsedSeconds(0);
+			warnIfLowDiskSpace();
 			window.electronAPI?.setRecordingState(true, recordingId.current, cursorCaptureMode);
 
 			const activeScreenRecorder = screenRecorder.current;
@@ -1318,6 +1390,8 @@ export function useScreenRecorder(): UseScreenRecorderReturn {
 		canPauseRecording,
 		restartRecording,
 		cancelRecording,
+		storageAlert,
+		dismissStorageAlert,
 		microphoneEnabled,
 		setMicrophoneEnabled,
 		microphoneDeviceId,

@@ -24,15 +24,21 @@ import type {
 	ProjectFileResult,
 	ProjectPathResult,
 } from "../../src/native/contracts";
+import {
+	getAllowedRecordingDirs,
+	getRecordingStorageInfo,
+	getRecordingsDir,
+	setRecordingsDir,
+} from "../appSettings";
+import { getFreeBytes, isLowDiskSpace } from "../diskSpace";
 import { mainT } from "../i18n";
-import { RECORDINGS_DIR } from "../main";
 import { createCursorRecordingSession } from "../native-bridge/cursor/recording/factory";
 import type { CursorRecordingSession } from "../native-bridge/cursor/recording/session";
 import { patchWebmDurationOnDisk } from "../recording/webm-duration";
 import { isAllowedExternalUrl } from "./externalUrl";
 import { registerNativeBridgeHandlers } from "./nativeBridge";
 import { RecordingStreamRegistry, registerRecordingStreamHandlers } from "./recordingStream";
-import { describeSaveError } from "./saveError";
+import { describeSaveError, fsErrorCode } from "./saveError";
 
 const PROJECT_FILE_EXTENSION = "closescreen";
 export const SHORTCUTS_FILE = path.join(app.getPath("userData"), "shortcuts.json");
@@ -57,7 +63,9 @@ function approveFilePath(filePath: string): void {
 }
 
 function getAllowedReadDirs(): string[] {
-	return [RECORDINGS_DIR];
+	// Default recordings dir plus the user-configured one (issue #23) — recordings
+	// made before the custom dir was set must keep loading.
+	return getAllowedRecordingDirs();
 }
 
 function isPathWithinDir(filePath: string, dirPath: string): boolean {
@@ -173,7 +181,7 @@ function resolveRecordingOutputPath(fileName: string): string {
 		throw new Error("Recording file name must not contain path segments");
 	}
 
-	return path.join(RECORDINGS_DIR, parsedPath.base);
+	return path.join(getRecordingsDir(), parsedPath.base);
 }
 
 function isValidDurationMs(value: number | undefined): value is number {
@@ -193,6 +201,9 @@ async function finalizeRecordingFile(
 ): Promise<boolean> {
 	const streamed = await registry.finalize(fileName);
 	if (!streamed && videoData && videoData.byteLength > 0) {
+		// The target dir may have vanished since startup (custom dir on a removable
+		// drive); recreate rather than failing the save.
+		await fs.mkdir(path.dirname(filePath), { recursive: true });
 		await fs.writeFile(filePath, Buffer.from(videoData));
 	}
 	return streamed;
@@ -219,9 +230,9 @@ async function getApprovedProjectSession(
 		return null;
 	}
 
-	// Only auto-approve media within the project's dir or RECORDINGS_DIR, so a crafted
-	// project file can't approve reads to arbitrary locations.
-	const trustedDirs = [RECORDINGS_DIR];
+	// Only auto-approve media within the project's dir or the recording dirs, so a
+	// crafted project file can't approve reads to arbitrary locations.
+	const trustedDirs = [...getAllowedRecordingDirs()];
 	if (projectFilePath) {
 		trustedDirs.push(path.dirname(path.resolve(projectFilePath)));
 	}
@@ -919,7 +930,7 @@ async function loadRecordedSessionForVideoPath(
 		if (!isPathAllowed(session.screenVideoPath)) {
 			const approvedScreen = await approveReadableVideoPath(session.screenVideoPath, [
 				path.dirname(manifestPath),
-				RECORDINGS_DIR,
+				...getAllowedRecordingDirs(),
 			]);
 			if (!approvedScreen) {
 				return null;
@@ -930,7 +941,7 @@ async function loadRecordedSessionForVideoPath(
 		if (session.webcamVideoPath && !isPathAllowed(session.webcamVideoPath)) {
 			const approvedWebcam = await approveReadableVideoPath(session.webcamVideoPath, [
 				path.dirname(manifestPath),
-				RECORDINGS_DIR,
+				...getAllowedRecordingDirs(),
 			]);
 			if (!approvedWebcam) {
 				session.webcamVideoPath = undefined;
@@ -1118,9 +1129,12 @@ export function registerIpcHandlers(
 					typeof request.recordingId === "number" && Number.isFinite(request.recordingId)
 						? request.recordingId
 						: Date.now();
-				const outputPath = path.join(RECORDINGS_DIR, `${RECORDING_FILE_PREFIX}${recordingId}.mp4`);
+				// Captured once at start: video, webcam, cwd and mkdir below must all agree
+				// even if the user changes the recordings dir mid-recording.
+				const recordingsDir = getRecordingsDir();
+				const outputPath = path.join(recordingsDir, `${RECORDING_FILE_PREFIX}${recordingId}.mp4`);
 				const webcamOutputPath = path.join(
-					RECORDINGS_DIR,
+					recordingsDir,
 					`${RECORDING_FILE_PREFIX}${recordingId}-webcam.mp4`,
 				);
 				const sourceDisplay =
@@ -1199,7 +1213,7 @@ export function registerIpcHandlers(
 					outputPath,
 				});
 
-				await fs.mkdir(RECORDINGS_DIR, { recursive: true });
+				await fs.mkdir(recordingsDir, { recursive: true });
 				nativeWindowsCaptureOutput = "";
 				nativeWindowsCaptureTargetPath = outputPath;
 				nativeWindowsCaptureWebcamTargetPath = request.webcam.enabled ? webcamOutputPath : null;
@@ -1224,7 +1238,7 @@ export function registerIpcHandlers(
 				}
 
 				const proc = spawn(helperPath, [JSON.stringify(config)], {
-					cwd: RECORDINGS_DIR,
+					cwd: recordingsDir,
 					stdio: ["pipe", "pipe", "pipe"],
 					windowsHide: true,
 				});
@@ -1370,11 +1384,21 @@ export function registerIpcHandlers(
 			const session: RecordingSession = webcamVideoPath
 				? { screenVideoPath, webcamVideoPath, createdAt: recordingId, cursorCaptureMode }
 				: { screenVideoPath, createdAt: recordingId, cursorCaptureMode };
+			// The main process wrote these files itself — approve them for reading now,
+			// so the session keeps loading even if the user switches the storage folder
+			// before opening the editor (the old dir leaves the auto-approved scope).
+			approveFilePath(screenVideoPath);
+			if (webcamVideoPath) {
+				approveFilePath(webcamVideoPath);
+			}
 			setCurrentRecordingSessionState(session);
 			currentProjectPath = null;
 
+			// The manifest follows the video (like the cursor sidecar) rather than the
+			// current recordings-dir setting, so a mid-recording settings change can't
+			// split them across directories.
 			const sessionManifestPath = path.join(
-				RECORDINGS_DIR,
+				path.dirname(screenVideoPath),
 				`${path.parse(screenVideoPath).name}${RECORDING_SESSION_SUFFIX}`,
 			);
 			await fs.writeFile(sessionManifestPath, JSON.stringify(session, null, 2), "utf-8");
@@ -1412,6 +1436,47 @@ export function registerIpcHandlers(
 	const recordingStreams = new RecordingStreamRegistry();
 	registerRecordingStreamHandlers(ipcMain, recordingStreams, resolveRecordingOutputPath);
 
+	// Storage-change gate inputs beyond the stream registry (issue #23): a browser
+	// recording buffering in memory has no open stream, and a store/attach finalize
+	// resolves paths against the current dir — both must block folder changes.
+	let browserRecordingActive = false;
+	let storeOperationsInFlight = 0;
+	// Buffered-finalize holds: the renderer reports recording=false BEFORE it drains
+	// the blob, fixes the WebM duration and calls store — seconds in which none of
+	// the other gate signals is up. Holds are keyed by recordingId so overlapping
+	// finalizes can't release each other (a quick second recording must not lose its
+	// hold when the FIRST recording's store or finalize notification lands); each
+	// hold ends on its own store / finalize notification, with a per-hold backstop
+	// timer so a crashed renderer can't wedge the gate.
+	const storageSettlingHolds = new Map<number, NodeJS.Timeout>();
+	const BROWSER_SETTLING_BACKSTOP_MS = 300_000;
+	function enterStorageSettling(recordingId: number): void {
+		releaseStorageSettling(recordingId);
+		storageSettlingHolds.set(
+			recordingId,
+			setTimeout(() => {
+				storageSettlingHolds.delete(recordingId);
+			}, BROWSER_SETTLING_BACKSTOP_MS),
+		);
+	}
+	function releaseStorageSettling(recordingId: number): void {
+		const timer = storageSettlingHolds.get(recordingId);
+		if (timer) {
+			clearTimeout(timer);
+			storageSettlingHolds.delete(recordingId);
+		}
+	}
+
+	// A filesystem failure gets the actionable describeSaveError text (ENOSPC is the
+	// issue #23 headline case); anything else keeps its own message. The renderer
+	// shows `message` verbatim, so it must carry the real reason, not a generic one.
+	function describeStoreError(error: unknown, fallback: string): string {
+		if (fsErrorCode(error)) {
+			return describeSaveError(error, "recording");
+		}
+		return error instanceof Error && error.message ? error.message : fallback;
+	}
+
 	ipcMain.handle("store-recorded-session", async (_, payload: StoreRecordedSessionInput) => {
 		try {
 			return await storeRecordedSessionFiles(payload);
@@ -1419,19 +1484,64 @@ export function registerIpcHandlers(
 			console.error("Failed to store recording session:", error);
 			return {
 				success: false,
-				message: "Failed to store recording session",
+				message: describeStoreError(error, "Failed to store recording session"),
 				error: String(error),
 			};
 		}
 	});
 
+	/**
+	 * Where a recording file actually lives. The recordings dir is user-configurable
+	 * (issue #23), so paths pinned when the recording started win over re-resolving
+	 * against the current setting: an open stream's open() path, or — for the native
+	 * attach-webcam flow, whose screen file never enters the stream registry — the
+	 * session path recorded at native stop time. The sanitized current-dir path is
+	 * computed first so file-name traversal checks always run, and is the fallback.
+	 *
+	 * The session-path match is restricted to stores that carry NO screen bytes (the
+	 * attach signature, which only reads/annotates the existing file): with bytes in
+	 * the payload it would WRITE, and the current session can be an imported or
+	 * project video outside the recordings dir — a matching fileName would clobber
+	 * that user-approved source file.
+	 */
+	function resolveStoredRecordingPath(fileName: string, hasVideoData: boolean): string {
+		const fallback = resolveRecordingOutputPath(fileName);
+		const pinned = recordingStreams.getOpenPath(fileName);
+		if (pinned) {
+			return pinned;
+		}
+		const sessionScreenPath = currentRecordingSession?.screenVideoPath;
+		if (!hasVideoData && sessionScreenPath && path.basename(sessionScreenPath) === fileName) {
+			return sessionScreenPath;
+		}
+		return fallback;
+	}
+
 	async function storeRecordedSessionFiles(payload: StoreRecordedSessionInput) {
+		storeOperationsInFlight += 1;
+		try {
+			return await storeRecordedSessionFilesInner(payload);
+		} finally {
+			storeOperationsInFlight -= 1;
+			// The finalize THIS store belongs to is over either way (the renderer also
+			// notifies, but a completed store is the stronger signal). createdAt is the
+			// recordingId for renderer-initiated stores; only that hold is released.
+			if (typeof payload.createdAt === "number" && Number.isFinite(payload.createdAt)) {
+				releaseStorageSettling(payload.createdAt);
+			}
+		}
+	}
+
+	async function storeRecordedSessionFilesInner(payload: StoreRecordedSessionInput) {
 		const createdAt =
 			typeof payload.createdAt === "number" && Number.isFinite(payload.createdAt)
 				? payload.createdAt
 				: Date.now();
 		const cursorCaptureMode = normalizeCursorCaptureMode(payload.cursorCaptureMode);
-		const screenVideoPath = resolveRecordingOutputPath(payload.screen.fileName);
+		const screenVideoPath = resolveStoredRecordingPath(
+			payload.screen.fileName,
+			Boolean(payload.screen.videoData && payload.screen.videoData.byteLength > 0),
+		);
 		const screenStreamed = await finalizeRecordingFile(
 			recordingStreams,
 			payload.screen.fileName,
@@ -1452,7 +1562,12 @@ export function registerIpcHandlers(
 		let webcamVideoPath: string | undefined;
 		let webcamStreamed = false;
 		if (payload.webcam) {
-			webcamVideoPath = resolveRecordingOutputPath(payload.webcam.fileName);
+			// A buffered webcam sidecar (the attach flow) lands next to the screen file,
+			// not in the current-setting dir — they must stay in one directory.
+			const webcamFileBase = path.basename(resolveRecordingOutputPath(payload.webcam.fileName));
+			webcamVideoPath =
+				recordingStreams.getOpenPath(payload.webcam.fileName) ??
+				path.join(path.dirname(screenVideoPath), webcamFileBase);
 			webcamStreamed = await finalizeRecordingFile(
 				recordingStreams,
 				payload.webcam.fileName,
@@ -1483,13 +1598,22 @@ export function registerIpcHandlers(
 					...(cursorCaptureMode ? { cursorCaptureMode } : {}),
 				}
 			: { screenVideoPath, createdAt, ...(cursorCaptureMode ? { cursorCaptureMode } : {}) };
+		// The main process wrote these files itself — approve them for reading now, so
+		// the session keeps loading even if the user switches the storage folder before
+		// opening the editor (the old dir leaves the auto-approved scope).
+		approveFilePath(screenVideoPath);
+		if (webcamVideoPath) {
+			approveFilePath(webcamVideoPath);
+		}
 		setCurrentRecordingSessionState(session);
 		currentProjectPath = null;
 
 		await writePendingCursorTelemetry(screenVideoPath);
 
+		// Manifest follows the video (like the cursor sidecar) so a mid-recording
+		// settings change can't split them across directories.
 		const sessionManifestPath = path.join(
-			RECORDINGS_DIR,
+			path.dirname(screenVideoPath),
 			`${path.parse(payload.screen.fileName).name}${RECORDING_SESSION_SUFFIX}`,
 		);
 		await fs.writeFile(sessionManifestPath, JSON.stringify(session, null, 2), "utf-8");
@@ -1520,7 +1644,7 @@ export function registerIpcHandlers(
 				console.error("Failed to attach webcam to screen recording:", error);
 				return {
 					success: false,
-					message: "Failed to attach webcam to screen recording",
+					message: describeStoreError(error, "Failed to attach webcam to screen recording"),
 					error: String(error),
 				};
 			}
@@ -1537,7 +1661,7 @@ export function registerIpcHandlers(
 			console.error("Failed to store recorded video:", error);
 			return {
 				success: false,
-				message: "Failed to store recorded video",
+				message: describeStoreError(error, "Failed to store recorded video"),
 				error: String(error),
 			};
 		}
@@ -1549,7 +1673,8 @@ export function registerIpcHandlers(
 				return { success: true, path: currentRecordingSession.screenVideoPath };
 			}
 
-			const files = await fs.readdir(RECORDINGS_DIR);
+			const recordingsDir = getRecordingsDir();
+			const files = await fs.readdir(recordingsDir);
 			const videoFiles = files.filter(
 				(file) => file.endsWith(".webm") && !file.endsWith("-webcam.webm"),
 			);
@@ -1559,7 +1684,7 @@ export function registerIpcHandlers(
 			}
 
 			const latestVideo = videoFiles.sort().reverse()[0];
-			const videoPath = path.join(RECORDINGS_DIR, latestVideo);
+			const videoPath = path.join(recordingsDir, latestVideo);
 
 			return { success: true, path: videoPath };
 		} catch (error) {
@@ -1571,6 +1696,24 @@ export function registerIpcHandlers(
 	ipcMain.handle(
 		"set-recording-state",
 		async (_, recording: boolean, recordingId?: number, cursorCaptureMode?: CursorCaptureMode) => {
+			// Feeds the storage-change gate: a browser recording whose stream open is
+			// pending or has fallen back to in-memory buffering is invisible to
+			// recordingStreams.size but must still block folder changes. `false` means
+			// finalize BEGINS (blob drain + duration fix + store still ahead), so the
+			// gate transitions to a per-recording settling hold rather than unlocking.
+			// Earlier recordings' pending holds are deliberately left alone on `true`.
+			if (recording) {
+				browserRecordingActive = true;
+			} else {
+				if (
+					browserRecordingActive &&
+					typeof recordingId === "number" &&
+					Number.isFinite(recordingId)
+				) {
+					enterStorageSettling(recordingId);
+				}
+				browserRecordingActive = false;
+			}
 			const normalizedCursorCaptureMode =
 				normalizeCursorCaptureMode(cursorCaptureMode) ?? "editable-overlay";
 			if (recording && normalizedCursorCaptureMode === "editable-overlay") {
@@ -1703,7 +1846,7 @@ export function registerIpcHandlers(
 			const dialogOptions = buildDialogOptions(
 				{
 					title: mainT("dialogs", "fileDialogs.selectVideo"),
-					defaultPath: RECORDINGS_DIR,
+					defaultPath: getRecordingsDir(),
 					filters: [
 						{
 							name: mainT("dialogs", "fileDialogs.videoFiles"),
@@ -1849,7 +1992,7 @@ export function registerIpcHandlers(
 			const dialogOptions = buildDialogOptions(
 				{
 					title: mainT("dialogs", "fileDialogs.saveProject"),
-					defaultPath: path.join(RECORDINGS_DIR, defaultName),
+					defaultPath: path.join(getRecordingsDir(), defaultName),
 					filters: [
 						{
 							name: mainT("dialogs", "fileDialogs.closescreenProject"),
@@ -1895,9 +2038,9 @@ export function registerIpcHandlers(
 
 	async function loadProjectFile(projectFolder?: string): Promise<ProjectFileResult> {
 		try {
-			// Prefer the user's last opened-project folder if it still exists, else
-			// RECORDINGS_DIR. Validate here because the renderer can't stat the filesystem.
-			let defaultDir = RECORDINGS_DIR;
+			// Prefer the user's last opened-project folder if it still exists, else the
+			// recordings dir. Validate here because the renderer can't stat the filesystem.
+			let defaultDir = getRecordingsDir();
 			if (projectFolder) {
 				try {
 					const stats = await fs.stat(projectFolder);
@@ -1908,7 +2051,7 @@ export function registerIpcHandlers(
 					// Stat can fail if the folder was moved/deleted (expected) or on a
 					// permission error (worth surfacing). We fall back either way, but log it.
 					console.warn(
-						`Could not access remembered project folder "${projectFolder}", falling back to RECORDINGS_DIR:`,
+						`Could not access remembered project folder "${projectFolder}", falling back to the recordings dir:`,
 						err,
 					);
 				}
@@ -2106,6 +2249,102 @@ export function registerIpcHandlers(
 			return { success: true };
 		} catch (error) {
 			console.error("Failed to save shortcuts:", error);
+			return { success: false, error: String(error) };
+		}
+	});
+
+	// --- Recording storage location (issue #23) ---------------------------------
+
+	// Authoritative main-process gate: while a recording is active or being finalized,
+	// moving the recordings dir could retarget writes mid-flight. Five signals, each
+	// covering a hole the others miss: open disk streams; a live native capture; a
+	// browser recording buffering in memory (no stream to count — reported via
+	// set-recording-state); the buffered-finalize settling hold between stop and
+	// store; an in-flight store/attach finalize. The renderer also disables the
+	// buttons; this is the backstop.
+	function isRecordingStorageLocked(): boolean {
+		return (
+			recordingStreams.size > 0 ||
+			nativeWindowsCaptureProcess !== null ||
+			browserRecordingActive ||
+			storageSettlingHolds.size > 0 ||
+			storeOperationsInFlight > 0
+		);
+	}
+
+	// Finalize-complete notification from the renderer: fires in finalizeRecording's
+	// finally for every exit path — success (store already released the hold), store
+	// failure, discard, and the empty-recording early return, the last two of which
+	// produce no store call at all. Releases only the caller's own hold so an older
+	// finalize can't unlock a newer recording's settling window.
+	ipcMain.handle("notify-recording-finalized", async (_, recordingId?: number) => {
+		if (typeof recordingId === "number" && Number.isFinite(recordingId)) {
+			releaseStorageSettling(recordingId);
+		}
+		return { success: true };
+	});
+
+	ipcMain.handle("get-recording-storage-status", async () => {
+		const info = getRecordingStorageInfo();
+		const freeBytes = await getFreeBytes(info.dir);
+		return {
+			...info,
+			freeBytes,
+			lowSpace: isLowDiskSpace(freeBytes),
+			locked: isRecordingStorageLocked(),
+		};
+	});
+
+	// The renderer never supplies a path — the folder comes straight from the OS
+	// dialog here in the main process, so a compromised renderer can't silently
+	// point recordings (and the read-approval scope) at an arbitrary location.
+	ipcMain.handle("pick-recordings-directory", async () => {
+		if (isRecordingStorageLocked()) {
+			return { success: false, error: "Cannot change the storage folder while recording." };
+		}
+		const dialogOptions = buildDialogOptions(
+			{
+				title: mainT("dialogs", "fileDialogs.selectRecordingsFolder"),
+				defaultPath: getRecordingsDir(),
+				properties: ["openDirectory", "createDirectory"] as Array<
+					"openDirectory" | "createDirectory"
+				>,
+			},
+			getMainWindow(),
+		);
+		const result = await dialog.showOpenDialog(dialogOptions);
+		if (result.canceled || result.filePaths.length === 0) {
+			return { success: false, canceled: true };
+		}
+		if (isRecordingStorageLocked()) {
+			// A recording may have started while the dialog was open.
+			return { success: false, error: "Cannot change the storage folder while recording." };
+		}
+		const applied = await setRecordingsDir(result.filePaths[0]);
+		if (!applied.success) {
+			return { success: false, error: applied.error };
+		}
+		return { success: true, dir: getRecordingsDir() };
+	});
+
+	ipcMain.handle("reset-recordings-directory", async () => {
+		if (isRecordingStorageLocked()) {
+			return { success: false, error: "Cannot change the storage folder while recording." };
+		}
+		const applied = await setRecordingsDir(null);
+		if (!applied.success) {
+			return { success: false, error: applied.error };
+		}
+		return { success: true, dir: getRecordingsDir() };
+	});
+
+	ipcMain.handle("open-recordings-directory", async () => {
+		const dir = getRecordingsDir();
+		try {
+			await fs.mkdir(dir, { recursive: true });
+			const errorMessage = await shell.openPath(dir);
+			return errorMessage ? { success: false, error: errorMessage } : { success: true };
+		} catch (error) {
 			return { success: false, error: String(error) };
 		}
 	});
