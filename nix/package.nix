@@ -11,7 +11,7 @@
 buildNpmPackage {
   nodejs = nodejs_22;
   pname = "closescreen";
-  version = "1.5.0-fork.1";
+  version = "1.5.0-fork.2";
 
   src =
     let
