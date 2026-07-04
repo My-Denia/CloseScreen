@@ -1,57 +1,76 @@
- # Contribution Guidelines
+# Contribution Guidelines
 
-Thank you for considering contributing to this project! By contributing, you help make this project better for everyone. Please take a moment to review these guidelines to ensure a smooth contribution process.
+CloseScreen is a maintained community fork of Siddharth Vaddem's OpenScreen. Contributions must preserve the original MIT license and visible OpenScreen attribution, and must not present this fork as an official OpenScreen successor.
 
-## How to Contribute
+## Development Setup
 
-1. **Fork the Repository**
-   - Click the "Fork" button at the top right of this repository to create your own copy.
+Use npm and the locked dependency graph in `package-lock.json`:
 
-2. **Clone Your Fork**
-   - Clone your forked repository to your local machine:
-     ```bash
-     git clone https://github.com/your-username/closescreen.git
-     ```
+```bash
+npm ci
+npm run build-vite
+npm test
+```
 
-3. **Create a New Branch**
-   - Create a branch for your feature or bug fix:
-     ```bash
-     git checkout -b feature/your-feature-name
-     ```
+The Node version is pinned in `.nvmrc`. Do not introduce a second package manager or lockfile unless the maintainer explicitly changes the project policy.
 
-4. **Make Changes**
-   - Make your changes.
+## Branches And Pull Requests
 
-5. **Test Your Changes**
-   - Test your changes thoroughly to ensure they work as expected and do not break existing functionality.
+1. Fork and clone the repository.
+2. Create a focused branch for one issue or maintenance task.
+3. Keep changes scoped. Avoid unrelated refactors, generated artifacts, and local run files.
+4. Open a pull request with the reason, changed behavior, risk, and validation commands.
 
-6. **Commit Your Changes**
-   - Commit your changes with a clear and concise commit message:
-     ```bash
-     git add .
-     git commit -m "Add a brief description of your changes"
-     ```
+Local-only workflow files such as `AGENTS.md`, `CLAUDE.md`, `progress.md`, `tasks.json`, `goal-runs/`, release output, native build output, and `caption-assets/` are ignored and must not be committed.
 
-7. **Push Your Changes**
-   - Push your branch to your forked repository:
-     ```bash
-     git push origin feature/your-feature-name
-     ```
+## Required Validation
 
-8. **Open a Pull Request**
-   - Go to the original repository and open a pull request from your branch. Provide a clear description of your changes and the problem they solve.
+Run the closest focused tests for the code you changed, then the broader gates that fit the risk:
+
+```bash
+npm run lint
+npm test
+npm run build-vite
+```
+
+Additional gates by area:
+
+- Windows native capture: `npm run build:native:win`, then `npm run test:wgc-full:win` on Windows.
+- Electron packaging: `npm run build:win` on Windows or `npm run build:linux` on Linux.
+- End-to-end UI flows: `npm run test:e2e` after `npm run build-vite`.
+- Browser/export internals: `npm run test:browser` after installing the browser test runtime with `npm run test:browser:install`.
+- Translation key changes: `npm run i18n:check`.
+
+Do not delete or weaken tests to make a change pass.
+
+## Release And Packaging Changes
+
+Release artifacts are unsigned Windows and Linux builds published from GitHub Actions on matching `v*` tags. A packaging or release change must state whether it affects:
+
+- unsigned installer prompts or operating-system trust UX;
+- the tag/version contract in `package.json`;
+- GitHub Releases and update-check behavior;
+- bundled resources such as `caption-assets/`, wallpapers, cursors, README, and LICENSE;
+- Windows native helper packaging under `electron/native/bin`.
+
+Do not add release tokens, external publishing channels, auto-update installers, or credential files to the repository.
+
+## Security-Sensitive Areas
+
+Use conservative changes and tests around:
+
+- `app://` scheme routing, CSP, and resource allowlists;
+- preload IPC and `ipcMain.handle` registration;
+- local file reads, project loading, export paths, and recordings directory rules;
+- custom recordings directory validation and low-disk handling;
+- native capture and export pipelines.
+
+Renderer-supplied paths must not gain new filesystem power unless they are tied to an OS picker, an already approved media path, or a clearly tested main-process validation rule.
 
 ## Reporting Issues
 
-If you encounter a bug or have a feature request, please open an issue in the [Issues](https://github.com/My-Denia/CloseScreen/issues) section of this fork. Provide as much detail as possible to help us address the issue effectively.
-
-## Style Guide
-
-- Write clear, concise, and descriptive commit messages.
-- Include comments where necessary to explain complex code.
+Open issues at [My-Denia/CloseScreen](https://github.com/My-Denia/CloseScreen/issues). Include the OS, app version or commit, capture mode, whether the build is unsigned, reproduction steps, and any relevant logs or screenshots.
 
 ## License
 
 By contributing to this project, you agree that your contributions will be licensed under the [MIT License](./LICENSE).
-
-Thank you for your contributions!
