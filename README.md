@@ -1,6 +1,6 @@
 # CloseScreen
 
-CloseScreen is a maintained community fork of Siddharth Vaddem's OpenScreen, the MIT-licensed open-source screen recorder and editor. The upstream project was archived in June 2026; this fork keeps the original license and visible attribution while the product identity, CI, issue backlog, and Windows native verification are brought under fork maintainership.
+CloseScreen is a maintained community fork of Siddharth Vaddem's OpenScreen, the MIT-licensed open-source screen recorder and editor. It is not an official OpenScreen continuation or successor; it keeps the original attribution and license while this fork maintains its own product identity, issue backlog, CI, and release process.
 
 ## Attribution
 
@@ -8,69 +8,96 @@ This project is based on [Siddharth Vaddem's OpenScreen](https://github.com/sidd
 
 ## Project Status
 
-- Maintained fork: active takeover and CI hardening are in progress.
-- Product identity: confirmed as `CloseScreen` with package slug `closescreen` and appId `io.github.my-denia.closescreen`.
-- Distribution status: GitHub Actions builds unsigned Windows and Linux installable artifacts from this fork for GitHub Releases. External channel automation is removed until the maintainer explicitly reintroduces it with new identifiers and tokens.
-- Native status: Windows WGC/WASAPI/MediaFoundation verification is tracked in `native-report.md`.
+- Maintained fork: active takeover, CI hardening, and Windows native verification are in progress.
+- Product identity: `CloseScreen`, package slug `closescreen`, appId `io.github.my-denia.closescreen`.
+- Package manager: npm with `package-lock.json`; use the Node version in `.nvmrc`.
+- Distribution: GitHub Actions can build unsigned Windows and Linux artifacts for this fork's GitHub Releases. External package-manager channels are not automated.
+- Updates: the app checks this fork's GitHub Releases and opens the release page when a newer version exists. It does not auto-download, auto-install, or run an updater service.
+
+## Platform Support
+
+| Platform | Current status | Capture path | Release artifact |
+| --- | --- | --- | --- |
+| Windows 10 2004+ / Windows 11 | Primary maintained desktop target | Native WGC/WASAPI/MediaFoundation helper, with browser fallback behavior where implemented | Unsigned NSIS installer from GitHub Releases |
+| Linux | Community-supported | Browser capture path, with Wayland PipeWire flags enabled when detected | Unsigned AppImage, deb, and pacman packages from GitHub Releases |
+| macOS | Not a current release target | Not validated for this fork's current release flow | No macOS artifact in the current electron-builder config or GitHub release workflow |
+
+Unsigned builds can trigger operating-system warnings. Windows may show Microsoft Defender SmartScreen or an unknown-publisher prompt; Linux desktops may require marking an AppImage executable or trusting a locally installed package. Treat those prompts as expected for unsigned community builds, not as a security guarantee.
 
 ## Core Features
 
 - Record a specific window, or your whole screen.
-- Record microphone and system audio.
+- Record microphone and system audio where the platform and permissions allow it.
 - Webcam overlay with picture-in-picture, drag-to-position, mirroring, and shape options.
 - Auto or manual zooms with adjustable depth, duration, easing, and pixel-precise position; auto-zoom follows your cursor as you work.
-- Custom cursor size, smoothing, and click effects, with cursor themes and post-recording path smoothing.
-- Automatic captions for voiceovers, generated on-device with no upload.
+- Custom cursor size, smoothing, click effects, themes, highlight regions, and post-recording path smoothing.
+- Automatic captions for voiceovers, generated on-device with bundled model assets in packaged builds.
 - Wallpapers, solid colors, gradients, or your own background image.
-- Motion blur.
+- Motion blur and solid-block redaction regions.
 - Crop, trim, and per-segment speed control on the timeline.
-- Text, arrow, and image annotations, with text animation presets.
+- Text, arrow, image, and figure annotations.
 - Timeline snapping guides and an audio waveform to make trimming easier.
 - Customizable keyboard shortcuts.
 - Export to MP4 or GIF in multiple aspect ratios and resolutions.
 - Languages supported: Arabic, English, Spanish, French, Italian, Japanese, Korean, Portuguese (Brazil), Russian, Turkish, Vietnamese, Simplified Chinese, and Traditional Chinese.
 
-## Installation
+## Install And Build
 
-Installers will be published from this fork's GitHub Releases after the takeover CI is verified. Until then, build locally from source:
+Release artifacts, when present, are attached to this fork's GitHub Releases. Tags must match `package.json` exactly, for example `v1.5.0-fork.1`.
+
+Local development and renderer build:
 
 ```bash
 npm ci
 npm run build-vite
-```
-
-Windows and Linux packaging is handled by `electron-builder`:
-
-```bash
-npm run build:win
-npm run build:linux
-```
-
-The Windows native helper build requires the Windows C++ toolchain. Windows helper status for this machine is documented in `native-report.md`.
-
-## Platform Differences
-
-Everything in the editor and export is intended to stay consistent on Windows and Linux: zooms, backgrounds, motion blur, crop/trim/speed, blur regions, annotations, auto-captions, projects, export, and supported languages. Capture differs by operating system:
-
-- Windows uses a native capture helper for higher quality screen/window capture and cursor data.
-- Linux uses the browser capture path.
-- System audio support depends on the operating system and local permissions.
-
-## Development
-
-```bash
-npm install
-npm run build-vite
 npm test
 ```
 
-Native Windows helper diagnostics:
+Windows packaging:
 
-```bash
+```powershell
 npm run build:native:win
 npm run test:wgc-full:win
-npm run test:cursor-native:win
+npm run build:win
 ```
+
+Linux packaging:
+
+```bash
+npm run build:linux
+```
+
+Packaging runs `scripts/before-pack.cjs`, which ensures the offline caption model and ONNX Runtime wasm assets exist under `caption-assets/` before electron-builder copies them into the app resources.
+
+## Release Process
+
+- `npm run lint`, `npm test`, and `npm run build-vite` are the baseline local gates.
+- `.github/workflows/ci.yml` runs lint, i18n parity, typecheck, unit tests, browser tests, and Vite build on pull requests and `main`.
+- `.github/workflows/build.yml` is a manual build workflow for unsigned Windows and Linux artifacts.
+- `.github/workflows/release.yml` runs on `v*` tags, verifies the tag matches `package.json`, builds Windows and Linux artifacts, then publishes a GitHub Release.
+- The app's update check reads GitHub Releases from the main process and only surfaces a download link.
+
+## Recording And Export Storage
+
+- New recordings are written to the effective recordings directory from the main process. The default is the app data `recordings` folder; users can choose a custom folder from the OS directory picker.
+- Custom recording folders are validated in the main process. Drive roots, the user profile root, the app data root, and symlink or junction aliases to those guarded locations are rejected.
+- Recording paths are pinned when recording starts or when a stream opens. Session manifests and cursor sidecars derive from the actual video path.
+- The recordings folder cannot be changed while a recording is active or finalizing.
+- Low disk space for the recordings drive is a warning, not a hard block.
+- Exports are saved only to a file path selected through the OS save dialog for that export. Export failures surface filesystem-specific errors where possible.
+
+## Security Notes
+
+- Packaged renderer content is served through the privileged `app://bundle` scheme with a restrictive Content Security Policy.
+- Local media served through `app://bundle/_media/` must already be approved by a picker, project load, or recordings-directory rule.
+- `read-binary-file` is approved-path-only and does not auto-approve arbitrary renderer-supplied paths.
+- Preload exposes a narrow IPC surface with `contextIsolation` enabled and `nodeIntegration` disabled.
+- External links are opened through a scheme allowlist.
+- Credentials and release secrets are not stored in the repository. GitHub Actions secrets are the only supported place for release credentials.
+
+## Native Windows Helper
+
+The Windows helper source is in `electron/native/wgc-capture`. Build and diagnostic commands are documented in [electron/native/README.md](./electron/native/README.md). The Windows native roadmap is tracked in [docs/engineering/windows-native-recorder-roadmap.md](./docs/engineering/windows-native-recorder-roadmap.md).
 
 ## License
 

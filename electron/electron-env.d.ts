@@ -149,6 +149,7 @@ interface Window {
 			message?: string;
 			error?: string;
 		}>;
+		discardExportSavePath: (filePath: string) => Promise<{ success: boolean }>;
 		openVideoFilePicker: () => Promise<{ success: boolean; path?: string; canceled?: boolean }>;
 		setCurrentVideoPath: (path: string) => Promise<{ success: boolean }>;
 		setCurrentRecordingSession: (

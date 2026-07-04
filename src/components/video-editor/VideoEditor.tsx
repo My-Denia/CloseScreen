@@ -2229,6 +2229,7 @@ export default function VideoEditor() {
 				return;
 			}
 			const targetPath = pickResult.path;
+			let exportWriteAttempted = false;
 
 			// Capture the preview playhead so it can be restored after the export.
 			const resumeTime = video.currentTime;
@@ -2322,6 +2323,7 @@ export default function VideoEditor() {
 						}
 
 						const saveResult = await window.electronAPI.writeExportToPath(arrayBuffer, targetPath);
+						exportWriteAttempted = true;
 
 						if (saveResult.success && saveResult.path) {
 							setUnsavedExport(null);
@@ -2418,6 +2420,7 @@ export default function VideoEditor() {
 						}
 
 						const saveResult = await window.electronAPI.writeExportToPath(arrayBuffer, targetPath);
+						exportWriteAttempted = true;
 
 						if (saveResult.success && saveResult.path) {
 							setUnsavedExport(null);
@@ -2467,6 +2470,9 @@ export default function VideoEditor() {
 					toast.error(t("errors.exportFailedWithError", { error: message }));
 				}
 			} finally {
+				if (!exportWriteAttempted) {
+					window.electronAPI.discardExportSavePath(targetPath).catch(() => undefined);
+				}
 				setIsExporting(false);
 				exporterRef.current = null;
 				// Reset so the next export can reopen the dialog (second export

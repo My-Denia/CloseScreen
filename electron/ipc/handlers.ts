@@ -36,6 +36,7 @@ import { createCursorRecordingSession } from "../native-bridge/cursor/recording/
 import type { CursorRecordingSession } from "../native-bridge/cursor/recording/session";
 import { patchWebmDurationOnDisk } from "../recording/webm-duration";
 import { createCursorRecordingState } from "./cursorRecordingState";
+import { ExportPathApprovals } from "./exportPathApproval";
 import { isAllowedExternalUrl } from "./externalUrl";
 import { registerNativeBridgeHandlers } from "./nativeBridge";
 import {
@@ -63,6 +64,7 @@ const ALLOWED_IMPORT_VIDEO_EXTENSIONS = new Set([
 ]);
 // Paths the user approved via file picker or project load (i.e. outside the default dirs).
 const approvedPaths = new Set<string>();
+const exportPathApprovals = new ExportPathApprovals();
 
 function approveFilePath(filePath: string): void {
 	approvedPaths.add(path.resolve(filePath));
@@ -1815,7 +1817,12 @@ export function registerIpcHandlers(
 				return { success: false, canceled: true, message: "Export canceled" };
 			}
 
-			return { success: true, path: path.normalize(result.filePath) };
+			const approvedPath = exportPathApprovals.approve(result.filePath);
+			if (!approvedPath) {
+				return { success: false, message: "Invalid export path" };
+			}
+
+			return { success: true, path: approvedPath };
 		} catch (error) {
 			console.error("Failed to show save dialog:", error);
 			return {
@@ -1828,17 +1835,13 @@ export function registerIpcHandlers(
 
 	ipcMain.handle("write-export-to-path", async (_, videoData: ArrayBuffer, filePath: string) => {
 		try {
-			// Sanity-check the path: the renderer is trusted (contextIsolation on), but a
-			// stale-state bug shouldn't be able to clobber arbitrary files.
-			if (typeof filePath !== "string" || !path.isAbsolute(filePath)) {
-				return { success: false, message: "Invalid path" };
-			}
-			const lower = filePath.toLowerCase();
-			if (!lower.endsWith(".mp4") && !lower.endsWith(".gif")) {
-				return { success: false, message: "Invalid file type" };
+			// The save dialog is the authority for export targets. A stale or compromised
+			// renderer must not be able to turn this IPC into an arbitrary file write.
+			const normalizedPath = exportPathApprovals.consume(filePath);
+			if (!normalizedPath) {
+				return { success: false, message: "Export path was not approved by the save dialog" };
 			}
 
-			const normalizedPath = path.normalize(filePath);
 			await fs.mkdir(path.dirname(normalizedPath), { recursive: true });
 			await fs.writeFile(normalizedPath, Buffer.from(videoData));
 
@@ -1855,6 +1858,11 @@ export function registerIpcHandlers(
 				error: String(error),
 			};
 		}
+	});
+
+	ipcMain.handle("discard-export-save-path", async (_, filePath: string) => {
+		exportPathApprovals.discard(filePath);
+		return { success: true };
 	});
 
 	ipcMain.handle("open-video-file-picker", async () => {
