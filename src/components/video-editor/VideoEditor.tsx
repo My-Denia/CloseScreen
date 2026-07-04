@@ -95,6 +95,7 @@ import { SettingsPanel } from "./SettingsPanel";
 import TimelineEditor from "./timeline/TimelineEditor";
 import { buildAutoZoomSuggestions } from "./timeline/zoomSuggestionUtils";
 import {
+	buildDuplicatedAnnotationRegion,
 	buildPastedAnnotationRegion,
 	buildPastedZoomRegion,
 	cloneAnnotationRegion,
@@ -1749,34 +1750,31 @@ export default function VideoEditor() {
 
 	const handleAnnotationDuplicate = useCallback(
 		(id: string) => {
+			const sourceType = annotationRegions.find((region) => region.id === id)?.type;
+			if (!sourceType) return;
 			const duplicateId = `annotation-${nextAnnotationIdRef.current++}`;
 			const duplicateZIndex = nextAnnotationZIndexRef.current++;
 			pushState((prev) => {
 				const source = prev.annotationRegions.find((region) => region.id === id);
 				if (!source) return {};
 
-				const { annotationSource: _stripCaptionLink, ...sourceWithoutCaptionLink } = source;
-
-				const duplicate: AnnotationRegion = {
-					...sourceWithoutCaptionLink,
-					id: duplicateId,
-					zIndex: duplicateZIndex,
-					position: { x: source.position.x + 4, y: source.position.y + 4 },
-					size: { ...source.size },
-					style: { ...source.style },
-					figureData: source.figureData ? { ...source.figureData } : undefined,
-				};
+				const duplicate = buildDuplicatedAnnotationRegion(source, duplicateId, duplicateZIndex);
 
 				return { annotationRegions: [...prev.annotationRegions, duplicate] };
 			});
-			setSelectedAnnotationId(duplicateId);
+			if (sourceType === "blur") {
+				setSelectedBlurId(duplicateId);
+				setSelectedAnnotationId(null);
+			} else {
+				setSelectedAnnotationId(duplicateId);
+				setSelectedBlurId(null);
+			}
 			setSelectedZoomId(null);
 			setSelectedTrimId(null);
 			setSelectedSpeedId(null);
-			setSelectedBlurId(null);
 			setSelectedHighlightId(null);
 		},
-		[pushState],
+		[annotationRegions, pushState],
 	);
 
 	const handleAnnotationDelete = useCallback(

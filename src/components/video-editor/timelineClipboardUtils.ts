@@ -67,6 +67,21 @@ export function getPastedSpan(
 }
 
 /**
+ * Where a newly-added timeline region lands: at the playhead, clamped back so a region
+ * added at (or past) the video end still spans the full duration and is never zero-length
+ * (renderAnnotations filters active regions with `currentTimeMs < endMs`). `durationMs` is
+ * assumed already clamped to (0, totalMs].
+ */
+export function getPlayheadRegionSpan(
+	playheadMs: number,
+	totalMs: number,
+	durationMs: number,
+): { start: number; end: number } {
+	const start = clamp(Math.round(playheadMs), 0, totalMs - durationMs);
+	return { start, end: start + durationMs };
+}
+
+/**
  * Keep a pasted annotation fully on the canvas. Positions/sizes are percentages;
  * clamping (rather than offsetting) preserves full-frame regions like freehand
  * blurs at exactly {0,0,100,100}.
@@ -126,5 +141,42 @@ export function buildPastedAnnotationRegion(
 		startMs: span.startMs,
 		endMs: span.endMs,
 		position: getPastedAnnotationPosition(rest.position, rest.size),
+	};
+}
+
+/**
+ * Where a duplicated annotation lands: nudged 4% down-right so the copy is visible over
+ * the original, then clamped to the canvas. Clamping matters for redaction — a full-frame
+ * or edge blur (e.g. a freehand blur at {0,0,100,100}) must not be pushed off-canvas,
+ * which would leave an unredacted strip until the user drags it back.
+ */
+export function getDuplicatedAnnotationPosition(
+	position: AnnotationPosition,
+	size: AnnotationSize,
+): AnnotationPosition {
+	const maxX = Math.max(0, 100 - size.width);
+	const maxY = Math.max(0, 100 - size.height);
+	return {
+		x: clamp(position.x + 4, 0, maxX),
+		y: clamp(position.y + 4, 0, maxY),
+	};
+}
+
+/**
+ * Duplicated annotations/blurs keep their original span and content, shift slightly on
+ * the canvas, and drop auto-caption linkage so the duplicate is independently editable.
+ */
+export function buildDuplicatedAnnotationRegion(
+	source: AnnotationRegion,
+	id: string,
+	zIndex: number,
+): AnnotationRegion {
+	const cloned = cloneAnnotationRegion(source);
+	const { annotationSource: _stripCaptionLink, ...rest } = cloned;
+	return {
+		...rest,
+		id,
+		zIndex,
+		position: getDuplicatedAnnotationPosition(source.position, rest.size),
 	};
 }

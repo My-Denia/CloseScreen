@@ -264,7 +264,7 @@ export interface FigureData {
 }
 
 export type BlurShape = "rectangle" | "oval" | "freehand";
-export type BlurType = "blur" | "mosaic";
+export type BlurType = "solid" | "mosaic";
 export type BlurColor = "white" | "black";
 
 export const MIN_BLUR_INTENSITY = 2;
@@ -374,7 +374,7 @@ export const DEFAULT_BLUR_FREEHAND_POINTS: Array<{ x: number; y: number }> = [
 ];
 
 export const DEFAULT_BLUR_DATA: BlurData = {
-	type: "mosaic",
+	type: "solid",
 	shape: "rectangle",
 	color: "white",
 	intensity: DEFAULT_BLUR_INTENSITY,

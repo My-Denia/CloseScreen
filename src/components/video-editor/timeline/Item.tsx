@@ -98,6 +98,9 @@ export default function Item({
 	return (
 		<div
 			ref={setNodeRef}
+			data-timeline-item-id={id}
+			data-timeline-item-variant={variant}
+			data-selected={isSelected ? "true" : "false"}
 			style={safeItemStyle}
 			{...listeners}
 			{...attributes}

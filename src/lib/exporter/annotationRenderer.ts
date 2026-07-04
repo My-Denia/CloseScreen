@@ -3,8 +3,8 @@ import { getTextAnimationState } from "@/lib/annotationTextAnimation";
 import {
 	applyMosaicToImageData,
 	getBlurOverlayColor,
-	getNormalizedBlurIntensity,
 	getNormalizedMosaicBlockSize,
+	getSolidFillColor,
 	normalizeBlurType,
 } from "@/lib/blurEffects";
 
@@ -203,14 +203,24 @@ function renderBlur(
 	const canvas = ctx.canvas;
 	const blurType = normalizeBlurType(annotation.blurData?.type);
 
-	const blurRadius = Math.max(
-		1,
-		Math.round(getNormalizedBlurIntensity(annotation.blurData) * scaleFactor),
+	// Solid: fully replace the region's pixels with an opaque block. The safe
+	// redaction — no source sampling, so nothing of the original survives.
+	if (blurType === "solid") {
+		ctx.save();
+		drawBlurPath(ctx, annotation, x, y, width, height);
+		ctx.clip();
+		ctx.fillStyle = getSolidFillColor(annotation.blurData);
+		ctx.fillRect(x, y, width, height);
+		ctx.restore();
+		return;
+	}
+
+	// Mosaic: sample the region, pixelate it, draw it back, then tint. Weaker than
+	// solid (recoverable for text), kept as an opt-in for non-text obscuring.
+	const samplePadding = Math.max(
+		0,
+		Math.ceil(getNormalizedMosaicBlockSize(annotation.blurData, scaleFactor)),
 	);
-	const samplePadding =
-		blurType === "mosaic"
-			? Math.max(0, Math.ceil(getNormalizedMosaicBlockSize(annotation.blurData, scaleFactor)))
-			: Math.max(2, Math.ceil(blurRadius * 2));
 	const sx = Math.max(0, Math.floor(x) - samplePadding);
 	const sy = Math.max(0, Math.floor(y) - samplePadding);
 	const ex = Math.min(canvas.width, Math.ceil(x + width) + samplePadding);
@@ -230,21 +240,14 @@ function renderBlur(
 	blurScratchCtx.clearRect(0, 0, sw, sh);
 	blurScratchCtx.drawImage(canvas, sx, sy, sw, sh, 0, 0, sw, sh);
 
-	if (blurType === "mosaic") {
-		const imageData = blurScratchCtx.getImageData(0, 0, sw, sh);
-		applyMosaicToImageData(
-			imageData,
-			getNormalizedMosaicBlockSize(annotation.blurData, scaleFactor),
-		);
-		blurScratchCtx.putImageData(imageData, 0, 0);
-	}
+	const imageData = blurScratchCtx.getImageData(0, 0, sw, sh);
+	applyMosaicToImageData(imageData, getNormalizedMosaicBlockSize(annotation.blurData, scaleFactor));
+	blurScratchCtx.putImageData(imageData, 0, 0);
 
 	ctx.save();
 	drawBlurPath(ctx, annotation, x, y, width, height);
 	ctx.clip();
-	ctx.filter = blurType === "mosaic" ? "none" : `blur(${blurRadius}px)`;
 	ctx.drawImage(blurScratchCanvas, sx, sy);
-	ctx.filter = "none";
 	ctx.fillStyle = getBlurOverlayColor(annotation.blurData);
 	ctx.fillRect(sx, sy, sw, sh);
 	ctx.restore();

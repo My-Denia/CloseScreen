@@ -1,5 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { applyMosaicToImageData, getBlurOverlayColor, normalizeBlurColor } from "./blurEffects";
+import { type BlurData, DEFAULT_BLUR_DATA } from "@/components/video-editor/types";
+import {
+	applyMosaicToImageData,
+	getBlurOverlayColor,
+	getSolidFillColor,
+	normalizeBlurColor,
+	normalizeBlurType,
+	withBlurDataPatch,
+} from "./blurEffects";
 
 function createTestImageData(width: number, height: number) {
 	const data = new Uint8ClampedArray(width * height * 4);
@@ -76,5 +84,45 @@ describe("blur color helpers", () => {
 				blockSize: 12,
 			}),
 		).toBe("rgba(0, 0, 0, 0.72)");
+	});
+});
+
+describe("withBlurDataPatch", () => {
+	const mosaic: BlurData = { ...DEFAULT_BLUR_DATA, type: "mosaic", shape: "rectangle" };
+	const solid: BlurData = { ...DEFAULT_BLUR_DATA, type: "solid" };
+
+	it("preserves the existing obscuring type when a field is edited", () => {
+		expect(withBlurDataPatch(mosaic, { shape: "oval" }).type).toBe("mosaic");
+		expect(withBlurDataPatch(mosaic, { color: "black" }).type).toBe("mosaic");
+		expect(withBlurDataPatch(solid, { shape: "oval" }).type).toBe("solid");
+		expect(withBlurDataPatch(solid, { color: "black" }).type).toBe("solid");
+	});
+
+	it("defaults a new region to solid", () => {
+		expect(withBlurDataPatch(undefined, { shape: "oval" }).type).toBe("solid");
+	});
+
+	it("applies the patched field", () => {
+		expect(withBlurDataPatch(undefined, { shape: "oval" }).shape).toBe("oval");
+		expect(withBlurDataPatch(mosaic, { blockSize: 24 }).blockSize).toBe(24);
+	});
+});
+
+describe("normalizeBlurType", () => {
+	it("keeps mosaic and migrates legacy gaussian / unknown types to solid", () => {
+		expect(normalizeBlurType("mosaic")).toBe("mosaic");
+		expect(normalizeBlurType("blur")).toBe("solid");
+		expect(normalizeBlurType("nonsense")).toBe("solid");
+		expect(normalizeBlurType(undefined)).toBe("solid");
+	});
+});
+
+describe("getSolidFillColor", () => {
+	it("returns a fully opaque fill matching the blur color", () => {
+		expect(getSolidFillColor({ ...DEFAULT_BLUR_DATA, color: "black" })).toBe("rgba(0, 0, 0, 1)");
+		expect(getSolidFillColor({ ...DEFAULT_BLUR_DATA, color: "white" })).toBe(
+			"rgba(255, 255, 255, 1)",
+		);
+		expect(getSolidFillColor(undefined)).toBe("rgba(255, 255, 255, 1)");
 	});
 });

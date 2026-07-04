@@ -127,7 +127,7 @@ describe("projectPersistence media compatibility", () => {
 					},
 					zIndex: 2,
 					blurData: {
-						type: "invalid" as never,
+						type: "blur" as never,
 						shape: "rectangle",
 						color: "invalid" as never,
 						intensity: 10,
@@ -141,7 +141,7 @@ describe("projectPersistence media compatibility", () => {
 		expect(editor.annotationRegions[0].blurData?.color).toBe("black");
 		expect(editor.annotationRegions[0].blurData?.intensity).toBe(40);
 		expect(editor.annotationRegions[0].blurData?.blockSize).toBe(48);
-		expect(editor.annotationRegions[1].blurData?.type).toBe("mosaic");
+		expect(editor.annotationRegions[1].blurData?.type).toBe("solid");
 		expect(editor.annotationRegions[1].blurData?.color).toBe("white");
 		expect(editor.annotationRegions[1].blurData?.blockSize).toBe(4);
 	});
