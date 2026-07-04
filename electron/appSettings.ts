@@ -4,10 +4,11 @@ import os from "node:os";
 import path from "node:path";
 
 /**
- * Main-process app settings, currently just the user-configurable recordings folder
- * (issue #23: recordings hardcoded to userData/recordings fill the C: drive with no
- * recourse). Persisted as JSON in userData/app-settings.json — separate from
- * shortcuts.json, and unknown keys round-trip so future settings can share the file.
+ * Main-process app settings for recording storage and retention cleanup.
+ * The recordings folder is user-configurable (issue #23: recordings hardcoded to
+ * userData/recordings fill the C: drive with no recourse). Persisted as JSON in
+ * userData/app-settings.json — separate from shortcuts.json, and unknown keys
+ * round-trip so future settings can share the file.
  *
  * No runtime electron import: the userData path is injected by main.ts at startup so
  * unit tests can run this module against temp directories without mocking electron
@@ -25,6 +26,24 @@ const WRITE_PROBE_FILE_NAME = ".closescreen-write-probe";
  */
 const STARTUP_STAT_TIMEOUT_MS = 2_000;
 
+export const RECORDING_RETENTION_AGE_DAYS = [7, 14, 30, 90] as const;
+export const RECORDING_RETENTION_MAX_SIZE_BYTES = [
+	5_368_709_120, 10_737_418_240, 53_687_091_200,
+] as const;
+
+export type RecordingRetentionMaxAgeDays = (typeof RECORDING_RETENTION_AGE_DAYS)[number];
+export type RecordingRetentionMaxSizeBytes = (typeof RECORDING_RETENTION_MAX_SIZE_BYTES)[number];
+
+export interface RecordingRetentionPolicy {
+	maxAgeDays: RecordingRetentionMaxAgeDays | null;
+	maxSizeBytes: RecordingRetentionMaxSizeBytes | null;
+}
+
+export const DEFAULT_RECORDING_RETENTION_POLICY: RecordingRetentionPolicy = {
+	maxAgeDays: null,
+	maxSizeBytes: null,
+};
+
 export interface RecordingStorageInfo {
 	/** Effective directory new recordings are written to. */
 	dir: string;
@@ -33,6 +52,49 @@ export interface RecordingStorageInfo {
 	isCustom: boolean;
 	/** True when a custom dir is stored but failed the startup availability check. */
 	unavailable: boolean;
+}
+function cloneRetentionPolicy(policy: RecordingRetentionPolicy): RecordingRetentionPolicy {
+	return { maxAgeDays: policy.maxAgeDays, maxSizeBytes: policy.maxSizeBytes };
+}
+
+function isAllowedRetentionAge(value: unknown): value is RecordingRetentionMaxAgeDays {
+	return RECORDING_RETENTION_AGE_DAYS.includes(value as RecordingRetentionMaxAgeDays);
+}
+
+function isAllowedRetentionMaxSize(value: unknown): value is RecordingRetentionMaxSizeBytes {
+	return RECORDING_RETENTION_MAX_SIZE_BYTES.includes(value as RecordingRetentionMaxSizeBytes);
+}
+
+function parseRecordingRetentionPolicy(candidate: unknown): RecordingRetentionPolicy | null {
+	if (!candidate || typeof candidate !== "object" || Array.isArray(candidate)) {
+		return null;
+	}
+
+	const raw = candidate as Partial<RecordingRetentionPolicy>;
+	const maxAgeDays =
+		raw.maxAgeDays === null
+			? null
+			: isAllowedRetentionAge(raw.maxAgeDays)
+				? raw.maxAgeDays
+				: undefined;
+	const maxSizeBytes =
+		raw.maxSizeBytes === null
+			? null
+			: isAllowedRetentionMaxSize(raw.maxSizeBytes)
+				? raw.maxSizeBytes
+				: undefined;
+
+	if (maxAgeDays === undefined || maxSizeBytes === undefined) {
+		return null;
+	}
+
+	return { maxAgeDays, maxSizeBytes };
+}
+
+export function normalizeRecordingRetentionPolicy(candidate: unknown): RecordingRetentionPolicy {
+	return cloneRetentionPolicy(
+		parseRecordingRetentionPolicy(candidate) ?? DEFAULT_RECORDING_RETENTION_POLICY,
+	);
 }
 
 interface AppSettingsState {
@@ -239,6 +301,9 @@ export function getRecordingStorageInfo(): RecordingStorageInfo {
 		unavailable: Boolean(s.storedRecordingsDir) && s.recordingsDirUnavailable,
 	};
 }
+export function getRecordingRetentionPolicy(): RecordingRetentionPolicy {
+	return normalizeRecordingRetentionPolicy(requireState().raw.recordingRetentionPolicy);
+}
 
 async function persistSettings(s: AppSettingsState): Promise<void> {
 	await fs.mkdir(path.dirname(s.settingsFilePath), { recursive: true });
@@ -329,6 +394,35 @@ export async function setRecordingsDir(
 	return run;
 }
 
+export async function setRecordingRetentionPolicy(
+	policy: RecordingRetentionPolicy,
+): Promise<{ success: boolean; error?: string; policy?: RecordingRetentionPolicy }> {
+	const normalized = parseRecordingRetentionPolicy(policy);
+	if (!normalized) {
+		return { success: false, error: "Invalid recording retention policy." };
+	}
+
+	const s = requireState();
+	const run = s.writeLock.then(
+		async (): Promise<{ success: boolean; error?: string; policy?: RecordingRetentionPolicy }> => {
+			const snapshot = s.raw.recordingRetentionPolicy;
+			s.raw.recordingRetentionPolicy = cloneRetentionPolicy(normalized);
+			try {
+				await persistSettings(s);
+			} catch (error) {
+				if (snapshot === undefined) {
+					delete s.raw.recordingRetentionPolicy;
+				} else {
+					s.raw.recordingRetentionPolicy = snapshot;
+				}
+				return { success: false, error: `Failed to save settings: ${String(error)}` };
+			}
+			return { success: true, policy: cloneRetentionPolicy(normalized) };
+		},
+	);
+	s.writeLock = run.catch(() => undefined);
+	return run;
+}
 /** Test-only: drop module state so each test re-initializes cleanly. */
 export function __resetAppSettingsForTest(): void {
 	state = null;

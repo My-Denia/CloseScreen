@@ -65,6 +65,18 @@
 		"saveFailedTitle": "No se pudo guardar la grabación",
 		"appliesToNew": "Se aplica a las nuevas grabaciones; los archivos existentes no se mueven",
 		"unavailableFallback": "Carpeta personalizada no disponible: se usa la carpeta predeterminada",
-		"recordingActive": "Detén la grabación para cambiar la carpeta de almacenamiento"
+		"recordingActive": "Detén la grabación para cambiar la carpeta de almacenamiento",
+		"retentionAge": "Age limit",
+		"retentionKeepForever": "Keep forever",
+		"retentionDays": "{{days}} days",
+		"retentionSize": "Size limit",
+		"retentionUnlimited": "Unlimited",
+		"retentionSizeGb": "{{size}} GB",
+		"cleanup": "Clean up",
+		"cleanupBusy": "Cleaning...",
+		"cleanupSummary": "{{used}} used - {{reclaimable}} reclaimable - {{sessions}} sessions",
+		"cleanupSummaryUnknown": "Cleanup estimate unavailable",
+		"cleanupResult": "Deleted {{files}} files ({{size}})",
+		"cleanupError": "Cleanup failed"
 	}
 }

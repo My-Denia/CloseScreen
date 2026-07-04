@@ -87,7 +87,8 @@ Packaging runs `scripts/before-pack.cjs`, which ensures the offline caption mode
 - Custom recording folders are validated in the main process. Drive roots, the user profile root, the app data root, and symlink or junction aliases to those guarded locations are rejected.
 - Recording paths are pinned when recording starts or when a stream opens. Session manifests and cursor sidecars derive from the actual video path.
 - The recordings folder cannot be changed while a recording is active or finalizing.
-- Low disk space for the recordings drive is a warning, not a hard block.
+- Manual retention cleanup is available from the recording storage panel. Cleanup first builds a plan, then deletes only CloseScreen session artifacts referenced by session manifests inside the effective recordings directory.
+- Low disk space for the recordings drive is a warning, not a hard block, and it does not auto-delete recordings.
 - Exports are saved only to a file path selected through the OS save dialog for that export. Export failures surface filesystem-specific errors where possible.
 
 ## Security Notes

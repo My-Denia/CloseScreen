@@ -21,6 +21,40 @@ declare namespace NodeJS {
 	}
 }
 
+type RecordingRetentionAgeDays = 7 | 14 | 30 | 90;
+type RecordingRetentionMaxSizeBytes = 5_368_709_120 | 10_737_418_240 | 53_687_091_200;
+
+interface RecordingRetentionPolicy {
+	maxAgeDays: RecordingRetentionAgeDays | null;
+	maxSizeBytes: RecordingRetentionMaxSizeBytes | null;
+}
+
+interface RecordingRetentionErrorInfo {
+	path?: string;
+	code?: string;
+	message: string;
+}
+
+interface RecordingRetentionStatus {
+	recordingsDir: string;
+	policy: RecordingRetentionPolicy;
+	totalBytes: number;
+	reclaimableBytes: number;
+	sessionsScanned: number;
+	sessionsValid: number;
+	sessionsProtected: number;
+	sessionsEligible: number;
+	errors: RecordingRetentionErrorInfo[];
+}
+
+interface RecordingCleanupResult {
+	success: boolean;
+	deletedFiles: number;
+	deletedBytes: number;
+	skippedSessions: number;
+	errors: RecordingRetentionErrorInfo[];
+	status: RecordingRetentionStatus;
+}
 // Used in Renderer process, expose in `preload.ts`
 interface Window {
 	electronAPI: {
@@ -241,6 +275,14 @@ interface Window {
 		}>;
 		resetRecordingsDirectory: () => Promise<{ success: boolean; dir?: string; error?: string }>;
 		openRecordingsDirectory: () => Promise<{ success: boolean; error?: string }>;
+		getRecordingRetentionStatus: () => Promise<RecordingRetentionStatus>;
+		setRecordingRetentionPolicy: (policy: RecordingRetentionPolicy) => Promise<{
+			success: boolean;
+			policy?: RecordingRetentionPolicy;
+			status: RecordingRetentionStatus;
+			error?: string;
+		}>;
+		cleanupRecordings: () => Promise<RecordingCleanupResult>;
 		notifyRecordingFinalized: (recordingId: number) => Promise<{ success: boolean }>;
 		updateGlobalShortcut: (binding: {
 			key: string;

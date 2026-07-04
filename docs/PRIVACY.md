@@ -12,8 +12,11 @@ implementation from repository evidence.
 - Project files and exported MP4/GIF files are saved only when the user chooses a save path.
 - The repository does not contain a built-in upload path for recordings or exports.
 
-There is no implemented retention policy in the current app. Users should manage disk usage and
-delete old recordings, project files, and exports when they no longer need them.
+Manual retention cleanup is available from the recording storage panel. The current implementation
+only deletes CloseScreen session artifacts that are referenced by session manifests inside the
+effective recordings directory, after building a cleanup plan and revalidating paths. It does not
+automatically delete recordings on startup or in response to low disk warnings, and it does not
+clean project files or exported MP4/GIF files.
 
 ## Captions
 
@@ -47,7 +50,7 @@ device labels, project state, or error details if the user chooses to create/sha
 
 Exact paths depend on Electron and the operating system, but the code uses these storage areas:
 
-- recordings and session artifacts: the effective recordings directory shown by the app;
+- recordings and session artifacts: the effective recordings directory shown by the app, with optional manual cleanup for manifest-managed session artifacts;
 - app settings: Electron `userData/app-settings.json`;
 - keyboard shortcuts: Electron `userData/shortcuts.json`;
 - renderer preferences, update-dismissal state, locale, and custom fonts: Chromium localStorage

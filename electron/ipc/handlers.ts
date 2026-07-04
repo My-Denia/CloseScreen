@@ -26,8 +26,11 @@ import type {
 } from "../../src/native/contracts";
 import {
 	getAllowedRecordingDirs,
+	getRecordingRetentionPolicy,
 	getRecordingStorageInfo,
 	getRecordingsDir,
+	type RecordingRetentionPolicy,
+	setRecordingRetentionPolicy,
 	setRecordingsDir,
 } from "../appSettings";
 import { getFreeBytes, isLowDiskSpace } from "../diskSpace";
@@ -35,6 +38,12 @@ import { mainT } from "../i18n";
 import { createCursorRecordingSession } from "../native-bridge/cursor/recording/factory";
 import type { CursorRecordingSession } from "../native-bridge/cursor/recording/session";
 import { patchWebmDurationOnDisk } from "../recording/webm-duration";
+import {
+	cleanupRecordingsWithLock,
+	createRecordingRetentionPlan,
+	type RecordingRetentionProtectedState,
+	summarizeRecordingRetentionPlan,
+} from "../recordingRetention";
 import { createCursorRecordingState } from "./cursorRecordingState";
 import { ExportPathApprovals } from "./exportPathApproval";
 import { isAllowedExternalUrl } from "./externalUrl";
@@ -716,7 +725,11 @@ async function writePendingCursorTelemetry(videoPath: string, recordingId: numbe
 	const telemetryPath = `${videoPath}.cursor.json`;
 	const pendingCursorRecordingData = cursorRecordingState.getPendingData(recordingId);
 	if (pendingCursorRecordingData && pendingCursorRecordingData.samples.length > 0) {
-		await fs.writeFile(telemetryPath, JSON.stringify(pendingCursorRecordingData, null, 2), "utf-8");
+		await fs.writeFile(
+			telemetryPath,
+			JSON.stringify({ ...pendingCursorRecordingData, recordingId }, null, 2),
+			"utf-8",
+		);
 	}
 	cursorRecordingState.clearPending(recordingId);
 }
@@ -2295,6 +2308,26 @@ export function registerIpcHandlers(
 			storeOperationsInFlight > 0
 		);
 	}
+	function getRecordingRetentionProtectedState(): RecordingRetentionProtectedState {
+		return currentRecordingSession
+			? {
+					createdAt: currentRecordingSession.createdAt,
+					screenVideoPath: currentRecordingSession.screenVideoPath,
+					...(currentRecordingSession.webcamVideoPath
+						? { webcamVideoPath: currentRecordingSession.webcamVideoPath }
+						: {}),
+				}
+			: {};
+	}
+
+	async function getRecordingRetentionStatus() {
+		const plan = await createRecordingRetentionPlan({
+			recordingsDir: getRecordingsDir(),
+			policy: getRecordingRetentionPolicy(),
+			...getRecordingRetentionProtectedState(),
+		});
+		return summarizeRecordingRetentionPlan(plan);
+	}
 
 	// Finalize-complete notification from the renderer: fires in finalizeRecording's
 	// finally for every exit path — success (store already released the hold), store
@@ -2317,6 +2350,24 @@ export function registerIpcHandlers(
 			lowSpace: isLowDiskSpace(freeBytes),
 			locked: isRecordingStorageLocked(),
 		};
+	});
+	ipcMain.handle("get-recording-retention-status", async () => getRecordingRetentionStatus());
+
+	ipcMain.handle("set-recording-retention-policy", async (_, policy: RecordingRetentionPolicy) => {
+		const applied = await setRecordingRetentionPolicy(policy);
+		if (!applied.success) {
+			return { success: false, error: applied.error, status: await getRecordingRetentionStatus() };
+		}
+		return { success: true, policy: applied.policy, status: await getRecordingRetentionStatus() };
+	});
+
+	ipcMain.handle("cleanup-recordings", async () => {
+		return cleanupRecordingsWithLock({
+			recordingsDir: getRecordingsDir(),
+			policy: getRecordingRetentionPolicy(),
+			isLocked: isRecordingStorageLocked,
+			protectedState: getRecordingRetentionProtectedState(),
+		});
 	});
 
 	// The renderer never supplies a path — the folder comes straight from the OS

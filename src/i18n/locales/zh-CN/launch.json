@@ -65,6 +65,18 @@
 		"saveFailedTitle": "录制内容保存失败",
 		"appliesToNew": "仅对新录制生效；已有文件保留在原位置",
 		"unavailableFallback": "自定义文件夹不可用——已改用默认文件夹",
-		"recordingActive": "请先停止录制再更改保存位置"
+		"recordingActive": "请先停止录制再更改保存位置",
+		"retentionAge": "Age limit",
+		"retentionKeepForever": "Keep forever",
+		"retentionDays": "{{days}} days",
+		"retentionSize": "Size limit",
+		"retentionUnlimited": "Unlimited",
+		"retentionSizeGb": "{{size}} GB",
+		"cleanup": "Clean up",
+		"cleanupBusy": "Cleaning...",
+		"cleanupSummary": "{{used}} used - {{reclaimable}} reclaimable - {{sessions}} sessions",
+		"cleanupSummaryUnknown": "Cleanup estimate unavailable",
+		"cleanupResult": "Deleted {{files}} files ({{size}})",
+		"cleanupError": "Cleanup failed"
 	}
 }

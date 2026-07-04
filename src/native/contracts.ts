@@ -47,6 +47,7 @@ export interface NativeCursorAsset {
 }
 
 export interface CursorRecordingData {
+	recordingId?: number;
 	version: number;
 	provider: CursorProviderKind;
 	samples: CursorRecordingSample[];

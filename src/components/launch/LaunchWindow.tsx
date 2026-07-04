@@ -120,6 +120,32 @@ type RecordingStorageStatus = {
 function formatGigabytes(bytes: number): string {
 	return `${(bytes / 1024 ** 3).toFixed(1)} GB`;
 }
+const RETENTION_AGE_VALUES = [null, 7, 14, 30, 90] as const;
+const RETENTION_SIZE_VALUES = [null, 5_368_709_120, 10_737_418_240, 53_687_091_200] as const;
+
+function parseRetentionAgeValue(value: string): RecordingRetentionPolicy["maxAgeDays"] {
+	if (value === "forever") return null;
+	const parsed = Number(value);
+	return RETENTION_AGE_VALUES.includes(parsed as RecordingRetentionPolicy["maxAgeDays"])
+		? (parsed as RecordingRetentionPolicy["maxAgeDays"])
+		: null;
+}
+
+function parseRetentionSizeValue(value: string): RecordingRetentionPolicy["maxSizeBytes"] {
+	if (value === "unlimited") return null;
+	const parsed = Number(value);
+	return RETENTION_SIZE_VALUES.includes(parsed as RecordingRetentionPolicy["maxSizeBytes"])
+		? (parsed as RecordingRetentionPolicy["maxSizeBytes"])
+		: null;
+}
+
+function retentionAgeValue(policy?: RecordingRetentionPolicy | null): string {
+	return policy?.maxAgeDays == null ? "forever" : String(policy.maxAgeDays);
+}
+
+function retentionSizeValue(policy?: RecordingRetentionPolicy | null): string {
+	return policy?.maxSizeBytes == null ? "unlimited" : String(policy.maxSizeBytes);
+}
 
 /** Launches the floating recording HUD and its recorder controls. */
 export function LaunchWindow() {
@@ -150,6 +176,10 @@ export function LaunchWindow() {
 	// update notice: the HUD only accepts clicks inside [data-hud-interactive] regions.
 	const [isStoragePanelOpen, setIsStoragePanelOpen] = useState(false);
 	const [storageStatus, setStorageStatus] = useState<RecordingStorageStatus | null>(null);
+	const [retentionStatus, setRetentionStatus] = useState<RecordingRetentionStatus | null>(null);
+	const retentionStatusRequestIdRef = useRef(0);
+	const [retentionBusy, setRetentionBusy] = useState(false);
+	const [retentionResult, setRetentionResult] = useState<string | null>(null);
 	const [storageActionError, setStorageActionError] = useState<string | null>(null);
 	const refreshStorageStatus = useCallback(() => {
 		window.electronAPI
@@ -157,6 +187,27 @@ export function LaunchWindow() {
 			.then((status) => setStorageStatus(status ?? null))
 			.catch(() => setStorageStatus(null));
 	}, []);
+	const refreshRetentionStatus = useCallback(() => {
+		const requestId = retentionStatusRequestIdRef.current + 1;
+		retentionStatusRequestIdRef.current = requestId;
+		setRetentionStatus(null);
+		window.electronAPI
+			?.getRecordingRetentionStatus?.()
+			.then((status) => {
+				if (retentionStatusRequestIdRef.current === requestId) {
+					setRetentionStatus(status ?? null);
+				}
+			})
+			.catch(() => {
+				if (retentionStatusRequestIdRef.current === requestId) {
+					setRetentionStatus(null);
+				}
+			});
+	}, []);
+	const refreshStoragePanel = useCallback(() => {
+		refreshStorageStatus();
+		refreshRetentionStatus();
+	}, [refreshStorageStatus, refreshRetentionStatus]);
 
 	const {
 		locale,
@@ -202,11 +253,12 @@ export function LaunchWindow() {
 	useEffect(() => {
 		if (isStoragePanelOpen) {
 			setStorageActionError(null);
-			refreshStorageStatus();
+			refreshStoragePanel();
 		}
-	}, [isStoragePanelOpen, recording, refreshStorageStatus]);
+	}, [isStoragePanelOpen, recording, refreshStoragePanel]);
 
 	const storageControlsDisabled = recording || Boolean(storageStatus?.locked);
+	const retentionControlsDisabled = storageControlsDisabled || retentionBusy || !retentionStatus;
 
 	const handlePickStorageFolder = useCallback(async () => {
 		setStorageActionError(null);
@@ -214,8 +266,8 @@ export function LaunchWindow() {
 		if (result && !result.success && !result.canceled) {
 			setStorageActionError(result.error ?? null);
 		}
-		refreshStorageStatus();
-	}, [refreshStorageStatus]);
+		refreshStoragePanel();
+	}, [refreshStoragePanel]);
 
 	const handleResetStorageFolder = useCallback(async () => {
 		setStorageActionError(null);
@@ -223,8 +275,69 @@ export function LaunchWindow() {
 		if (result && !result.success) {
 			setStorageActionError(result.error ?? null);
 		}
-		refreshStorageStatus();
-	}, [refreshStorageStatus]);
+		refreshStoragePanel();
+	}, [refreshStoragePanel]);
+
+	const handleRetentionPolicyChange = useCallback(
+		async (partial: Partial<RecordingRetentionPolicy>) => {
+			const current = retentionStatus?.policy ?? { maxAgeDays: null, maxSizeBytes: null };
+			const nextPolicy = { ...current, ...partial };
+			setStorageActionError(null);
+			setRetentionResult(null);
+			setRetentionBusy(true);
+			try {
+				const result = await window.electronAPI?.setRecordingRetentionPolicy?.(nextPolicy);
+				if (!result?.success) {
+					setStorageActionError(result?.error ?? t("storage.cleanupError"));
+				}
+				if (result?.status) {
+					setRetentionStatus(result.status);
+				}
+			} catch {
+				setStorageActionError(t("storage.cleanupError"));
+			} finally {
+				setRetentionBusy(false);
+				refreshRetentionStatus();
+			}
+		},
+		[refreshRetentionStatus, retentionStatus?.policy, t],
+	);
+
+	const handleCleanupRecordings = useCallback(async () => {
+		setStorageActionError(null);
+		setRetentionResult(null);
+		setRetentionBusy(true);
+		try {
+			const result = await window.electronAPI?.cleanupRecordings?.();
+			if (!result) {
+				setStorageActionError(t("storage.cleanupError"));
+				return;
+			}
+			setRetentionStatus(result.status);
+			if (result.success) {
+				setRetentionResult(
+					t("storage.cleanupResult", {
+						files: result.deletedFiles,
+						size: formatGigabytes(result.deletedBytes),
+					}),
+				);
+			} else {
+				setStorageActionError(result.errors[0]?.message ?? t("storage.cleanupError"));
+			}
+		} catch {
+			setStorageActionError(t("storage.cleanupError"));
+		} finally {
+			setRetentionBusy(false);
+			refreshStoragePanel();
+		}
+	}, [refreshStoragePanel, t]);
+
+	const retentionPolicy: RecordingRetentionPolicy = retentionStatus?.policy ?? {
+		maxAgeDays: null,
+		maxSizeBytes: null,
+	};
+	const cleanupDisabled =
+		retentionControlsDisabled || !retentionStatus || retentionStatus.reclaimableBytes <= 0;
 
 	const showMicControls = microphoneEnabled && !recording;
 	const showWebcamControls = webcamEnabled && !recording;
@@ -819,6 +932,82 @@ export function LaunchWindow() {
 							</span>
 						)}
 					</div>
+					<div className="mt-2 grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] items-end gap-2">
+						<label className="min-w-0 text-[10px] text-white/55">
+							<span className="mb-0.5 block truncate">{t("storage.retentionAge")}</span>
+							<select
+								data-testid="retention-age"
+								value={retentionAgeValue(retentionPolicy)}
+								disabled={retentionControlsDisabled}
+								onChange={(event) =>
+									void handleRetentionPolicyChange({
+										maxAgeDays: parseRetentionAgeValue(event.currentTarget.value),
+									})
+								}
+								className="h-7 w-full rounded-md border border-white/10 bg-black/30 px-2 text-[11px] text-white outline-none disabled:opacity-40"
+							>
+								<option value="forever">{t("storage.retentionKeepForever")}</option>
+								{RETENTION_AGE_VALUES.filter(
+									(value): value is 7 | 14 | 30 | 90 => value !== null,
+								).map((value) => (
+									<option key={value} value={value}>
+										{t("storage.retentionDays", { days: value })}
+									</option>
+								))}
+							</select>
+						</label>
+						<label className="min-w-0 text-[10px] text-white/55">
+							<span className="mb-0.5 block truncate">{t("storage.retentionSize")}</span>
+							<select
+								data-testid="retention-size"
+								value={retentionSizeValue(retentionPolicy)}
+								disabled={retentionControlsDisabled}
+								onChange={(event) =>
+									void handleRetentionPolicyChange({
+										maxSizeBytes: parseRetentionSizeValue(event.currentTarget.value),
+									})
+								}
+								className="h-7 w-full rounded-md border border-white/10 bg-black/30 px-2 text-[11px] text-white outline-none disabled:opacity-40"
+							>
+								<option value="unlimited">{t("storage.retentionUnlimited")}</option>
+								{RETENTION_SIZE_VALUES.filter(
+									(value): value is 5_368_709_120 | 10_737_418_240 | 53_687_091_200 =>
+										value !== null,
+								).map((value) => (
+									<option key={value} value={value}>
+										{t("storage.retentionSizeGb", { size: Math.round(value / 1024 ** 3) })}
+									</option>
+								))}
+							</select>
+						</label>
+						<Button
+							type="button"
+							size="sm"
+							data-testid="retention-cleanup"
+							disabled={cleanupDisabled}
+							onClick={() => void handleCleanupRecordings()}
+							className="h-7 px-2.5 text-[11px] bg-white text-[#10121b] hover:bg-white/90 disabled:opacity-40"
+						>
+							{retentionBusy ? t("storage.cleanupBusy") : t("storage.cleanup")}
+						</Button>
+					</div>
+					<div className="mt-1 truncate text-[10px] text-white/55" data-testid="retention-summary">
+						{retentionStatus
+							? t("storage.cleanupSummary", {
+									used: formatGigabytes(retentionStatus.totalBytes),
+									reclaimable: formatGigabytes(retentionStatus.reclaimableBytes),
+									sessions: retentionStatus.sessionsEligible,
+								})
+							: t("storage.cleanupSummaryUnknown")}
+					</div>
+					{retentionResult ? (
+						<div
+							className="mt-1 truncate text-[10px] text-emerald-300"
+							data-testid="retention-result"
+						>
+							{retentionResult}
+						</div>
+					) : null}
 				</div>
 			)}
 

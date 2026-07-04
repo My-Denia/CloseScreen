@@ -65,6 +65,18 @@
 		"saveFailedTitle": "Không thể lưu bản ghi",
 		"appliesToNew": "Chỉ áp dụng cho bản ghi mới; các tệp hiện có vẫn giữ nguyên vị trí",
 		"unavailableFallback": "Thư mục tùy chỉnh không khả dụng — đang dùng thư mục mặc định",
-		"recordingActive": "Dừng ghi hình để thay đổi thư mục lưu trữ"
+		"recordingActive": "Dừng ghi hình để thay đổi thư mục lưu trữ",
+		"retentionAge": "Age limit",
+		"retentionKeepForever": "Keep forever",
+		"retentionDays": "{{days}} days",
+		"retentionSize": "Size limit",
+		"retentionUnlimited": "Unlimited",
+		"retentionSizeGb": "{{size}} GB",
+		"cleanup": "Clean up",
+		"cleanupBusy": "Cleaning...",
+		"cleanupSummary": "{{used}} used - {{reclaimable}} reclaimable - {{sessions}} sessions",
+		"cleanupSummaryUnknown": "Cleanup estimate unavailable",
+		"cleanupResult": "Deleted {{files}} files ({{size}})",
+		"cleanupError": "Cleanup failed"
 	}
 }

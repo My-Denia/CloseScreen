@@ -28,9 +28,9 @@ packaging. Labels mean:
 | Recordings directory containment rules | automated | `electron/appSettings.test.ts` |
 | Low disk warning threshold logic | automated | `electron/diskSpace.test.ts` |
 | Windows screen/window/audio/mic/webcam native capture | manual | `npm run test:wgc-full:win`, `npm run test:wgc-window:win`, `npm run test:e2e:windows-native-checklist` |
-| Real low-space recording drive behavior | manual | Run the app against a low-space test volume |
+| Real low-space recording drive behavior | manual | Run the app against a low-space test volume; verify no automatic deletion occurs |
 | Linux screen/window capture under Wayland/X11 | manual | Run packaged app on target Linux sessions |
-| Recording retention/cleanup | not yet covered | No implemented retention policy |
+| Recording retention/cleanup planner | automated | `electron/recordingRetention.test.ts` |
 
 ## Export
 
@@ -63,6 +63,7 @@ packaging. Labels mean:
 | External URL scheme allowlist | automated | `electron/ipc/externalUrl.test.ts` |
 | `app://` safe join utility | automated | `electron/appProtocol.util.test.ts` |
 | Approved media and binary reads | manual | Import/load projects and verify unapproved local paths are rejected |
+| Retention cleanup deletion boundaries | automated | `electron/recordingRetention.test.ts`, `electron/recordingRetention.ipcContract.test.ts` |
 | Export path single-use approval | automated | `electron/ipc/exportPathApproval.test.ts` |
 | Full UI export after save-dialog approval | manual | Export `.mp4` and `.gif` through the app UI |
 | Redaction safe default | automated | `src/lib/blurEffects.test.ts`; redaction e2e |
