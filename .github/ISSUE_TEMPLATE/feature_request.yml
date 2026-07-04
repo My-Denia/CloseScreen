@@ -1,40 +1,97 @@
 name: Feature Request
-description: Suggest an idea for this project
+description: Suggest a CloseScreen desktop app improvement
 title: "[Feature]: "
 labels: ["enhancement", "feature-request"]
 body:
+  - type: markdown
+    attributes:
+      value: |
+        CloseScreen is a maintained community fork of OpenScreen. Please keep requests scoped to this fork's current desktop app and release process.
+
   - type: checkboxes
     attributes:
       label: Search existing issues
-      description: Please search to see if an issue already exists for this feature request.
+      description: Please search existing CloseScreen issues before opening a new request.
       options:
         - label: I have searched the existing issues
           required: true
 
+  - type: dropdown
+    id: affected-area
+    attributes:
+      label: Area
+      options:
+        - Recording
+        - Audio
+        - Webcam overlay
+        - Cursor capture
+        - Captions
+        - Editor
+        - Export
+        - Custom recording directory or storage cleanup
+        - Update check
+        - Packaging or release
+        - Documentation
+        - Other
+    validations:
+      required: true
+
+  - type: dropdown
+    id: target-platform
+    attributes:
+      label: Target platform
+      description: macOS is not a current release target unless a future proposal includes build, test, and release validation.
+      options:
+        - Windows
+        - Linux
+        - Cross-platform desktop
+        - macOS proposal with validation plan
+        - Not platform-specific
+    validations:
+      required: true
+
   - type: textarea
     id: problem-description
     attributes:
-      label: Is your feature request related to a problem?
-      description: A clear and concise description of what the problem is.
-      placeholder: e.g., I'm always frustrated when I have to...
+      label: Problem or workflow gap
+      description: Explain the user workflow this request improves.
+      placeholder: e.g., I need to keep recordings under a fixed storage budget without deleting exported videos.
     validations:
       required: true
 
   - type: textarea
     id: solution-description
     attributes:
-      label: Describe the solution you'd like
-      description: A clear and concise description of what you want to happen.
-      placeholder: Describe the feature or change you're proposing
+      label: Proposed behavior
+      description: Describe the smallest behavior change that would solve the problem.
+      placeholder: Describe the feature or change you're proposing.
+    validations:
+      required: true
+
+  - type: textarea
+    id: security-privacy-impact
+    attributes:
+      label: Security, privacy, or data-loss considerations
+      description: Note whether this affects recording files, export paths, update checks, local storage, native helpers, or external network access.
+      placeholder: e.g., This should never delete exported files and should remain local-only.
+    validations:
+      required: false
+
+  - type: textarea
+    id: validation
+    attributes:
+      label: Suggested validation
+      description: List manual or automated checks that would prove the feature works.
+      placeholder: e.g., Windows native recording, Linux AppImage smoke test, export MP4/GIF, storage cleanup dry run.
     validations:
       required: false
 
   - type: textarea
     id: alternatives
     attributes:
-      label: Describe alternatives you've considered
-      description: A clear and concise description of any alternative solutions or features you've considered.
-      placeholder: Have you considered any workarounds or alternative approaches?
+      label: Alternatives considered
+      description: Describe workarounds or smaller alternatives.
+      placeholder: Existing workaround, related settings, or why documentation is not enough.
     validations:
       required: false
 
@@ -42,7 +99,7 @@ body:
     id: additional-context
     attributes:
       label: Additional context
-      description: Add any other context or screenshots about the feature request here.
-      placeholder: Links, mockups, or any additional information
+      description: Add mockups, screenshots, links, or examples.
+      placeholder: Links, screenshots, or related issues.
     validations:
       required: false

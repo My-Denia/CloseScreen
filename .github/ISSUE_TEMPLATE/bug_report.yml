@@ -1,22 +1,134 @@
 name: Bug Report
-description: Create a report to help us improve
+description: Report a CloseScreen desktop app bug
 title: "[Bug]: "
 labels: ["bug", "triage"]
 body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting a CloseScreen issue. CloseScreen is a maintained community fork of OpenScreen, not an official OpenScreen successor.
+
   - type: checkboxes
     attributes:
       label: Search existing issues
-      description: Please search to see if an issue already exists for the bug you encountered.
+      description: Please search existing CloseScreen issues before opening a new report.
       options:
         - label: I have searched the existing issues
           required: true
 
+  - type: input
+    id: app-version
+    attributes:
+      label: CloseScreen version or commit
+      description: Use the app version, release tag, or commit SHA you tested.
+      placeholder: e.g., 1.5.0-fork.1 or 4069486
+    validations:
+      required: true
+
+  - type: dropdown
+    id: install-source
+    attributes:
+      label: Install source
+      description: Where did this build come from?
+      options:
+        - GitHub Releases unsigned Windows installer
+        - GitHub Releases unsigned Linux AppImage
+        - GitHub Releases unsigned Linux deb/pacman package
+        - Local electron-builder build
+        - Local npm dev run
+        - Nix package or flake
+        - Other
+    validations:
+      required: true
+
+  - type: dropdown
+    id: os-type
+    attributes:
+      label: Operating system
+      description: macOS is not a current release target; macOS reports are still useful if clearly marked unverified.
+      options:
+        - Windows 11
+        - Windows 10 2004+
+        - Linux
+        - macOS (not a current release target)
+        - Other
+    validations:
+      required: true
+
+  - type: input
+    id: os-version
+    attributes:
+      label: OS version and desktop/session details
+      description: Include Linux desktop/session details when relevant.
+      placeholder: e.g., Windows 11 24H2, Ubuntu 24.04 GNOME Wayland, KDE X11
+    validations:
+      required: false
+
+  - type: dropdown
+    id: affected-area
+    attributes:
+      label: Affected area
+      options:
+        - Startup or permissions
+        - Screen/window source picker
+        - Recording
+        - Microphone or system audio
+        - Webcam overlay
+        - Cursor capture
+        - Editor
+        - Export
+        - Custom recording directory or storage cleanup
+        - Update check
+        - Packaging or installer
+        - Other
+    validations:
+      required: true
+
+  - type: dropdown
+    id: capture-mode
+    attributes:
+      label: Capture mode
+      options:
+        - Screen recording
+        - Window recording
+        - Import/edit only
+        - Not applicable
+        - Other
+    validations:
+      required: false
+
+  - type: dropdown
+    id: recording-directory
+    attributes:
+      label: Recording directory
+      description: Storage bugs need this because CloseScreen supports custom recording directories.
+      options:
+        - Default app data recordings directory
+        - Custom recording directory
+        - Not sure
+        - Not applicable
+    validations:
+      required: false
+
   - type: textarea
     id: bug-description
     attributes:
-      label: Describe the bug
-      description: A clear and concise description of what the bug is.
-      placeholder: e.g., When I click submit, nothing happens...
+      label: What happened?
+      description: Describe the bug and the visible result.
+      placeholder: e.g., Export failed after choosing an MP4 path from the save dialog.
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps-to-reproduce
+    attributes:
+      label: Steps to reproduce
+      description: Include exact clicks, settings, file paths shape, and whether the build is unsigned when relevant.
+      placeholder: |
+        1. Open CloseScreen
+        2. Choose ...
+        3. Start recording ...
+        4. Export as ...
     validations:
       required: true
 
@@ -24,118 +136,17 @@ body:
     id: expected-behavior
     attributes:
       label: Expected behavior
-      description: A clear and concise description of what you expected to happen.
-      placeholder: e.g., The form should submit and show a success message
+      description: What should CloseScreen have done instead?
+      placeholder: e.g., The export should complete and write only to the save-dialog-approved file.
     validations:
       required: true
 
   - type: textarea
-    id: steps-to-reproduce
+    id: logs-and-files
     attributes:
-      label: To Reproduce
-      description: Steps to reproduce the behavior.
-      placeholder: |
-        1. Go to '...'
-        2. Click on '....'
-        3. Scroll down to '....'
-        4. See error
-    validations:
-      required: false
-
-  - type: textarea
-    id: screenshots
-    attributes:
-      label: Screenshots
-      description: If applicable, add screenshots to help explain your problem.
-      placeholder: Drag and drop images here or paste them
-    validations:
-      required: false
-
-  - type: dropdown
-    id: os-type
-    attributes:
-      label: OS
-      description: Operating system
-      options:
-        - Windows
-        - macOS
-        - Linux
-        - iOS
-        - Android
-        - Other
-    validations:
-      required: false
-
-  - type: input
-    id: os-version
-    attributes:
-      label: OS Version
-      description: Please specify your OS version
-      placeholder: e.g., Windows 11, macOS Sonoma, Ubuntu 22.04
-    validations:
-      required: false
-
-  - type: input
-    id: os-other
-    attributes:
-      label: Other OS
-      description: If you selected "Other" for OS, please specify your operating system
-      placeholder: e.g., FreeBSD, Solaris
-    validations:
-      required: false
-
-  - type: dropdown
-    id: browser
-    attributes:
-      label: Browser
-      description: What browser are you using?
-      options:
-        - Chrome
-        - Firefox
-        - Safari
-        - Edge
-        - Other
-    validations:
-      required: false
-
-  - type: input
-    id: browser-version
-    attributes:
-      label: Browser Version
-      description: Please specify your browser version
-      placeholder: e.g., 120.0, 121.0.1
-    validations:
-      required: false
-
-  - type: input
-    id: browser-other
-    attributes:
-      label: Other Browser
-      description: If you selected "Other" for Browser, please specify your browser
-      placeholder: e.g., Brave, Vivaldi, Opera
-    validations:
-      required: false
-
-  - type: dropdown
-    id: device-type
-    attributes:
-      label: Device Type
-      description: Device category
-      options:
-        - Desktop
-        - Laptop
-        - Tablet
-        - Mobile
-        - Other
-    validations:
-      required: false
-
-  - type: input
-    id: device-other
-    attributes:
-      label: Other Device
-      description: If you selected "Other" for Device Type, please specify your device
-      placeholder: e.g., Smart TV, IoT device
+      label: Logs, screenshots, or sample files
+      description: Attach screenshots, short sample recordings, console logs, or installer output. Do not include private recordings or secrets.
+      placeholder: Drag and drop files here or paste relevant log lines.
     validations:
       required: false
 
@@ -143,7 +154,7 @@ body:
     id: additional-context
     attributes:
       label: Additional context
-      description: Add any other context about the problem here.
-      placeholder: Links, references, or any additional information
+      description: Add anything else that may help reproduce or triage this issue.
+      placeholder: Low disk space, external monitor setup, GPU/driver notes, package-manager warnings, etc.
     validations:
       required: false
