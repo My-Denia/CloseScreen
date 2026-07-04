@@ -16,6 +16,10 @@ This project is based on [Siddharth Vaddem's OpenScreen](https://github.com/sidd
 
 ## Platform Support
 
+Short version: CloseScreen currently publishes unsigned Windows and Linux builds from this
+community fork. macOS is not a current release target for this fork. See the full
+[support matrix](./docs/SUPPORT_MATRIX.md) for feature-by-feature status and verification notes.
+
 | Platform | Current status | Capture path | Release artifact |
 | --- | --- | --- | --- |
 | Windows 10 2004+ / Windows 11 | Primary maintained desktop target | Native WGC/WASAPI/MediaFoundation helper, with browser fallback behavior where implemented | Unsigned NSIS installer from GitHub Releases |
@@ -87,6 +91,10 @@ Packaging runs `scripts/before-pack.cjs`, which ensures the offline caption mode
 - Exports are saved only to a file path selected through the OS save dialog for that export. Export failures surface filesystem-specific errors where possible.
 
 ## Security Notes
+
+For the detailed security policy and privacy notes, see [SECURITY.md](./SECURITY.md) and
+[docs/PRIVACY.md](./docs/PRIVACY.md). Release and manual QA coverage is tracked in
+[docs/REGRESSION_CHECKLIST.md](./docs/REGRESSION_CHECKLIST.md).
 
 - Packaged renderer content is served through the privileged `app://bundle` scheme with a restrictive Content Security Policy.
 - Local media served through `app://bundle/_media/` must already be approved by a picker, project load, or recordings-directory rule.

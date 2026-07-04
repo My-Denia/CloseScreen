@@ -43,6 +43,16 @@ Additional gates by area:
 
 Do not delete or weaken tests to make a change pass.
 
+For release-readiness changes, also check the public documentation set:
+
+- [Support matrix](./docs/SUPPORT_MATRIX.md)
+- [Security policy](./SECURITY.md)
+- [Privacy notes](./docs/PRIVACY.md)
+- [Regression checklist](./docs/REGRESSION_CHECKLIST.md)
+
+Do not mark a platform, feature, or test path as supported unless the repository currently has
+code, build configuration, and validation evidence for that claim.
+
 ## Release And Packaging Changes
 
 Release artifacts are unsigned Windows and Linux builds published from GitHub Actions on matching `v*` tags. A packaging or release change must state whether it affects:
