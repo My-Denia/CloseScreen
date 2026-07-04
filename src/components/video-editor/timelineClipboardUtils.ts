@@ -67,6 +67,21 @@ export function getPastedSpan(
 }
 
 /**
+ * Where a newly-added timeline region lands: at the playhead, clamped back so a region
+ * added at (or past) the video end still spans the full duration and is never zero-length
+ * (renderAnnotations filters active regions with `currentTimeMs < endMs`). `durationMs` is
+ * assumed already clamped to (0, totalMs].
+ */
+export function getPlayheadRegionSpan(
+	playheadMs: number,
+	totalMs: number,
+	durationMs: number,
+): { start: number; end: number } {
+	const start = clamp(Math.round(playheadMs), 0, totalMs - durationMs);
+	return { start, end: start + durationMs };
+}
+
+/**
  * Keep a pasted annotation fully on the canvas. Positions/sizes are percentages;
  * clamping (rather than offsetting) preserves full-frame regions like freehand
  * blurs at exactly {0,0,100,100}.

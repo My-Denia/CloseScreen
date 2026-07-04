@@ -31,6 +31,7 @@ import { cn } from "@/lib/utils";
 import { ASPECT_RATIOS, type AspectRatio, getAspectRatioLabel } from "@/utils/aspectRatioUtils";
 import { formatShortcut } from "@/utils/platformUtils";
 import { BLUR_REGIONS_ENABLED } from "../featureFlags";
+import { getPlayheadRegionSpan } from "../timelineClipboardUtils";
 import type {
 	AnnotationRegion,
 	HighlightRegion,
@@ -1360,9 +1361,7 @@ export default function TimelineEditor({
 			return;
 		}
 
-		const startPos = Math.max(0, Math.min(currentTimeMs, totalMs));
-		const endPos = Math.min(startPos + defaultDuration, totalMs);
-		onBlurAdded({ start: startPos, end: endPos });
+		onBlurAdded(getPlayheadRegionSpan(currentTimeMs, totalMs, defaultDuration));
 	}, [videoDuration, totalMs, currentTimeMs, onBlurAdded, defaultRegionDurationMs]);
 
 	useEffect(() => {

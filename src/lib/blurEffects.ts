@@ -4,11 +4,8 @@ import {
 	type BlurType,
 	DEFAULT_BLUR_BLOCK_SIZE,
 	DEFAULT_BLUR_DATA,
-	DEFAULT_BLUR_INTENSITY,
 	MAX_BLUR_BLOCK_SIZE,
-	MAX_BLUR_INTENSITY,
 	MIN_BLUR_BLOCK_SIZE,
-	MIN_BLUR_INTENSITY,
 } from "@/components/video-editor/types";
 
 function clamp(value: number, min: number, max: number) {
@@ -17,7 +14,9 @@ function clamp(value: number, min: number, max: number) {
 }
 
 export function normalizeBlurType(value: unknown): BlurType {
-	return value === "blur" ? "blur" : "mosaic";
+	// Legacy gaussian ("blur") and any unknown value normalize to the safe opaque
+	// default; only an explicit "mosaic" stays mosaic.
+	return value === "mosaic" ? "mosaic" : "solid";
 }
 
 export function normalizeBlurColor(value: unknown): BlurColor {
@@ -25,24 +24,26 @@ export function normalizeBlurColor(value: unknown): BlurColor {
 }
 
 /**
- * Merge a partial edit into a blur region's settings while preserving the existing blur
- * type (mosaic vs gaussian), falling back to the mosaic default for a new region. The
- * settings panel must go through this instead of hard-coding a type, or editing any
- * field would silently convert an imported gaussian blur back to mosaic.
+ * Opaque fill color for a "solid" redaction block — the region's original pixels are
+ * fully replaced (100% opacity), unlike the translucent tint from getBlurOverlayColor.
+ */
+export function getSolidFillColor(blurData?: BlurData | null): string {
+	return normalizeBlurColor(blurData?.color) === "black"
+		? "rgba(0, 0, 0, 1)"
+		: "rgba(255, 255, 255, 1)";
+}
+
+/**
+ * Merge a partial edit into a blur region's settings while preserving the existing
+ * obscuring type (solid vs mosaic), falling back to the solid default for a new region.
+ * The settings panel must go through this instead of hard-coding a type, or editing any
+ * field would silently change the region's redaction type.
  */
 export function withBlurDataPatch(
 	current: BlurData | null | undefined,
 	patch: Partial<BlurData>,
 ): BlurData {
 	return { ...DEFAULT_BLUR_DATA, ...current, ...patch };
-}
-
-export function getNormalizedBlurIntensity(blurData?: BlurData | null): number {
-	return clamp(
-		blurData?.intensity ?? DEFAULT_BLUR_INTENSITY,
-		MIN_BLUR_INTENSITY,
-		MAX_BLUR_INTENSITY,
-	);
 }
 
 export function getNormalizedMosaicBlockSize(blurData?: BlurData | null, scaleFactor = 1): number {

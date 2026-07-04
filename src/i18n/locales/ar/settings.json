@@ -151,6 +151,8 @@
 		"blurType": "نوع التمويه",
 		"blurTypeBlur": "تمويه",
 		"blurTypeMosaic": "فسيفساء",
+		"blurTypeSolid": "صلب",
+		"mosaicSecurityWarning": "يمكن عكس الفسيفساء — استخدم اللون الصلب للنصوص الحساسة مثل كلمات المرور والمعرّفات.",
 		"blurColor": "لون التمويه",
 		"blurColorWhite": "أبيض",
 		"blurColorBlack": "أسود",

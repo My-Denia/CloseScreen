@@ -151,6 +151,8 @@
 		"blurType": "ぼかしの種類",
 		"blurTypeBlur": "ぼかし",
 		"blurTypeMosaic": "モザイクぼかし",
+		"blurTypeSolid": "塗りつぶし",
+		"mosaicSecurityWarning": "モザイクは復元される可能性があります。パスワードやIDなどの機密テキストには塗りつぶしを使用してください。",
 		"blurColor": "ぼかしの色",
 		"blurColorWhite": "白",
 		"blurColorBlack": "黒",

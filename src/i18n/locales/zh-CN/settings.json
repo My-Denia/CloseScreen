@@ -151,6 +151,8 @@
 		"blurType": "模糊类型",
 		"blurTypeBlur": "模糊",
 		"blurTypeMosaic": "马赛克模糊",
+		"blurTypeSolid": "纯色",
+		"mosaicSecurityWarning": "马赛克可被还原——密码、身份证号等敏感文本请用纯色。",
 		"blurColor": "模糊颜色",
 		"blurColorWhite": "白色",
 		"blurColorBlack": "黑色",

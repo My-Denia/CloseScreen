@@ -151,6 +151,8 @@
 		"blurType": "Type de flou",
 		"blurTypeBlur": "Flou",
 		"blurTypeMosaic": "Flou mosaique",
+		"blurTypeSolid": "Plein",
+		"mosaicSecurityWarning": "La mosaïque peut être inversée ; utilisez Plein pour les textes sensibles (mots de passe, identifiants).",
 		"blurColor": "Couleur du flou",
 		"blurColorWhite": "Blanc",
 		"blurColorBlack": "Noir",

@@ -5,6 +5,7 @@ import {
 	getBlurOverlayColor,
 	getMosaicGridOverlayColor,
 	getNormalizedMosaicBlockSize,
+	getSolidFillColor,
 	normalizeBlurType,
 } from "@/lib/blurEffects";
 import { cn } from "@/lib/utils";
@@ -14,7 +15,6 @@ import {
 	type BlurData,
 	DEFAULT_BLUR_BLOCK_SIZE,
 	DEFAULT_BLUR_DATA,
-	DEFAULT_BLUR_INTENSITY,
 } from "./types";
 
 const FREEHAND_POINT_THRESHOLD = 1;
@@ -92,6 +92,7 @@ export function AnnotationOverlay({
 		annotation.type === "blur" ? getBlurOverlayColor(annotation.blurData) : "";
 	const mosaicGridOverlayColor =
 		annotation.type === "blur" ? getMosaicGridOverlayColor(annotation.blurData) : "";
+	const solidFillColor = annotation.type === "blur" ? getSolidFillColor(annotation.blurData) : "";
 	const [liveRect, setLiveRect] = useState({
 		x: committedX,
 		y: committedY,
@@ -111,7 +112,7 @@ export function AnnotationOverlay({
 	const { x, y, width, height } = liveRect;
 
 	useEffect(() => {
-		if (annotation.type !== "blur") {
+		if (annotation.type !== "blur" || normalizeBlurType(annotation.blurData?.type) !== "mosaic") {
 			return;
 		}
 		void previewFrameVersion;
@@ -369,10 +370,6 @@ export function AnnotationOverlay({
 
 			case "blur": {
 				const shape = annotation.blurData?.shape ?? "rectangle";
-				const blurIntensity = Math.max(
-					1,
-					Math.round(annotation.blurData?.intensity ?? DEFAULT_BLUR_INTENSITY),
-				);
 				const blockSize = Math.max(
 					1,
 					Math.round(annotation.blurData?.blockSize ?? DEFAULT_BLUR_BLOCK_SIZE),
@@ -429,10 +426,8 @@ export function AnnotationOverlay({
 								className="absolute inset-0"
 								style={{
 									...shapeMaskStyle,
-									backdropFilter: blurType === "mosaic" ? "none" : `blur(${blurIntensity}px)`,
-									WebkitBackdropFilter: blurType === "mosaic" ? "none" : `blur(${blurIntensity}px)`,
-									backgroundColor: blurOverlayColor,
-									opacity: shouldShowFreehandBlurFill ? 1 : 0,
+									backgroundColor: blurType === "solid" ? solidFillColor : blurOverlayColor,
+									opacity: blurType === "solid" ? 1 : shouldShowFreehandBlurFill ? 1 : 0,
 								}}
 							/>
 							{blurType === "mosaic" && shouldShowFreehandBlurFill && (

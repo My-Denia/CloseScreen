@@ -151,6 +151,8 @@
 		"blurType": "Loại làm mờ",
 		"blurTypeBlur": "Làm mờ",
 		"blurTypeMosaic": "Khảm",
+		"blurTypeSolid": "Đặc",
+		"mosaicSecurityWarning": "Khảm có thể bị đảo ngược; hãy dùng Đặc cho văn bản nhạy cảm như mật khẩu hoặc ID.",
 		"blurColor": "Màu làm mờ",
 		"blurColorWhite": "Trắng",
 		"blurColorBlack": "Đen",

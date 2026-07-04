@@ -151,6 +151,8 @@
 		"blurType": "Tipo de Desfoque",
 		"blurTypeBlur": "Desfoque",
 		"blurTypeMosaic": "Mosaico",
+		"blurTypeSolid": "Sólido",
+		"mosaicSecurityWarning": "O mosaico pode ser revertido; use Sólido para textos sensíveis como senhas ou IDs.",
 		"blurColor": "Cor do Desfoque",
 		"blurColorWhite": "Branco",
 		"blurColorBlack": "Preto",

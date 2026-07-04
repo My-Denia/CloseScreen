@@ -151,6 +151,8 @@
 		"blurType": "블러 종류",
 		"blurTypeBlur": "블러",
 		"blurTypeMosaic": "모자이크 블러",
+		"blurTypeSolid": "단색",
+		"mosaicSecurityWarning": "모자이크는 복원될 수 있습니다. 비밀번호나 ID 같은 민감한 텍스트에는 단색을 사용하세요.",
 		"blurColor": "블러 색상",
 		"blurColorWhite": "흰색",
 		"blurColorBlack": "검정",

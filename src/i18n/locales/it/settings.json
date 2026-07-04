@@ -151,6 +151,8 @@
 		"blurType": "Tipo sfocatura",
 		"blurTypeBlur": "Sfocatura",
 		"blurTypeMosaic": "Sfocatura mosaico",
+		"blurTypeSolid": "Pieno",
+		"mosaicSecurityWarning": "Il mosaico può essere invertito; usa Pieno per testi sensibili come password o ID.",
 		"blurColor": "Colore sfocatura",
 		"blurColorWhite": "Bianco",
 		"blurColorBlack": "Nero",

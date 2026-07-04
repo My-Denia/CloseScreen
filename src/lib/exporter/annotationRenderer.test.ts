@@ -146,9 +146,7 @@ class FakeContext {
 				if (!this.isInClip(x + 0.5, y + 0.5)) return;
 				const srcX = Math.floor(normalized.sx + (x - normalized.dx));
 				const srcY = Math.floor(normalized.sy + (y - normalized.dy));
-				const pixel = this.filter.startsWith("blur(")
-					? averageSourcePixel(source, srcX, srcY, 3)
-					: getSourcePixel(source, srcX, srcY);
+				const pixel = getSourcePixel(source, srcX, srcY);
 				this.canvas.data[offset] = pixel[0];
 				this.canvas.data[offset + 1] = pixel[1];
 				this.canvas.data[offset + 2] = pixel[2];
@@ -250,35 +248,6 @@ function getSourcePixel(
 		canvas.data[offset + 1] ?? 0,
 		canvas.data[offset + 2] ?? 0,
 		canvas.data[offset + 3] ?? 0,
-	];
-}
-
-function averageSourcePixel(
-	canvas: FakeCanvas,
-	x: number,
-	y: number,
-	radius: number,
-): [number, number, number, number] {
-	let red = 0;
-	let green = 0;
-	let blue = 0;
-	let alpha = 0;
-	let count = 0;
-	for (let py = y - radius; py <= y + radius; py++) {
-		for (let px = x - radius; px <= x + radius; px++) {
-			const pixel = getSourcePixel(canvas, px, py);
-			red += pixel[0];
-			green += pixel[1];
-			blue += pixel[2];
-			alpha += pixel[3];
-			count++;
-		}
-	}
-	return [
-		Math.round(red / count),
-		Math.round(green / count),
-		Math.round(blue / count),
-		Math.round(alpha / count),
 	];
 }
 
@@ -407,9 +376,9 @@ describe("renderAnnotations blur export rendering", () => {
 		["mosaic", "rectangle"],
 		["mosaic", "oval"],
 		["mosaic", "freehand"],
-		["blur", "rectangle"],
-		["blur", "oval"],
-		["blur", "freehand"],
+		["solid", "rectangle"],
+		["solid", "oval"],
+		["solid", "freehand"],
 	] as const)("alters exported pixels for %s %s blur regions", async (type, shape) => {
 		const canvas = new FakeCanvas();
 		canvas.width = 80;
@@ -441,5 +410,31 @@ describe("renderAnnotations blur export rendering", () => {
 
 		expect(insideDelta).toBeGreaterThan(8);
 		expect(controlDelta).toBe(0);
+	});
+
+	it("fully replaces the region with an opaque block for solid redaction", async () => {
+		const canvas = new FakeCanvas();
+		canvas.width = 80;
+		canvas.height = 80;
+		seedHighContrastFrame(canvas);
+
+		await renderAnnotations(
+			canvas.context as unknown as CanvasRenderingContext2D,
+			[createBlurRegion("rectangle", "solid")],
+			canvas.width,
+			canvas.height,
+			500,
+			1,
+		);
+
+		// A pixel well inside a white solid block must be exactly opaque white: the original
+		// frame is fully replaced, so none of the redacted content survives in the export.
+		const offset = pixelOffset(canvas, 40, 40);
+		expect([
+			canvas.data[offset],
+			canvas.data[offset + 1],
+			canvas.data[offset + 2],
+			canvas.data[offset + 3],
+		]).toEqual([255, 255, 255, 255]);
 	});
 });

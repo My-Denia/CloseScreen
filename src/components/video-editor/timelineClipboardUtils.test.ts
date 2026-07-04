@@ -5,6 +5,7 @@ import {
 	cloneAnnotationRegion,
 	getPastedAnnotationPosition,
 	getPastedSpan,
+	getPlayheadRegionSpan,
 	spansOverlap,
 } from "./timelineClipboardUtils";
 import type { AnnotationRegion, ZoomRegion } from "./types";
@@ -91,6 +92,14 @@ describe("timelineClipboardUtils", () => {
 	it("truncates spans longer than the whole video and rejects empty videos", () => {
 		expect(getPastedSpan(0, 20_000, 500, 10_000)).toEqual({ startMs: 0, endMs: 10_000 });
 		expect(getPastedSpan(0, 1000, 0, 0)).toBeNull();
+	});
+
+	it("adds a region at the playhead, clamped back so it is never zero-length at EOF", () => {
+		expect(getPlayheadRegionSpan(3000, 10_000, 1500)).toEqual({ start: 3000, end: 4500 });
+		// at the very end: clamp the start back so it keeps its full duration
+		expect(getPlayheadRegionSpan(10_000, 10_000, 1500)).toEqual({ start: 8500, end: 10_000 });
+		// short video: start pins to 0 and the region spans the whole clip
+		expect(getPlayheadRegionSpan(500, 800, 800)).toEqual({ start: 0, end: 800 });
 	});
 
 	it("preserves pasted annotation positions when they are already in bounds", () => {

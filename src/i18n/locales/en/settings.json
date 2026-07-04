@@ -151,6 +151,8 @@
 		"blurType": "Blur Type",
 		"blurTypeBlur": "Blur",
 		"blurTypeMosaic": "Mosaic Blur",
+		"blurTypeSolid": "Solid",
+		"mosaicSecurityWarning": "Mosaic can be reversed — use Solid for sensitive text like passwords or IDs.",
 		"blurColor": "Blur Color",
 		"blurColorWhite": "White",
 		"blurColorBlack": "Black",

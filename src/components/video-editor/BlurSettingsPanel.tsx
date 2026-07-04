@@ -9,6 +9,7 @@ import {
 	type BlurColor,
 	type BlurData,
 	type BlurShape,
+	type BlurType,
 	DEFAULT_BLUR_BLOCK_SIZE,
 	DEFAULT_BLUR_DATA,
 	MAX_BLUR_BLOCK_SIZE,
@@ -31,7 +32,12 @@ export function BlurSettingsPanel({
 	onDelete,
 }: BlurSettingsPanelProps) {
 	const t = useScopedT("settings");
+	const activeType = blurRegion.blurData?.type ?? DEFAULT_BLUR_DATA.type;
 
+	const blurTypeOptions: Array<{ value: BlurType; labelKey: string }> = [
+		{ value: "solid", labelKey: "blurTypeSolid" },
+		{ value: "mosaic", labelKey: "blurTypeMosaic" },
+	];
 	const blurShapeOptions: Array<{ value: BlurShape; labelKey: string }> = [
 		{ value: "rectangle", labelKey: "blurShapeRectangle" },
 		{ value: "oval", labelKey: "blurShapeOval" },
@@ -48,12 +54,41 @@ export function BlurSettingsPanel({
 		>
 			<div className="mb-3">
 				<div className="mb-4">
-					<span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">
-						{t("annotation.blurTypeMosaic")}
-					</span>
-					<div className="mt-1 text-xl font-semibold text-slate-100">
-						{t("annotation.typeBlur")}
+					<label className="text-xs font-medium text-slate-300 mb-2 block">
+						{t("annotation.blurType")}
+					</label>
+					<div className="grid grid-cols-2 gap-2">
+						{blurTypeOptions.map((option) => {
+							const isActive = activeType === option.value;
+							return (
+								<button
+									key={option.value}
+									data-testid={`blur-type-${option.value}`}
+									onClick={() => {
+										onBlurDataChange(
+											withBlurDataPatch(blurRegion.blurData, { type: option.value }),
+										);
+										requestAnimationFrame(() => {
+											onBlurDataCommit?.();
+										});
+									}}
+									className={cn(
+										"h-10 rounded-lg border flex items-center justify-center gap-2 px-3 transition-all text-xs font-medium",
+										isActive
+											? "bg-[#34B27B] border-[#34B27B] text-white"
+											: "bg-white/5 border-white/10 text-slate-200 hover:bg-white/10 hover:border-white/20",
+									)}
+								>
+									{t(`annotation.${option.labelKey}`)}
+								</button>
+							);
+						})}
 					</div>
+					{activeType === "mosaic" && (
+						<p className="mt-2 text-[11px] leading-snug text-amber-400/90">
+							{t("annotation.mosaicSecurityWarning")}
+						</p>
+					)}
 				</div>
 
 				<div className="grid grid-cols-2 gap-2">
@@ -145,28 +180,30 @@ export function BlurSettingsPanel({
 					</div>
 				</div>
 
-				<div className="mt-4 p-3 rounded-lg editor-control-surface">
-					<div className="flex items-center justify-between mb-2">
-						<span className="text-xs font-medium text-slate-300">
-							{t("annotation.mosaicBlockSize")}
-						</span>
-						<span className="text-[10px] text-slate-400 font-mono">
-							{Math.round(blurRegion.blurData?.blockSize ?? DEFAULT_BLUR_BLOCK_SIZE)}
-							px
-						</span>
+				{activeType === "mosaic" && (
+					<div className="mt-4 p-3 rounded-lg editor-control-surface">
+						<div className="flex items-center justify-between mb-2">
+							<span className="text-xs font-medium text-slate-300">
+								{t("annotation.mosaicBlockSize")}
+							</span>
+							<span className="text-[10px] text-slate-400 font-mono">
+								{Math.round(blurRegion.blurData?.blockSize ?? DEFAULT_BLUR_BLOCK_SIZE)}
+								px
+							</span>
+						</div>
+						<Slider
+							value={[blurRegion.blurData?.blockSize ?? DEFAULT_BLUR_BLOCK_SIZE]}
+							onValueChange={(values) => {
+								onBlurDataChange(withBlurDataPatch(blurRegion.blurData, { blockSize: values[0] }));
+							}}
+							onValueCommit={() => onBlurDataCommit?.()}
+							min={MIN_BLUR_BLOCK_SIZE}
+							max={MAX_BLUR_BLOCK_SIZE}
+							step={1}
+							className="w-full [&_[role=slider]]:bg-[#34B27B] [&_[role=slider]]:border-[#34B27B] [&_[role=slider]]:h-3 [&_[role=slider]]:w-3"
+						/>
 					</div>
-					<Slider
-						value={[blurRegion.blurData?.blockSize ?? DEFAULT_BLUR_BLOCK_SIZE]}
-						onValueChange={(values) => {
-							onBlurDataChange(withBlurDataPatch(blurRegion.blurData, { blockSize: values[0] }));
-						}}
-						onValueCommit={() => onBlurDataCommit?.()}
-						min={MIN_BLUR_BLOCK_SIZE}
-						max={MAX_BLUR_BLOCK_SIZE}
-						step={1}
-						className="w-full [&_[role=slider]]:bg-[#34B27B] [&_[role=slider]]:border-[#34B27B] [&_[role=slider]]:h-3 [&_[role=slider]]:w-3"
-					/>
-				</div>
+				)}
 
 				<div className="mt-4 grid grid-cols-2 gap-2">
 					<Button

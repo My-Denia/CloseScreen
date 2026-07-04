@@ -151,6 +151,8 @@
 		"blurType": "Bulanıklık Türü",
 		"blurTypeBlur": "Bulanık",
 		"blurTypeMosaic": "Mozaik Bulanıklık",
+		"blurTypeSolid": "Düz",
+		"mosaicSecurityWarning": "Mozaik geri döndürülebilir; parola veya kimlik gibi hassas metinler için Düz'ü kullanın.",
 		"blurColor": "Bulanıklık Rengi",
 		"blurColorWhite": "Beyaz",
 		"blurColorBlack": "Siyah",
