@@ -157,10 +157,14 @@ jobs:
           sort -k2 SHA256SUMS.txt -o SHA256SUMS.txt
           cat SHA256SUMS.txt
 
+      - name: Verify release notes exist
+        shell: bash
+        run: test -f "docs/releases/${GITHUB_REF_NAME}.md"
+
       - name: Publish release assets
         uses: softprops/action-gh-release@v3
         with:
-          body_path: docs/releases/v1.5.0-fork.2.md
+          body_path: docs/releases/${{ github.ref_name }}.md
           generate_release_notes: true
           prerelease: false
           make_latest: "true"
