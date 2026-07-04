@@ -37,6 +37,11 @@ describe("version ordering", () => {
 		expect(isNewerVersion("1.5.0-fork.1", "1.5.0-fork.1")).toBe(false);
 	});
 
+	it("does not report an update when the current version is newer than the release", () => {
+		expect(isNewerVersion("1.5.0-fork.1", "1.5.0-fork.2")).toBe(false);
+		expect(isNewerVersion("1.5.9-fork.9", "1.6.0")).toBe(false);
+	});
+
 	it("never reports an update for unparseable versions", () => {
 		expect(isNewerVersion("1.6.0-beta.1", "1.5.0")).toBe(false);
 		expect(isNewerVersion("1.6.0", "garbage")).toBe(false);
@@ -59,21 +64,47 @@ describe("pickLatestRelease", () => {
 		...extra,
 	});
 
-	it("picks the newest parseable non-draft release, including prereleases", () => {
+	it("picks the newest stable parseable non-draft release by default", () => {
 		const picked = pickLatestRelease([
-			release("v1.5.0-fork.1", { prerelease: true }),
+			release("v1.5.1-fork.1", { prerelease: true }),
 			release("v1.5.0-fork.3", { prerelease: true }),
 			release("v1.5.0-fork.2"),
+			release("v1.5.0-fork.1"),
 		]);
+		expect(picked).toEqual({
+			version: "1.5.0-fork.2",
+			htmlUrl: "https://github.com/My-Denia/CloseScreen/releases/tag/v1.5.0-fork.2",
+		});
+	});
+
+	it("can include prereleases when the caller explicitly opts in", () => {
+		const picked = pickLatestRelease(
+			[
+				release("v1.5.0-fork.1", { prerelease: true }),
+				release("v1.5.0-fork.3", { prerelease: true }),
+				release("v1.5.0-fork.2"),
+			],
+			{ includePrereleases: true },
+		);
 		expect(picked).toEqual({
 			version: "1.5.0-fork.3",
 			htmlUrl: "https://github.com/My-Denia/CloseScreen/releases/tag/v1.5.0-fork.3",
 		});
 	});
 
-	it("skips drafts, malformed entries, and foreign tag schemes", () => {
+	it("returns null for prerelease-only payloads unless prereleases are requested", () => {
+		expect(
+			pickLatestRelease([
+				release("v1.5.0-fork.1", { prerelease: true }),
+				release("v1.5.0-fork.2", { prerelease: true }),
+			]),
+		).toBeNull();
+	});
+
+	it("skips drafts, malformed entries, foreign tag schemes, and default prereleases", () => {
 		const picked = pickLatestRelease([
 			release("v9.9.9", { draft: true }),
+			release("v2.0.0-fork.1", { prerelease: true }),
 			release("nightly-2026-07-01"),
 			{ tag_name: 42, html_url: "https://example.com" },
 			null,
@@ -82,9 +113,9 @@ describe("pickLatestRelease", () => {
 		expect(picked?.version).toBe("1.5.0-fork.1");
 	});
 
-	it("returns null for empty or non-array payloads", () => {
+	it("returns null for empty, malformed, or rate-limited payloads", () => {
 		expect(pickLatestRelease([])).toBeNull();
-		expect(pickLatestRelease({ message: "rate limited" })).toBeNull();
+		expect(pickLatestRelease({ message: "API rate limit exceeded" })).toBeNull();
 		expect(pickLatestRelease(undefined)).toBeNull();
 	});
 });

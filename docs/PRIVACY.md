@@ -30,7 +30,8 @@ contains those caption annotations.
 Current built-in network paths are limited:
 
 - The main-process update check calls GitHub Releases for `My-Denia/CloseScreen` and returns a
-  download page URL when a newer version is available.
+  download page URL when a newer stable version is available. Current startup/manual checks do
+  not subscribe users to prerelease notifications.
 - The packaged renderer CSS imports Google Fonts, and the packaged CSP allows
   `fonts.googleapis.com` and `fonts.gstatic.com` for stylesheet/font loading.
 - External links opened from the app are restricted to web and mail schemes and are handed to the OS
@@ -59,8 +60,9 @@ recordings directory, deleting only app data will not remove recordings stored t
 
 ## Updates
 
-The update check is a link/check flow only. It does not install updates, download installers in the
-background, send telemetry, or use a third-party update service.
+The update check is a stable-channel link/check flow only. It does not install updates, download
+installers in the background, send telemetry, subscribe users to prerelease notifications, or use a
+third-party update service.
 
 ## Implementation References
 

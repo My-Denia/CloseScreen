@@ -12,7 +12,7 @@ This project is based on [Siddharth Vaddem's OpenScreen](https://github.com/sidd
 - Product identity: `CloseScreen`, package slug `closescreen`, appId `io.github.my-denia.closescreen`.
 - Package manager: npm with `package-lock.json`; use the Node version in `.nvmrc`.
 - Distribution: GitHub Actions can build unsigned Windows and Linux artifacts for this fork's GitHub Releases. External package-manager channels are not automated.
-- Updates: the app checks this fork's GitHub Releases and opens the release page when a newer version exists. It does not auto-download, auto-install, or run an updater service.
+- Updates: the app checks this fork's stable GitHub Releases and opens the release page when a newer version exists. It does not auto-download, auto-install, run an updater service, or subscribe users to prerelease notifications.
 
 ## Platform Support
 
@@ -79,7 +79,7 @@ Packaging runs `scripts/before-pack.cjs`, which ensures the offline caption mode
 - `.github/workflows/ci.yml` runs lint, i18n parity, typecheck, unit tests, browser tests, and Vite build on pull requests and `main`.
 - `.github/workflows/build.yml` is a manual build workflow for unsigned Windows and Linux artifacts.
 - `.github/workflows/release.yml` runs on `v*` tags, verifies the tag matches `package.json`, builds Windows and Linux artifacts, then publishes a GitHub Release.
-- The app's update check reads GitHub Releases from the main process and only surfaces a download link.
+- The app's update check reads stable GitHub Releases from the main process and only surfaces a download link.
 
 ## Recording And Export Storage
 
