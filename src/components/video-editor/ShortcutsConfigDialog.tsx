@@ -148,7 +148,7 @@ export function ShortcutsConfigDialog() {
 								const isCapturing = captureFor === action;
 								const hasConflict = conflict?.forAction === action;
 								return (
-									<div key={action}>
+									<div key={action} data-testid={`shortcut-action-${action}`}>
 										<div className="flex items-center justify-between py-1.5 px-1 border-b border-white/5">
 											<span className="text-sm text-slate-300">{t(`actions.${action}`)}</span>
 											<button

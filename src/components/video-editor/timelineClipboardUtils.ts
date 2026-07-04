@@ -128,3 +128,22 @@ export function buildPastedAnnotationRegion(
 		position: getPastedAnnotationPosition(rest.position, rest.size),
 	};
 }
+
+/**
+ * Duplicated annotations/blurs keep their original span and content, shift slightly on
+ * the canvas, and drop auto-caption linkage so the duplicate is independently editable.
+ */
+export function buildDuplicatedAnnotationRegion(
+	source: AnnotationRegion,
+	id: string,
+	zIndex: number,
+): AnnotationRegion {
+	const cloned = cloneAnnotationRegion(source);
+	const { annotationSource: _stripCaptionLink, ...rest } = cloned;
+	return {
+		...rest,
+		id,
+		zIndex,
+		position: { x: source.position.x + 4, y: source.position.y + 4 },
+	};
+}

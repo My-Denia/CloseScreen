@@ -17,6 +17,7 @@ export default function Row({ id, children, hint, isEmpty, background }: RowProp
 
 	return (
 		<div
+			data-timeline-row-id={id}
 			className="border-b border-white/[0.055] bg-[#101116] relative overflow-hidden"
 			style={{ ...rowWrapperStyle, minHeight: 36 }}
 		>

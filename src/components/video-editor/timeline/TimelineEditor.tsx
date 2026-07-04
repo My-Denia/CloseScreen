@@ -43,6 +43,7 @@ import Item from "./Item";
 import KeyframeMarkers from "./KeyframeMarkers";
 import Row from "./Row";
 import TimelineWrapper from "./TimelineWrapper";
+import { getNextOverlappingRegionId } from "./timelineCycleSelection";
 
 const ZOOM_ROW_ID = "row-zoom";
 const TRIM_ROW_ID = "row-trim";
@@ -788,6 +789,7 @@ function Timeline({
 
 	return (
 		<div
+			data-testid="timeline-editor-surface"
 			ref={setRefs}
 			style={{ ...style, touchAction: "none" }}
 			className="select-none bg-[#0b0c0f] min-h-[190px] relative cursor-pointer group"
@@ -1426,24 +1428,23 @@ export default function TimelineEditor({
 				handleAddHighlight();
 			}
 
-			// Tab cycles through overlapping annotations at the current time
-			if (e.key === "Tab" && annotationRegions.length > 0) {
+			// Tab cycles through overlapping items within the focused annotation/blur row.
+			if (e.key === "Tab") {
 				const currentTimeMs = Math.round(currentTime * 1000);
-				const overlapping = annotationRegions
-					.filter((a) => currentTimeMs >= a.startMs && currentTimeMs <= a.endMs)
-					.sort((a, b) => a.zIndex - b.zIndex);
+				const cycleBlurs = Boolean(selectedBlurId);
+				const nextId = getNextOverlappingRegionId({
+					regions: cycleBlurs ? blurRegions : annotationRegions,
+					selectedId: cycleBlurs ? selectedBlurId : selectedAnnotationId,
+					currentTimeMs,
+					backward: e.shiftKey,
+				});
 
-				if (overlapping.length > 0) {
+				if (nextId) {
 					e.preventDefault();
-
-					if (!selectedAnnotationId || !overlapping.some((a) => a.id === selectedAnnotationId)) {
-						onSelectAnnotation?.(overlapping[0].id);
+					if (cycleBlurs) {
+						onSelectBlur?.(nextId);
 					} else {
-						const currentIndex = overlapping.findIndex((a) => a.id === selectedAnnotationId);
-						const nextIndex = e.shiftKey
-							? (currentIndex - 1 + overlapping.length) % overlapping.length // Shift+Tab steps backward
-							: (currentIndex + 1) % overlapping.length;
-						onSelectAnnotation?.(overlapping[nextIndex].id);
+						onSelectAnnotation?.(nextId);
 					}
 				}
 			}
@@ -1496,8 +1497,10 @@ export default function TimelineEditor({
 		selectedSpeedId,
 		selectedHighlightId,
 		annotationRegions,
+		blurRegions,
 		currentTime,
 		onSelectAnnotation,
+		onSelectBlur,
 		keyShortcuts,
 		canCopySelectedItem,
 		canPasteTimelineItem,
@@ -1724,6 +1727,7 @@ export default function TimelineEditor({
 					</Button>
 					{BLUR_REGIONS_ENABLED && (
 						<Button
+							data-testid="timeline-add-blur-button"
 							onClick={handleAddBlur}
 							variant="ghost"
 							size="icon"

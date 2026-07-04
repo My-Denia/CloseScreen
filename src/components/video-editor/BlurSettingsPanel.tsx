@@ -1,4 +1,4 @@
-import { Trash2 } from "lucide-react";
+import { Copy, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
 import { useScopedT } from "@/contexts/I18nContext";
@@ -19,6 +19,7 @@ interface BlurSettingsPanelProps {
 	blurRegion: AnnotationRegion;
 	onBlurDataChange: (blurData: BlurData) => void;
 	onBlurDataCommit?: () => void;
+	onDuplicate?: () => void;
 	onDelete: () => void;
 }
 
@@ -26,6 +27,7 @@ export function BlurSettingsPanel({
 	blurRegion,
 	onBlurDataChange,
 	onBlurDataCommit,
+	onDuplicate,
 	onDelete,
 }: BlurSettingsPanelProps) {
 	const t = useScopedT("settings");
@@ -40,7 +42,10 @@ export function BlurSettingsPanel({
 	];
 
 	return (
-		<div className="min-w-0 p-4 flex flex-col h-full overflow-y-auto custom-scrollbar">
+		<div
+			data-testid="blur-settings-panel"
+			className="min-w-0 p-4 flex flex-col h-full overflow-y-auto custom-scrollbar"
+		>
 			<div className="mb-3">
 				<div className="mb-4">
 					<span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">
@@ -178,15 +183,29 @@ export function BlurSettingsPanel({
 					/>
 				</div>
 
-				<Button
-					onClick={onDelete}
-					variant="destructive"
-					size="sm"
-					className="w-full gap-2 bg-red-500/10 text-red-400 border border-red-500/20 hover:bg-red-500/20 hover:border-red-500/30 transition-all mt-4"
-				>
-					<Trash2 className="w-4 h-4" />
-					{t("annotation.deleteAnnotation")}
-				</Button>
+				<div className="mt-4 grid grid-cols-2 gap-2">
+					<Button
+						data-testid="blur-duplicate-button"
+						onClick={() => onDuplicate?.()}
+						variant="outline"
+						size="sm"
+						disabled={!onDuplicate}
+						className="w-full gap-2 bg-white/5 text-slate-200 border border-white/10 hover:bg-white/10 hover:border-white/20 transition-all"
+					>
+						<Copy className="w-4 h-4" />
+						Duplicate
+					</Button>
+
+					<Button
+						onClick={onDelete}
+						variant="destructive"
+						size="sm"
+						className="w-full gap-2 bg-red-500/10 text-red-400 border border-red-500/20 hover:bg-red-500/20 hover:border-red-500/30 transition-all"
+					>
+						<Trash2 className="w-4 h-4" />
+						{t("annotation.deleteAnnotation")}
+					</Button>
+				</div>
 			</div>
 		</div>
 	);

@@ -845,6 +845,9 @@ export function SettingsPanel({
 						blurRegion={selectedBlur}
 						onBlurDataChange={(blurData) => onBlurDataChange(selectedBlur.id, blurData)}
 						onBlurDataCommit={onBlurDataCommit}
+						onDuplicate={
+							onAnnotationDuplicate ? () => onAnnotationDuplicate(selectedBlur.id) : undefined
+						}
 						onDelete={() => onBlurDelete(selectedBlur.id)}
 					/>
 				</div>

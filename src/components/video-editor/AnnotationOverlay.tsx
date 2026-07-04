@@ -5,6 +5,7 @@ import {
 	getBlurOverlayColor,
 	getMosaicGridOverlayColor,
 	getNormalizedMosaicBlockSize,
+	normalizeBlurType,
 } from "@/lib/blurEffects";
 import { cn } from "@/lib/utils";
 import { getArrowComponent } from "./ArrowSvgs";
@@ -85,7 +86,8 @@ export function AnnotationOverlay({
 	);
 	const [livePointerPoint, setLivePointerPoint] = useState<{ x: number; y: number } | null>(null);
 	const mosaicCanvasRef = useRef<HTMLCanvasElement | null>(null);
-	const blurType = "mosaic";
+	const blurType =
+		annotation.type === "blur" ? normalizeBlurType(annotation.blurData?.type) : "mosaic";
 	const blurOverlayColor =
 		annotation.type === "blur" ? getBlurOverlayColor(annotation.blurData) : "";
 	const mosaicGridOverlayColor =
