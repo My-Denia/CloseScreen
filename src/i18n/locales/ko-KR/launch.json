@@ -65,6 +65,18 @@
 		"saveFailedTitle": "녹화를 저장하지 못했습니다",
 		"appliesToNew": "새 녹화에만 적용되며 기존 파일은 그대로 유지됩니다",
 		"unavailableFallback": "사용자 지정 폴더를 사용할 수 없어 기본 폴더를 사용합니다",
-		"recordingActive": "저장 폴더를 변경하려면 녹화를 중지하세요"
+		"recordingActive": "저장 폴더를 변경하려면 녹화를 중지하세요",
+		"retentionAge": "Age limit",
+		"retentionKeepForever": "Keep forever",
+		"retentionDays": "{{days}} days",
+		"retentionSize": "Size limit",
+		"retentionUnlimited": "Unlimited",
+		"retentionSizeGb": "{{size}} GB",
+		"cleanup": "Clean up",
+		"cleanupBusy": "Cleaning...",
+		"cleanupSummary": "{{used}} used - {{reclaimable}} reclaimable - {{sessions}} sessions",
+		"cleanupSummaryUnknown": "Cleanup estimate unavailable",
+		"cleanupResult": "Deleted {{files}} files ({{size}})",
+		"cleanupError": "Cleanup failed"
 	}
 }

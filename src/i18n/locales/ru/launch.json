@@ -65,6 +65,18 @@
 		"saveFailedTitle": "Не удалось сохранить запись",
 		"appliesToNew": "Применяется к новым записям; существующие файлы остаются на месте",
 		"unavailableFallback": "Пользовательская папка недоступна — используется папка по умолчанию",
-		"recordingActive": "Остановите запись, чтобы изменить папку хранения"
+		"recordingActive": "Остановите запись, чтобы изменить папку хранения",
+		"retentionAge": "Age limit",
+		"retentionKeepForever": "Keep forever",
+		"retentionDays": "{{days}} days",
+		"retentionSize": "Size limit",
+		"retentionUnlimited": "Unlimited",
+		"retentionSizeGb": "{{size}} GB",
+		"cleanup": "Clean up",
+		"cleanupBusy": "Cleaning...",
+		"cleanupSummary": "{{used}} used - {{reclaimable}} reclaimable - {{sessions}} sessions",
+		"cleanupSummaryUnknown": "Cleanup estimate unavailable",
+		"cleanupResult": "Deleted {{files}} files ({{size}})",
+		"cleanupError": "Cleanup failed"
 	}
 }

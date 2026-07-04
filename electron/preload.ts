@@ -223,6 +223,18 @@ contextBridge.exposeInMainWorld("electronAPI", {
 	openRecordingsDirectory: () => {
 		return ipcRenderer.invoke("open-recordings-directory");
 	},
+	getRecordingRetentionStatus: () => {
+		return ipcRenderer.invoke("get-recording-retention-status");
+	},
+	setRecordingRetentionPolicy: (policy: {
+		maxAgeDays: 7 | 14 | 30 | 90 | null;
+		maxSizeBytes: 5_368_709_120 | 10_737_418_240 | 53_687_091_200 | null;
+	}) => {
+		return ipcRenderer.invoke("set-recording-retention-policy", policy);
+	},
+	cleanupRecordings: () => {
+		return ipcRenderer.invoke("cleanup-recordings");
+	},
 	notifyRecordingFinalized: (recordingId: number) => {
 		return ipcRenderer.invoke("notify-recording-finalized", recordingId);
 	},

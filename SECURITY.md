@@ -57,10 +57,13 @@ The main process:
 - resolves real paths to catch symlink/junction aliases to guarded locations;
 - re-checks available stored custom folders on startup before using their resolved real path;
 - preserves an unavailable stored custom folder so sessions can load again if that drive returns;
-- locks folder changes while recording or finalizing.
+- locks folder changes and manual retention cleanup while recording or finalizing;
+- plans retention cleanup before deleting anything;
+- limits cleanup deletion to manifest-managed session files inside the effective recordings directory;
+- revalidates real paths and rejects symlink or junction escapes before deleting individual files.
 
-If this area changes, tests should cover setting-time validation, startup validation, and the
-unavailable-folder fallback path.
+If this area changes, tests should cover setting-time validation, startup validation, the
+unavailable-folder fallback path, cleanup planning, and locked-cleanup refusal.
 
 ## Redaction Guidance
 

@@ -65,6 +65,18 @@
 		"saveFailedTitle": "錄製內容儲存失敗",
 		"appliesToNew": "僅對新錄製生效；現有檔案保留在原位置",
 		"unavailableFallback": "自訂資料夾無法使用——已改用預設資料夾",
-		"recordingActive": "請先停止錄製再變更儲存位置"
+		"recordingActive": "請先停止錄製再變更儲存位置",
+		"retentionAge": "Age limit",
+		"retentionKeepForever": "Keep forever",
+		"retentionDays": "{{days}} days",
+		"retentionSize": "Size limit",
+		"retentionUnlimited": "Unlimited",
+		"retentionSizeGb": "{{size}} GB",
+		"cleanup": "Clean up",
+		"cleanupBusy": "Cleaning...",
+		"cleanupSummary": "{{used}} used - {{reclaimable}} reclaimable - {{sessions}} sessions",
+		"cleanupSummaryUnknown": "Cleanup estimate unavailable",
+		"cleanupResult": "Deleted {{files}} files ({{size}})",
+		"cleanupError": "Cleanup failed"
 	}
 }

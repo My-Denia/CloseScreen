@@ -4,11 +4,15 @@ import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
 	__resetAppSettingsForTest,
+	DEFAULT_RECORDING_RETENTION_POLICY,
 	getAllowedRecordingDirs,
 	getDefaultRecordingsDir,
+	getRecordingRetentionPolicy,
 	getRecordingStorageInfo,
 	getRecordingsDir,
 	initAppSettings,
+	RECORDING_RETENTION_MAX_SIZE_BYTES,
+	setRecordingRetentionPolicy,
 	setRecordingsDir,
 } from "./appSettings";
 
@@ -198,5 +202,60 @@ describe("getAllowedRecordingDirs", () => {
 		// Selecting the default explicitly must not double it up.
 		await setRecordingsDir(getDefaultRecordingsDir());
 		expect(getAllowedRecordingDirs()).toEqual([getDefaultRecordingsDir()]);
+	});
+});
+
+describe("recording retention policy", () => {
+	it("defaults to keep forever when no policy is stored", () => {
+		expect(getRecordingRetentionPolicy()).toEqual(DEFAULT_RECORDING_RETENTION_POLICY);
+	});
+
+	it("falls back to keep forever for invalid persisted values", async () => {
+		await writeFile(
+			settingsPath(),
+			JSON.stringify({
+				recordingRetentionPolicy: { maxAgeDays: 3, maxSizeBytes: "not-a-size" },
+			}),
+			"utf-8",
+		);
+
+		await initFresh();
+
+		expect(getRecordingRetentionPolicy()).toEqual(DEFAULT_RECORDING_RETENTION_POLICY);
+	});
+
+	it("persists a valid cleanup policy and reloads it", async () => {
+		const policy = { maxAgeDays: 30, maxSizeBytes: RECORDING_RETENTION_MAX_SIZE_BYTES[1] } as const;
+
+		const result = await setRecordingRetentionPolicy(policy);
+
+		expect(result).toEqual({ success: true, policy });
+		expect(getRecordingRetentionPolicy()).toEqual(policy);
+		await initFresh();
+		expect(getRecordingRetentionPolicy()).toEqual(policy);
+	});
+
+	it("preserves unknown settings keys when saving the cleanup policy", async () => {
+		await writeFile(settingsPath(), JSON.stringify({ futureSetting: 42 }), "utf-8");
+		await initFresh();
+
+		await setRecordingRetentionPolicy({ maxAgeDays: 14, maxSizeBytes: null });
+
+		const persisted = JSON.parse(await readFile(settingsPath(), "utf-8"));
+		expect(persisted.futureSetting).toBe(42);
+		expect(persisted.recordingRetentionPolicy).toEqual({ maxAgeDays: 14, maxSizeBytes: null });
+	});
+
+	it("rejects invalid setter values without changing the effective policy", async () => {
+		const validPolicy = { maxAgeDays: 7, maxSizeBytes: null } as const;
+		expect((await setRecordingRetentionPolicy(validPolicy)).success).toBe(true);
+
+		const invalidPolicy = { maxAgeDays: 2, maxSizeBytes: null } as unknown as Parameters<
+			typeof setRecordingRetentionPolicy
+		>[0];
+		const result = await setRecordingRetentionPolicy(invalidPolicy);
+
+		expect(result.success).toBe(false);
+		expect(getRecordingRetentionPolicy()).toEqual(validPolicy);
 	});
 });

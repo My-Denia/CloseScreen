@@ -65,6 +65,18 @@
 		"saveFailedTitle": "録画を保存できませんでした",
 		"appliesToNew": "新しい録画にのみ適用されます。既存のファイルは移動しません",
 		"unavailableFallback": "カスタムフォルダーを使用できないため、既定のフォルダーを使用しています",
-		"recordingActive": "保存フォルダーを変更するには録画を停止してください"
+		"recordingActive": "保存フォルダーを変更するには録画を停止してください",
+		"retentionAge": "Age limit",
+		"retentionKeepForever": "Keep forever",
+		"retentionDays": "{{days}} days",
+		"retentionSize": "Size limit",
+		"retentionUnlimited": "Unlimited",
+		"retentionSizeGb": "{{size}} GB",
+		"cleanup": "Clean up",
+		"cleanupBusy": "Cleaning...",
+		"cleanupSummary": "{{used}} used - {{reclaimable}} reclaimable - {{sessions}} sessions",
+		"cleanupSummaryUnknown": "Cleanup estimate unavailable",
+		"cleanupResult": "Deleted {{files}} files ({{size}})",
+		"cleanupError": "Cleanup failed"
 	}
 }
