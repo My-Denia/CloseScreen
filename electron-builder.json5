@@ -45,6 +45,14 @@
     {
       "from": "caption-assets",
       "to": "caption-assets"
+    },
+    {
+      "from": "LICENSE",
+      "to": "licenses/LICENSE"
+    },
+    {
+      "from": "README.md",
+      "to": "licenses/README.md"
     }
   ],
 
