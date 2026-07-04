@@ -193,7 +193,7 @@ export function BlurSettingsPanel({
 						className="w-full gap-2 bg-white/5 text-slate-200 border border-white/10 hover:bg-white/10 hover:border-white/20 transition-all"
 					>
 						<Copy className="w-4 h-4" />
-						Duplicate
+						{t("annotation.duplicateAnnotation")}
 					</Button>
 
 					<Button

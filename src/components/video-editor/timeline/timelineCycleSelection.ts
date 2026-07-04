@@ -17,7 +17,7 @@ export function getNextOverlappingRegionId({
 	backward?: boolean;
 }): string | null {
 	const overlapping = regions
-		.filter((region) => currentTimeMs >= region.startMs && currentTimeMs <= region.endMs)
+		.filter((region) => currentTimeMs >= region.startMs && currentTimeMs < region.endMs)
 		.sort((a, b) => a.zIndex - b.zIndex);
 
 	if (overlapping.length === 0) return null;

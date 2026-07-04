@@ -72,4 +72,45 @@ describe("getNextOverlappingRegionId", () => {
 			}),
 		).toBe("annotation-1");
 	});
+
+	it("returns null when no region overlaps the playhead", () => {
+		expect(
+			getNextOverlappingRegionId({
+				regions: [region("a", 1), region("b", 2)],
+				selectedId: "a",
+				currentTimeMs: 5000,
+			}),
+		).toBeNull();
+		expect(
+			getNextOverlappingRegionId({ regions: [], selectedId: null, currentTimeMs: 200 }),
+		).toBeNull();
+	});
+
+	it("cycles a single overlapping region to itself in both directions", () => {
+		const single = [region("only", 1)];
+		expect(
+			getNextOverlappingRegionId({ regions: single, selectedId: null, currentTimeMs: 200 }),
+		).toBe("only");
+		expect(
+			getNextOverlappingRegionId({ regions: single, selectedId: "only", currentTimeMs: 200 }),
+		).toBe("only");
+		expect(
+			getNextOverlappingRegionId({
+				regions: single,
+				selectedId: "only",
+				currentTimeMs: 200,
+				backward: true,
+			}),
+		).toBe("only");
+	});
+
+	it("treats endMs as exclusive and startMs as inclusive, matching the renderer", () => {
+		const regions = [region("r", 1, { startMs: 100, endMs: 500 })];
+		// exact right edge is NOT overlapping — renderer uses currentTimeMs < endMs
+		expect(
+			getNextOverlappingRegionId({ regions, selectedId: null, currentTimeMs: 500 }),
+		).toBeNull();
+		// exact left edge IS overlapping — currentTimeMs >= startMs
+		expect(getNextOverlappingRegionId({ regions, selectedId: null, currentTimeMs: 100 })).toBe("r");
+	});
 });

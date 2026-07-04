@@ -161,6 +161,7 @@
 		"blurShapeOval": "Oval",
 		"blurShapeFreehand": "Mão Livre",
 		"deleteAnnotation": "Excluir Anotação",
+		"duplicateAnnotation": "Duplicar Anotação",
 		"shortcutsAndTips": "Atalhos e Dicas",
 		"tipMovePlayhead": "Mova o cursor de reprodução para a seção de anotação sobreposta e selecione um item.",
 		"tipTabCycle": "Use Tab para alternar entre itens sobrepostos.",

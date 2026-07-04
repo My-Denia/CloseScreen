@@ -161,6 +161,7 @@
 		"blurShapeOval": "بيضاوي",
 		"blurShapeFreehand": "رسم حر",
 		"deleteAnnotation": "حذف الشرح",
+		"duplicateAnnotation": "تكرار الشرح",
 		"shortcutsAndTips": "اختصارات ونصائح",
 		"tipMovePlayhead": "انقل رأس التشغيل إلى قسم الشروح المتداخلة وحدد عنصرًا.",
 		"tipTabCycle": "استخدم Tab للتنقل بين العناصر المتداخلة.",

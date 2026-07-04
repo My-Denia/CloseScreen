@@ -161,6 +161,7 @@
 		"blurShapeOval": "Ovale",
 		"blurShapeFreehand": "Main levée",
 		"deleteAnnotation": "Supprimer l'annotation",
+		"duplicateAnnotation": "Dupliquer l'annotation",
 		"shortcutsAndTips": "Raccourcis & Astuces",
 		"tipMovePlayhead": "Déplacez la tête de lecture sur la section d'annotation et sélectionnez un élément.",
 		"tipTabCycle": "Utilisez Tab pour cycler entre les éléments superposés.",

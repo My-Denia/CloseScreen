@@ -161,6 +161,7 @@
 		"blurShapeOval": "橢圓",
 		"blurShapeFreehand": "自由手繪",
 		"deleteAnnotation": "刪除標註",
+		"duplicateAnnotation": "複製標註",
 		"shortcutsAndTips": "快捷鍵與提示",
 		"tipMovePlayhead": "將播放頭移動到重疊的標註區域並選擇一個項目。",
 		"tipTabCycle": "使用 Tab 鍵在重疊項目之間循環切換。",

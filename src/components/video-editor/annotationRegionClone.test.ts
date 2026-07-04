@@ -58,4 +58,26 @@ describe("buildDuplicatedAnnotationRegion", () => {
 		expect(duplicate.blurData?.freehandPoints).not.toBe(source.blurData?.freehandPoints);
 		expect(duplicate.blurData?.freehandPoints?.[0]).not.toBe(source.blurData?.freehandPoints?.[0]);
 	});
+
+	it("clamps a duplicated full-frame blur to the canvas so no unredacted strip is exposed", () => {
+		const fullFrame = createBlurRegion({
+			position: { x: 0, y: 0 },
+			size: { width: 100, height: 100 },
+		});
+		const duplicate = buildDuplicatedAnnotationRegion(fullFrame, "blur-full-2", 4);
+		// A bare +4 offset would shift it to {4,4} and clip a strip off the right/bottom edge,
+		// briefly exposing unredacted pixels; clamping keeps full coverage at {0,0}.
+		expect(duplicate.position).toEqual({ x: 0, y: 0 });
+		expect(duplicate.size).toEqual({ width: 100, height: 100 });
+	});
+
+	it("clamps a duplicated bottom-right-edge blur back inside the canvas", () => {
+		const edge = createBlurRegion({
+			position: { x: 80, y: 85 },
+			size: { width: 20, height: 15 },
+		});
+		const duplicate = buildDuplicatedAnnotationRegion(edge, "blur-edge-2", 4);
+		// maxX = 100 - 20 = 80, maxY = 100 - 15 = 85: +4 would exceed both bounds, clamp holds.
+		expect(duplicate.position).toEqual({ x: 80, y: 85 });
+	});
 });

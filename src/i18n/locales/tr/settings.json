@@ -161,6 +161,7 @@
 		"blurShapeOval": "Oval",
 		"blurShapeFreehand": "Serbest",
 		"deleteAnnotation": "Açıklamayı Sil",
+		"duplicateAnnotation": "Açıklamayı Çoğalt",
 		"shortcutsAndTips": "Kısayollar ve İpuçları",
 		"tipMovePlayhead": "Oynatma imlecini çakışan açıklama bölümüne taşıyın ve bir öğe seçin.",
 		"tipTabCycle": "Çakışan öğeler arasında geçiş yapmak için Tab tuşunu kullanın.",

@@ -130,6 +130,24 @@ export function buildPastedAnnotationRegion(
 }
 
 /**
+ * Where a duplicated annotation lands: nudged 4% down-right so the copy is visible over
+ * the original, then clamped to the canvas. Clamping matters for redaction — a full-frame
+ * or edge blur (e.g. a freehand blur at {0,0,100,100}) must not be pushed off-canvas,
+ * which would leave an unredacted strip until the user drags it back.
+ */
+export function getDuplicatedAnnotationPosition(
+	position: AnnotationPosition,
+	size: AnnotationSize,
+): AnnotationPosition {
+	const maxX = Math.max(0, 100 - size.width);
+	const maxY = Math.max(0, 100 - size.height);
+	return {
+		x: clamp(position.x + 4, 0, maxX),
+		y: clamp(position.y + 4, 0, maxY),
+	};
+}
+
+/**
  * Duplicated annotations/blurs keep their original span and content, shift slightly on
  * the canvas, and drop auto-caption linkage so the duplicate is independently editable.
  */
@@ -144,6 +162,6 @@ export function buildDuplicatedAnnotationRegion(
 		...rest,
 		id,
 		zIndex,
-		position: { x: source.position.x + 4, y: source.position.y + 4 },
+		position: getDuplicatedAnnotationPosition(source.position, rest.size),
 	};
 }

@@ -161,6 +161,7 @@
 		"blurShapeOval": "Oval",
 		"blurShapeFreehand": "Freehand",
 		"deleteAnnotation": "Delete Annotation",
+		"duplicateAnnotation": "Duplicate Annotation",
 		"shortcutsAndTips": "Shortcuts & Tips",
 		"tipMovePlayhead": "Move playhead to overlapping annotation section and select an item.",
 		"tipTabCycle": "Use Tab to cycle through overlapping items.",

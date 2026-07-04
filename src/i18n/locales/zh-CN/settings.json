@@ -161,6 +161,7 @@
 		"blurShapeOval": "椭圆",
 		"blurShapeFreehand": "自由手绘",
 		"deleteAnnotation": "删除标注",
+		"duplicateAnnotation": "复制标注",
 		"shortcutsAndTips": "快捷键与提示",
 		"tipMovePlayhead": "将播放头移动到重叠的标注区域并选择一个项目。",
 		"tipTabCycle": "使用 Tab 键在重叠项目之间循环切换。",
