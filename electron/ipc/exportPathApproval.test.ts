@@ -62,4 +62,22 @@ describe("ExportPathApprovals", () => {
 		expect(approvals.approve(exportPath("not-export.txt"))).toBeNull();
 		expect(approvals.consume(exportPath("not-export.txt"))).toBeNull();
 	});
+
+	it("expires abandoned approvals", () => {
+		let now = 1_000;
+		const approvals = new ExportPathApprovals(() => now, 500);
+		approvals.approve(exportPath("abandoned.mp4"));
+
+		now += 500;
+
+		expect(approvals.consume(exportPath("abandoned.mp4"))).toBeNull();
+	});
+
+	it("discards an approved path when export is abandoned", () => {
+		const approvals = new ExportPathApprovals();
+		approvals.approve(exportPath("canceled.gif"));
+
+		expect(approvals.discard(exportPath("canceled.gif"))).toBe(true);
+		expect(approvals.consume(exportPath("canceled.gif"))).toBeNull();
+	});
 });

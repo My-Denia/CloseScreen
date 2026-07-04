@@ -1860,6 +1860,11 @@ export function registerIpcHandlers(
 		}
 	});
 
+	ipcMain.handle("discard-export-save-path", async (_, filePath: string) => {
+		exportPathApprovals.discard(filePath);
+		return { success: true };
+	});
+
 	ipcMain.handle("open-video-file-picker", async () => {
 		try {
 			const dialogOptions = buildDialogOptions(
