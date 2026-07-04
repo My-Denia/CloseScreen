@@ -427,7 +427,7 @@ export function AnnotationOverlay({
 								style={{
 									...shapeMaskStyle,
 									backgroundColor: blurType === "solid" ? solidFillColor : blurOverlayColor,
-									opacity: blurType === "solid" ? 1 : shouldShowFreehandBlurFill ? 1 : 0,
+									opacity: shouldShowFreehandBlurFill ? 1 : 0,
 								}}
 							/>
 							{blurType === "mosaic" && shouldShowFreehandBlurFill && (
