@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { applyMosaicToImageData, getBlurOverlayColor, normalizeBlurColor } from "./blurEffects";
+import { type BlurData, DEFAULT_BLUR_DATA } from "@/components/video-editor/types";
+import {
+	applyMosaicToImageData,
+	getBlurOverlayColor,
+	normalizeBlurColor,
+	withBlurDataPatch,
+} from "./blurEffects";
 
 function createTestImageData(width: number, height: number) {
 	const data = new Uint8ClampedArray(width * height * 4);
@@ -76,5 +82,27 @@ describe("blur color helpers", () => {
 				blockSize: 12,
 			}),
 		).toBe("rgba(0, 0, 0, 0.72)");
+	});
+});
+
+describe("withBlurDataPatch", () => {
+	const gaussian: BlurData = { ...DEFAULT_BLUR_DATA, type: "blur", shape: "rectangle" };
+
+	it("preserves an imported gaussian blur type when a field is edited", () => {
+		expect(withBlurDataPatch(gaussian, { shape: "oval" }).type).toBe("blur");
+		expect(withBlurDataPatch(gaussian, { color: "black" }).type).toBe("blur");
+		expect(withBlurDataPatch(gaussian, { blockSize: 20 }).type).toBe("blur");
+	});
+
+	it("defaults a new region to mosaic and keeps mosaic on edit", () => {
+		expect(withBlurDataPatch(undefined, { shape: "oval" }).type).toBe("mosaic");
+		expect(
+			withBlurDataPatch({ ...DEFAULT_BLUR_DATA, type: "mosaic" }, { color: "black" }).type,
+		).toBe("mosaic");
+	});
+
+	it("applies the patched field", () => {
+		expect(withBlurDataPatch(undefined, { shape: "oval" }).shape).toBe("oval");
+		expect(withBlurDataPatch(gaussian, { blockSize: 24 }).blockSize).toBe(24);
 	});
 });

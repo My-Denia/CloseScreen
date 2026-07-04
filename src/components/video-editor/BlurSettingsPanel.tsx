@@ -2,7 +2,7 @@ import { Copy, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
 import { useScopedT } from "@/contexts/I18nContext";
-import { getBlurOverlayColor } from "@/lib/blurEffects";
+import { getBlurOverlayColor, withBlurDataPatch } from "@/lib/blurEffects";
 import { cn } from "@/lib/utils";
 import {
 	type AnnotationRegion,
@@ -64,13 +64,7 @@ export function BlurSettingsPanel({
 							<button
 								key={shape.value}
 								onClick={() => {
-									const nextBlurData: BlurData = {
-										...DEFAULT_BLUR_DATA,
-										...blurRegion.blurData,
-										type: "mosaic",
-										shape: shape.value,
-									};
-									onBlurDataChange(nextBlurData);
+									onBlurDataChange(withBlurDataPatch(blurRegion.blurData, { shape: shape.value }));
 									requestAnimationFrame(() => {
 										onBlurDataCommit?.();
 									});
@@ -118,13 +112,9 @@ export function BlurSettingsPanel({
 								<button
 									key={option.value}
 									onClick={() => {
-										const nextBlurData: BlurData = {
-											...DEFAULT_BLUR_DATA,
-											...blurRegion.blurData,
-											type: "mosaic",
-											color: option.value,
-										};
-										onBlurDataChange(nextBlurData);
+										onBlurDataChange(
+											withBlurDataPatch(blurRegion.blurData, { color: option.value }),
+										);
 										requestAnimationFrame(() => {
 											onBlurDataCommit?.();
 										});
@@ -168,12 +158,7 @@ export function BlurSettingsPanel({
 					<Slider
 						value={[blurRegion.blurData?.blockSize ?? DEFAULT_BLUR_BLOCK_SIZE]}
 						onValueChange={(values) => {
-							onBlurDataChange({
-								...DEFAULT_BLUR_DATA,
-								...blurRegion.blurData,
-								type: "mosaic",
-								blockSize: values[0],
-							});
+							onBlurDataChange(withBlurDataPatch(blurRegion.blurData, { blockSize: values[0] }));
 						}}
 						onValueCommit={() => onBlurDataCommit?.()}
 						min={MIN_BLUR_BLOCK_SIZE}
