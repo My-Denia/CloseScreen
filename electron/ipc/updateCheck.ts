@@ -31,9 +31,8 @@ function appVersion(): string {
 }
 
 export const GITHUB_REPO = "My-Denia/CloseScreen";
-// The releases LIST, not /releases/latest: fork releases are published as prereleases,
-// which /latest excludes.
-const RELEASES_API = `https://api.github.com/repos/${GITHUB_REPO}/releases?per_page=10`;
+const RELEASES_API_BASE = `https://api.github.com/repos/${GITHUB_REPO}/releases`;
+const FIRST_RELEASES_API = `${RELEASES_API_BASE}?per_page=100`;
 const FETCH_TIMEOUT_MS = 10_000;
 
 export type UpdateCheckResult =
@@ -41,18 +40,47 @@ export type UpdateCheckResult =
 	| { status: "upToDate"; currentVersion: string }
 	| { status: "error"; currentVersion: string };
 
+function nextReleasePageUrl(headers: Headers): string | null {
+	const link = headers.get("link");
+	if (!link) return null;
+	for (const part of link.split(",")) {
+		if (!part.includes('rel="next"')) continue;
+		const match = /<([^>]+)>/.exec(part);
+		if (!match) return null;
+		const nextUrl = match[1];
+		return nextUrl.startsWith(`${RELEASES_API_BASE}?`) ? nextUrl : null;
+	}
+	return null;
+}
+
 async function fetchLatestRelease(): Promise<ReleaseInfo | null> {
 	try {
-		const response = await net.fetch(RELEASES_API, {
-			headers: {
-				Accept: "application/vnd.github+json",
-				// GitHub's API requires a User-Agent; identify without any per-user data.
-				"User-Agent": `CloseScreen/${appVersion()}`,
-			},
-			signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
-		});
-		if (!response.ok) return null;
-		return pickLatestRelease(await response.json());
+		let nextUrl: string | null = FIRST_RELEASES_API;
+		let best: ReleaseInfo | null = null;
+		const seenUrls = new Set<string>();
+
+		while (nextUrl) {
+			if (seenUrls.has(nextUrl)) return null;
+			seenUrls.add(nextUrl);
+
+			const response = await net.fetch(nextUrl, {
+				headers: {
+					Accept: "application/vnd.github+json",
+					// GitHub's API requires a User-Agent; identify without any per-user data.
+					"User-Agent": `CloseScreen/${appVersion()}`,
+				},
+				signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+			});
+			if (!response.ok) return null;
+
+			const pageBest = pickLatestRelease(await response.json());
+			if (pageBest && (!best || isNewerVersion(pageBest.version, best.version))) {
+				best = pageBest;
+			}
+			nextUrl = nextReleasePageUrl(response.headers);
+		}
+
+		return best;
 	} catch {
 		// Offline, timeout, DNS, rate limit — all degrade to "couldn't check".
 		return null;

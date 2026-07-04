@@ -44,24 +44,46 @@ interface RawRelease {
 	tag_name?: unknown;
 	html_url?: unknown;
 	draft?: unknown;
+	prerelease?: unknown;
+}
+
+export interface PickLatestReleaseOptions {
+	includePrereleases?: boolean;
+}
+
+function parseReleaseCandidate(
+	raw: unknown,
+	options: PickLatestReleaseOptions,
+): { parsed: ParsedVersion; info: ReleaseInfo } | null {
+	if (!raw || typeof raw !== "object") return null;
+	const release = raw as RawRelease;
+	if (release.draft === true) return null;
+	if (options.includePrereleases !== true && release.prerelease === true) return null;
+	if (typeof release.tag_name !== "string" || typeof release.html_url !== "string") return null;
+	const parsed = parseVersion(release.tag_name);
+	if (!parsed) return null;
+	return {
+		parsed,
+		info: { version: release.tag_name.replace(/^v/, ""), htmlUrl: release.html_url },
+	};
 }
 
 /**
  * Newest parseable, non-draft release from a GitHub releases-list response.
- * Prereleases are included on purpose: this fork publishes releases as prereleases,
- * which the /releases/latest endpoint would exclude.
+ * Prereleases are skipped by default so automatic checks follow the stable release channel.
+ * Callers that expose an explicit prerelease opt-in can include them.
  */
-export function pickLatestRelease(payload: unknown): ReleaseInfo | null {
+export function pickLatestRelease(
+	payload: unknown,
+	options: PickLatestReleaseOptions = {},
+): ReleaseInfo | null {
 	if (!Array.isArray(payload)) return null;
 	let best: { parsed: ParsedVersion; info: ReleaseInfo } | null = null;
-	for (const raw of payload as RawRelease[]) {
-		if (!raw || typeof raw !== "object") continue;
-		if (raw.draft === true) continue;
-		if (typeof raw.tag_name !== "string" || typeof raw.html_url !== "string") continue;
-		const parsed = parseVersion(raw.tag_name);
-		if (!parsed) continue;
-		if (best === null || compareVersions(parsed, best.parsed) > 0) {
-			best = { parsed, info: { version: raw.tag_name.replace(/^v/, ""), htmlUrl: raw.html_url } };
+	for (const raw of payload) {
+		const candidate = parseReleaseCandidate(raw, options);
+		if (!candidate) continue;
+		if (best === null || compareVersions(candidate.parsed, best.parsed) > 0) {
+			best = candidate;
 		}
 	}
 	return best?.info ?? null;
