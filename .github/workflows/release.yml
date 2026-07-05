@@ -32,7 +32,7 @@ jobs:
   build-windows:
     name: Build Windows Installer
     needs: verify-version
-    runs-on: windows-latest
+    runs-on: windows-2022
     steps:
       - name: Checkout code
         uses: actions/checkout@v6
