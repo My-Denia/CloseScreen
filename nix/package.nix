@@ -11,7 +11,7 @@
 buildNpmPackage {
   nodejs = nodejs_22;
   pname = "closescreen";
-  version = "1.5.0-fork.2";
+  version = "1.5.0-fork.3";
 
   src =
     let
@@ -33,7 +33,7 @@ buildNpmPackage {
       );
     };
 
-  npmDepsHash = "sha256-lHwtRK3F31opPO/MswF17BhQZYuEuVoceX8sp8eTqpI=";
+  npmDepsHash = "sha256-dSb0pqsrYIE+PCquudDNVhXolWwg7/ZBAIHRMfj2Nnc=";
 
   env.ELECTRON_SKIP_BINARY_DOWNLOAD = "1";
 

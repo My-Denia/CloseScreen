@@ -47,7 +47,7 @@ Unsigned builds can trigger operating-system warnings. Windows may show Microsof
 
 ## Install And Build
 
-Release artifacts, when present, are attached to this fork's GitHub Releases. Tags must match `package.json` exactly, for example `v1.5.0-fork.2`. Use the latest stable GitHub Release as the recommended download.
+Release artifacts, when present, are attached to this fork's GitHub Releases. Tags must match `package.json` exactly, for example `v1.5.0-fork.3`. Use the latest stable GitHub Release as the recommended download.
 
 Local development and renderer build:
 
