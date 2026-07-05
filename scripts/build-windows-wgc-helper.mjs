@@ -18,35 +18,50 @@ function findVcVarsAllWithVsWhere() {
 		"C:\\Program Files (x86)\\Microsoft Visual Studio\\Installer\\vswhere.exe",
 		"C:\\Program Files\\Microsoft Visual Studio\\Installer\\vswhere.exe",
 	];
+	const queries = [
+		[
+			"-latest",
+			"-products",
+			"*",
+			"-version",
+			"[17.0,18.0)",
+			"-requires",
+			"Microsoft.VisualStudio.Component.VC.Tools.x86.x64",
+			"-find",
+			"VC\\Auxiliary\\Build\\vcvarsall.bat",
+		],
+		[
+			"-latest",
+			"-products",
+			"*",
+			"-requires",
+			"Microsoft.VisualStudio.Component.VC.Tools.x86.x64",
+			"-find",
+			"VC\\Auxiliary\\Build\\vcvarsall.bat",
+		],
+	];
 
 	for (const candidate of candidates.filter(Boolean)) {
 		if (!fs.existsSync(candidate)) {
 			continue;
 		}
 
-		try {
-			const output = execFileSync(
-				candidate,
-				[
-					"-latest",
-					"-products",
-					"*",
-					"-requires",
-					"Microsoft.VisualStudio.Component.VC.Tools.x86.x64",
-					"-find",
-					"VC\\Auxiliary\\Build\\vcvarsall.bat",
-				],
-				{ encoding: "utf8", windowsHide: true },
-			);
-			const vcvarsAll = output
-				.split(/\r?\n/)
-				.map((line) => line.trim())
-				.find(Boolean);
-			if (vcvarsAll && fs.existsSync(vcvarsAll)) {
-				return vcvarsAll;
+		for (const query of queries) {
+			try {
+				const output = execFileSync(candidate, query, {
+					encoding: "utf8",
+					windowsHide: true,
+				});
+				const vcvarsAll = output
+					.split(/\r?\n/)
+					.map((line) => line.trim())
+					.find(Boolean);
+				if (vcvarsAll && fs.existsSync(vcvarsAll)) {
+					return vcvarsAll;
+				}
+			} catch {
+				continue;
 			}
-		} catch {
-			continue;
 		}
 	}
 
@@ -68,7 +83,7 @@ function findVcVarsAll() {
 		"C:\\Program Files\\Microsoft Visual Studio",
 		"C:\\Program Files (x86)\\Microsoft Visual Studio",
 	]) {
-		for (const year of ["2026", "2022"]) {
+		for (const year of ["2022", "2026"]) {
 			for (const edition of ["BuildTools", "Community", "Professional", "Enterprise"]) {
 				roots.push(path.join(base, year, edition));
 			}
