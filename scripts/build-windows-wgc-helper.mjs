@@ -1,4 +1,4 @@
-import { spawn } from "node:child_process";
+import { execFileSync, spawn } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -12,20 +12,83 @@ const COMPAT_LIB_DIR = path.join(BUILD_DIR, "compat-libs");
 const BIN_DIR = path.join(ROOT, "electron", "native", "bin", "win32-x64");
 const CMAKE = process.env.CMAKE_EXE ?? "cmake";
 
+function findVcVarsAllWithVsWhere() {
+	const candidates = [
+		process.env.VSWHERE,
+		"C:\\Program Files (x86)\\Microsoft Visual Studio\\Installer\\vswhere.exe",
+		"C:\\Program Files\\Microsoft Visual Studio\\Installer\\vswhere.exe",
+	];
+	const queries = [
+		[
+			"-latest",
+			"-products",
+			"*",
+			"-version",
+			"[17.0,18.0)",
+			"-requires",
+			"Microsoft.VisualStudio.Component.VC.Tools.x86.x64",
+			"-find",
+			"VC\\Auxiliary\\Build\\vcvarsall.bat",
+		],
+		[
+			"-latest",
+			"-products",
+			"*",
+			"-requires",
+			"Microsoft.VisualStudio.Component.VC.Tools.x86.x64",
+			"-find",
+			"VC\\Auxiliary\\Build\\vcvarsall.bat",
+		],
+	];
+
+	for (const candidate of candidates.filter(Boolean)) {
+		if (!fs.existsSync(candidate)) {
+			continue;
+		}
+
+		for (const query of queries) {
+			try {
+				const output = execFileSync(candidate, query, {
+					encoding: "utf8",
+					windowsHide: true,
+				});
+				const vcvarsAll = output
+					.split(/\r?\n/)
+					.map((line) => line.trim())
+					.find(Boolean);
+				if (vcvarsAll && fs.existsSync(vcvarsAll)) {
+					return vcvarsAll;
+				}
+			} catch {
+				continue;
+			}
+		}
+	}
+
+	return null;
+}
 function findVcVarsAll() {
 	const explicit = process.env.VCVARSALL;
 	if (explicit && fs.existsSync(explicit)) {
 		return explicit;
 	}
 
-	const roots = [
-		process.env.VSINSTALLDIR,
-		"C:\\Program Files\\Microsoft Visual Studio\\2022\\Community",
-		"C:\\Program Files\\Microsoft Visual Studio\\2022\\Professional",
-		"C:\\Program Files\\Microsoft Visual Studio\\2022\\Enterprise",
-		"C:\\Program Files (x86)\\Microsoft Visual Studio\\2022\\BuildTools",
-		"C:\\Program Files (x86)\\Microsoft Visual Studio\\2022\\Community",
-	];
+	const vsWhereResult = findVcVarsAllWithVsWhere();
+	if (vsWhereResult) {
+		return vsWhereResult;
+	}
+
+	const roots = [process.env.VSINSTALLDIR];
+	for (const base of [
+		"C:\\Program Files\\Microsoft Visual Studio",
+		"C:\\Program Files (x86)\\Microsoft Visual Studio",
+	]) {
+		for (const year of ["2022", "2026"]) {
+			for (const edition of ["BuildTools", "Community", "Professional", "Enterprise"]) {
+				roots.push(path.join(base, year, edition));
+			}
+		}
+	}
 
 	for (const root of roots.filter(Boolean)) {
 		const candidate = path.join(root, "VC", "Auxiliary", "Build", "vcvarsall.bat");
