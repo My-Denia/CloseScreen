@@ -126,14 +126,45 @@ jobs:
       actions: read
       contents: write
     steps:
+      - name: Checkout release notes
+        uses: actions/checkout@v6
+
       - name: Download installers
         uses: actions/download-artifact@v8
         with:
           path: artifacts
 
+      - name: Generate SHA256 checksums
+        shell: bash
+        run: |
+          set -euo pipefail
+          shopt -s globstar nullglob
+          files=(
+            artifacts/windows-installer/**/*.exe
+            artifacts/linux-installers/**/*.AppImage
+            artifacts/linux-installers/**/*.deb
+            artifacts/linux-installers/**/*.pacman
+          )
+          if [ "${#files[@]}" -eq 0 ]; then
+            echo "::error::No release assets found for checksum generation"
+            exit 1
+          fi
+          : > SHA256SUMS.txt
+          for file in "${files[@]}"; do
+            hash="$(sha256sum "$file" | awk '{print $1}')"
+            printf '%s  %s\n' "$hash" "$(basename "$file")" >> SHA256SUMS.txt
+          done
+          sort -k2 SHA256SUMS.txt -o SHA256SUMS.txt
+          cat SHA256SUMS.txt
+
+      - name: Verify release notes exist
+        shell: bash
+        run: test -f "docs/releases/${GITHUB_REF_NAME}.md"
+
       - name: Publish release assets
         uses: softprops/action-gh-release@v3
         with:
+          body_path: docs/releases/${{ github.ref_name }}.md
           generate_release_notes: true
           prerelease: false
           make_latest: "true"
@@ -142,3 +173,4 @@ jobs:
             artifacts/linux-installers/**/*.AppImage
             artifacts/linux-installers/**/*.deb
             artifacts/linux-installers/**/*.pacman
+            SHA256SUMS.txt

@@ -21,7 +21,7 @@ body:
     attributes:
       label: CloseScreen version or commit
       description: Use the app version, release tag, or commit SHA you tested.
-      placeholder: e.g., 1.5.0-fork.1 or 4069486
+      placeholder: e.g., 1.5.0-fork.2 or 4069486
     validations:
       required: true
 
