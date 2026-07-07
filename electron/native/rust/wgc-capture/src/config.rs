@@ -39,7 +39,9 @@ fn find_string_first(json: &str, key: &str) -> String {
         return String::new();
     };
     let mut i = pos + colon + 1;
-    while i < bytes.len() && bytes[i].is_ascii_whitespace() {
+    // C-locale isspace set (0x09-0x0D + space) — is_ascii_whitespace would
+    // miss \v (0x0B), which the C++ skips here (execution audit, PR #81).
+    while i < bytes.len() && matches!(bytes[i], 0x09..=0x0D | 0x20) {
         i += 1;
     }
     if i >= bytes.len() || bytes[i] != b'"' {
