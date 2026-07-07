@@ -67,7 +67,7 @@ function runHelper(config) {
 	});
 }
 
-function startFixtureWindow() {
+function startMspaintFixtureWindow() {
 	return new Promise((resolve, reject) => {
 		const child = spawn("mspaint.exe", [], {
 			stdio: ["ignore", "ignore", "ignore"],
@@ -106,6 +106,82 @@ function startFixtureWindow() {
 			reject(error);
 		});
 	});
+}
+
+// Self-contained fallback for machines where mspaint is a Store stub or
+// missing entirely: a WinForms window with a bright filled body, so the
+// non-black first-frame assertion still has content to see.
+function startWinFormsFixtureWindow() {
+	return new Promise((resolve, reject) => {
+		// The fixture must keep repainting: WGC's initial frame for a window
+		// can predate its first composition (black), and a static window
+		// produces no further dirty updates to replace it. A bright color
+		// cycle keeps frames flowing and the luma assertion meaningful.
+		const script = [
+			"Add-Type -AssemblyName System.Windows.Forms",
+			"Add-Type -AssemblyName System.Drawing",
+			"$form = New-Object System.Windows.Forms.Form",
+			"$form.Text = 'closescreen wgc capture fixture'",
+			"$form.Width = 960",
+			"$form.Height = 640",
+			"$form.BackColor = [System.Drawing.Color]::White",
+			"$form.TopMost = $true",
+			"$script:tick = 0",
+			"$paint = New-Object System.Windows.Forms.Timer",
+			"$paint.Interval = 100",
+			"$paint.add_Tick({ $script:tick++; $form.BackColor = if ($script:tick % 2) { [System.Drawing.Color]::White } else { [System.Drawing.Color]::Gainsboro }; $form.Invalidate() })",
+			"$announce = New-Object System.Windows.Forms.Timer",
+			"$announce.Interval = 750",
+			'$announce.add_Tick({ $announce.Stop(); [Console]::Out.WriteLine("HWND:" + $form.Handle.ToInt64()); [Console]::Out.Flush() })',
+			"$form.add_Shown({ $form.Refresh(); $paint.Start(); $announce.Start() })",
+			"[System.Windows.Forms.Application]::Run($form)",
+		].join("; ");
+		const child = spawn(
+			"powershell.exe",
+			[
+				"-NoLogo",
+				"-NoProfile",
+				"-NonInteractive",
+				"-ExecutionPolicy",
+				"Bypass",
+				"-Command",
+				script,
+			],
+			{ stdio: ["ignore", "pipe", "pipe"], windowsHide: false },
+		);
+
+		let buffer = "";
+		const timer = setTimeout(() => {
+			child.kill();
+			reject(new Error("Timed out waiting for WinForms fixture window handle"));
+		}, 10_000);
+		child.stdout.setEncoding("utf8");
+		child.stdout.on("data", (chunk) => {
+			buffer += chunk;
+			const match = buffer.match(/HWND:(\d+)/);
+			if (match) {
+				clearTimeout(timer);
+				resolve({ child, sourceId: `window:${match[1]}:0` });
+			}
+		});
+		child.once("error", (error) => {
+			clearTimeout(timer);
+			reject(error);
+		});
+		child.once("exit", () => {
+			clearTimeout(timer);
+			reject(new Error("WinForms fixture process exited before reporting a handle"));
+		});
+	});
+}
+
+async function startFixtureWindow() {
+	try {
+		return await startMspaintFixtureWindow();
+	} catch (error) {
+		console.warn(`mspaint fixture unavailable (${error.message}); using WinForms fixture.`);
+		return startWinFormsFixtureWindow();
+	}
 }
 
 function normalizeDeviceName(value) {

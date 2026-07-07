@@ -17,7 +17,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.join(__dirname, "..");
 const RUST_DIR = path.join(ROOT, "electron", "native", "rust");
 const TARGET = "x86_64-pc-windows-msvc";
-const BINARIES = ["cursor-sampler.exe"];
+const BINARIES = ["cursor-sampler.exe", "wgc-capture.exe"];
 
 function findCargo() {
 	const probe = spawnSync("cargo", ["--version"], { encoding: "utf8", windowsHide: true });
@@ -70,3 +70,4 @@ console.log("Rust helpers staged (opt-in only). To use them:");
 console.log(
 	`  $env:CLOSESCREEN_CURSOR_SAMPLER_EXE = "${path.join(distDir, "cursor-sampler.exe")}"`,
 );
+console.log(`  $env:CLOSESCREEN_WGC_CAPTURE_EXE = "${path.join(distDir, "wgc-capture.exe")}"`);
