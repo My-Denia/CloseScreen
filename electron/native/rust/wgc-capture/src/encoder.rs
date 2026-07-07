@@ -21,8 +21,6 @@ use windows::core::{HRESULT, PCWSTR};
 
 use crate::eprint_hr;
 
-const HNS_PER_SECOND: i64 = 10_000_000;
-
 fn pack_u64(high: u32, low: u32) -> u64 {
     (u64::from(high) << 32) | u64::from(low)
 }
@@ -33,15 +31,13 @@ struct WriterState {
     staging_texture: Option<ID3D11Texture2D>,
     device: Option<ID3D11Device>,
     context: Option<ID3D11DeviceContext>,
-    first_timestamp_hns: i64, // -1 = unset
-    last_timestamp_hns: i64,
+    timing: crate::timing::EncoderTiming,
     finalized: bool,
 }
 
 pub struct MfEncoder {
     width: i32,
     height: i32,
-    fps: i32,
     state: Mutex<WriterState>,
 }
 
@@ -155,15 +151,13 @@ impl MfEncoder {
             Some(Self {
                 width,
                 height,
-                fps,
                 state: Mutex::new(WriterState {
                     sink_writer: Some(sink_writer),
                     video_stream_index,
                     staging_texture: None,
                     device: Some(device.clone()),
                     context: Some(context.clone()),
-                    first_timestamp_hns: -1,
-                    last_timestamp_hns: 0,
+                    timing: crate::timing::EncoderTiming::new(fps),
                     finalized: false,
                 }),
             })
@@ -272,15 +266,8 @@ impl MfEncoder {
             return false;
         }
 
-        if state.first_timestamp_hns < 0 {
-            state.first_timestamp_hns = timestamp_hns;
-        }
-        let mut sample_time = timestamp_hns - state.first_timestamp_hns;
-        if sample_time <= state.last_timestamp_hns {
-            sample_time = state.last_timestamp_hns + HNS_PER_SECOND / i64::from(self.fps);
-        }
-        let sample_duration = HNS_PER_SECOND / i64::from(self.fps);
-        state.last_timestamp_hns = sample_time;
+        let sample_time = state.timing.sample_time(timestamp_hns);
+        let sample_duration = state.timing.sample_duration();
 
         let frame_bytes = (self.width * self.height * 4) as u32;
         // SAFETY: MF buffer lock/copy/unlock + sample write, mirroring the C++.

@@ -55,6 +55,42 @@ impl WriterTiming {
     }
 }
 
+/// The encoder-side timestamp latch (mf_encoder.cpp writeFrame): its own
+/// first-timestamp rebase and monotonic bump, layered UNDER the writer-side
+/// math above. Both sentinels start at -1 (mf_encoder.h), which is what lets
+/// the first sample keep time 0 instead of being bumped.
+pub struct EncoderTiming {
+    fps: i64,
+    first_timestamp_hns: i64, // -1 = unset
+    last_timestamp_hns: i64,  // -1 = none written yet
+}
+
+impl EncoderTiming {
+    pub fn new(fps: i32) -> Self {
+        Self {
+            fps: i64::from(fps.max(1)),
+            first_timestamp_hns: -1,
+            last_timestamp_hns: -1,
+        }
+    }
+
+    pub fn sample_time(&mut self, timestamp_hns: i64) -> i64 {
+        if self.first_timestamp_hns < 0 {
+            self.first_timestamp_hns = timestamp_hns;
+        }
+        let mut t = timestamp_hns - self.first_timestamp_hns;
+        if t <= self.last_timestamp_hns {
+            t = self.last_timestamp_hns + HNS_PER_SECOND / self.fps;
+        }
+        self.last_timestamp_hns = t;
+        t
+    }
+
+    pub fn sample_duration(&self) -> i64 {
+        HNS_PER_SECOND / self.fps
+    }
+}
+
 /// Port of `CaptureControl`'s pause bookkeeping (main.cpp:55-84): total paused
 /// wall time in hns, including a live pause segment.
 pub struct PauseTracker {
@@ -150,6 +186,18 @@ mod tests {
         // Pause subtraction pushing ts below last → also bumped.
         let c = t.frame_timestamp(2_000_000, 3_000_000);
         assert_eq!(c, b + HNS_PER_SECOND / 60);
+    }
+
+    #[test]
+    fn encoder_latch_keeps_first_sample_at_zero() {
+        let mut e = EncoderTiming::new(60);
+        // First sample rebases to 0 and must NOT be bumped (last sentinel -1).
+        assert_eq!(e.sample_time(5_000_000), 0);
+        // Strictly increasing input passes through rebased.
+        assert_eq!(e.sample_time(5_166_667), 166_667);
+        // Stalled input gets the monotonic bump.
+        assert_eq!(e.sample_time(5_166_667), 166_667 + HNS_PER_SECOND / 60);
+        assert_eq!(e.sample_duration(), HNS_PER_SECOND / 60);
     }
 
     #[test]
