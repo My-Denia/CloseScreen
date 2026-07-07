@@ -127,6 +127,18 @@ pub struct CaptureConfig {
     pub microphone_device_id: String,
     pub microphone_device_name: String,
     pub microphone_gain: f64,
+    pub webcam_device_id: String,
+    pub webcam_device_name: String,
+    pub webcam_direct_show_clsid: String,
+    /// Resolved separate-webcam output path. LOAD-BEARING gate semantics:
+    /// production handlers.ts always sends a non-empty outputs.webcamPath
+    /// even with webcam disabled, so a separate webcam file is written only
+    /// when `webcam_enabled && !webcam_path.is_empty()` (main.cpp:456-474
+    /// assigns writeSeparateWebcam only inside the webcamEnabled block).
+    pub webcam_path: String,
+    pub webcam_width: i32,
+    pub webcam_height: i32,
+    pub webcam_fps: i32,
 }
 
 /// Extracts `<handle>` from a `window:<handle>:...` sourceId, matching
@@ -194,6 +206,13 @@ pub fn parse_config(json: &str) -> Result<CaptureConfig, ConfigError> {
 
     let fps = (raw.fps as i64).clamp(1, 120) as i32;
 
+    // webcamPath: the C++ findString takes the first occurrence at any
+    // depth; the real senders put it top-level (harness) or under outputs
+    // (handlers.ts). Same non-empty-filter chain as screenPath.
+    let webcam_path = non_empty(raw.webcam_path)
+        .or_else(|| non_empty(raw.outputs.webcam_path))
+        .unwrap_or_default();
+
     Ok(CaptureConfig {
         output_path,
         source_type,
@@ -214,7 +233,21 @@ pub fn parse_config(json: &str) -> Result<CaptureConfig, ConfigError> {
         microphone_device_id: raw.microphone_device_id.unwrap_or_default(),
         microphone_device_name: raw.microphone_device_name.unwrap_or_default(),
         microphone_gain: raw.microphone_gain,
+        webcam_device_id: raw.webcam_device_id.unwrap_or_default(),
+        webcam_device_name: raw.webcam_device_name.unwrap_or_default(),
+        webcam_direct_show_clsid: raw.webcam_direct_show_clsid.unwrap_or_default(),
+        webcam_path,
+        webcam_width: raw.webcam_width as i32,
+        webcam_height: raw.webcam_height as i32,
+        webcam_fps: raw.webcam_fps as i32,
     })
+}
+
+/// The separate-webcam-file gate (main.cpp:456-474): webcam must be ENABLED
+/// and a path present. handlers.ts always sends a non-empty webcamPath, so
+/// path-only gating would orphan a -webcam.mp4 on every plain recording.
+pub fn write_separate_webcam(config: &CaptureConfig) -> bool {
+    config.webcam_enabled && !config.webcam_path.is_empty()
 }
 
 /// Encode size derivation (main.cpp:449-450): the WGC item size rounded down
@@ -341,6 +374,60 @@ mod tests {
         assert_eq!(window_handle_from_source_id("window:777:0"), "777");
         assert_eq!(window_handle_from_source_id("window:777"), "777");
         assert_eq!(window_handle_from_source_id("screen:0:0"), "");
+    }
+
+    #[test]
+    fn webcam_fields_and_separate_gate() {
+        // handlers.ts sends a non-empty outputs.webcamPath even with webcam
+        // DISABLED — the separate-file gate must stay closed (plan-audit
+        // MAJOR: path-only gating orphans a -webcam.mp4 on every recording).
+        let c = parse_config(
+            r#"{"outputPath":"a.mp4","webcamEnabled":false,
+                "outputs":{"screenPath":"a.mp4","webcamPath":"a-webcam.mp4"}}"#,
+        )
+        .ok()
+        .unwrap();
+        assert_eq!(c.webcam_path, "a-webcam.mp4");
+        assert!(!write_separate_webcam(&c));
+
+        // Enabled + path → separate file; top-level webcamPath wins over
+        // nested, empty candidates fall through.
+        let c = parse_config(
+            r#"{"outputPath":"a.mp4","webcamEnabled":true,"webcamPath":"top.mp4",
+                "outputs":{"webcamPath":"nested.mp4"},
+                "webcamDeviceId":"id0","webcamDeviceName":"Cam",
+                "webcamDirectShowClsid":"{00000000-0000-0000-0000-000000000000}",
+                "webcamWidth":640,"webcamHeight":360,"webcamFps":30}"#,
+        )
+        .ok()
+        .unwrap();
+        assert!(write_separate_webcam(&c));
+        assert_eq!(c.webcam_path, "top.mp4");
+        assert_eq!(c.webcam_device_id, "id0");
+        assert_eq!(c.webcam_device_name, "Cam");
+        assert_eq!(
+            c.webcam_direct_show_clsid,
+            "{00000000-0000-0000-0000-000000000000}"
+        );
+        assert_eq!(
+            (c.webcam_width, c.webcam_height, c.webcam_fps),
+            (640, 360, 30)
+        );
+
+        let c = parse_config(
+            r#"{"outputPath":"a.mp4","webcamEnabled":true,"webcamPath":"",
+                "outputs":{"webcamPath":"nested.mp4"}}"#,
+        )
+        .ok()
+        .unwrap();
+        assert_eq!(c.webcam_path, "nested.mp4");
+
+        // Enabled + NO path → PiP mode (composited into the screen file).
+        let c = parse_config(r#"{"outputPath":"a.mp4","webcamEnabled":true}"#)
+            .ok()
+            .unwrap();
+        assert!(!write_separate_webcam(&c));
+        assert_eq!(c.webcam_path, "");
     }
 
     #[test]

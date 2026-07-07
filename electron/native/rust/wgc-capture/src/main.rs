@@ -1,6 +1,6 @@
-//! wgc-capture — protocol-compatible Rust port of the C++ helper's VIDEO
-//! path (electron/native/wgc-capture/src/main.cpp). Audio and webcam capture
-//! land in later rounds; configs requesting them exit 1 after `ready`.
+//! wgc-capture — protocol-compatible Rust port of the C++ helper
+//! (electron/native/wgc-capture/src/main.cpp): video, audio, and webcam
+//! capture paths.
 //!
 //! Invocation: wgc-capture.exe '<json-config>'. Commands on stdin
 //! (pause/resume/stop), newline-delimited JSON events + legacy text lines on
@@ -11,7 +11,9 @@ mod config;
 mod encoder;
 mod events;
 mod monitor;
+mod pip;
 mod timing;
+mod webcam;
 mod wgc;
 
 use std::io::BufRead as _;
@@ -31,9 +33,12 @@ use crate::audio::mixer::AudioMixer;
 use crate::audio::wasapi::WasapiCapture;
 use crate::config::{
     CaptureConfig, bitrate_for, even_dimension, parse_config, parse_window_handle,
+    write_separate_webcam,
 };
 use crate::encoder::MfEncoder;
+use crate::pip::{BgraFrame, has_visible_bgra_content};
 use crate::timing::{PauseTracker, WriterTiming};
+use crate::webcam::{FrameStore, WebcamCapture, WebcamFrameSnapshot};
 use crate::wgc::{CaptureTarget, WgcSession};
 
 pub static WRITER: LineWriter = LineWriter::new();
@@ -172,19 +177,68 @@ impl Drop for DoneSignal {
     }
 }
 
-/// The paced video writer loop (writeVideoFrames port, video-only). Holds the
+/// The separate-webcam-file half of the writer state (main.cpp:637-638,
+/// 685-696): its own encoder instance, pure-counter timestamps, one frame
+/// per NEW webcam sequence.
+struct SeparateWebcamWriter {
+    encoder: Arc<MfEncoder>,
+    fps: i32,
+    last_written_sequence: u64,
+    output_frame_index: u64,
+}
+
+/// Webcam state owned by the writer thread. Seeded with the warmup-adopted
+/// snapshot so the warmup frame is written/composited on the first
+/// iteration even if the camera never delivers another frame (the C++
+/// shares the same locals between warmup and writer, main.cpp:569-573,
+/// 823-836).
+struct WebcamWriter {
+    store: Arc<FrameStore>,
+    frame: Vec<u8>,
+    width: i32,
+    height: i32,
+    sequence: u64,
+    has_visible: bool,
+    separate: Option<SeparateWebcamWriter>,
+}
+
+impl WebcamWriter {
+    /// The writer-loop refresh (main.cpp:652-663): adopt the newest frame
+    /// only when the sequence advanced AND the frame has visible content.
+    fn refresh(&mut self, scratch: &mut WebcamFrameSnapshot) {
+        if self.store.copy_latest(scratch)
+            && scratch.sequence != self.sequence
+            && has_visible_bgra_content(&scratch.data)
+        {
+            std::mem::swap(&mut self.frame, &mut scratch.data);
+            self.width = scratch.width;
+            self.height = scratch.height;
+            self.sequence = scratch.sequence;
+            self.has_visible = true;
+        }
+    }
+
+    fn visible(&self) -> bool {
+        self.has_visible && !self.frame.is_empty()
+    }
+}
+
+/// The paced video writer loop (writeVideoFrames port). Holds the
 /// frame-slot mutex ACROSS encoder.write_frame — that is the issue-#14 wedge
 /// surface, and the frame callback's early-return protects the WGC teardown
-/// barrier from it.
+/// barrier from it. Webcam refresh + the separate-file write happen under
+/// that same lock, like the C++ block at main.cpp:642-710.
 fn write_video_frames(
     control: Arc<Control>,
     encoder: Arc<MfEncoder>,
     fps: i32,
+    mut webcam: Option<WebcamWriter>,
     done_pair: Arc<(Mutex<bool>, Condvar)>,
 ) {
     let _done = DoneSignal { pair: done_pair };
     let frame_duration = Duration::from_secs_f64(1.0 / f64::from(fps.max(1)));
     let mut timing = WriterTiming::new(fps);
+    let mut scratch = WebcamFrameSnapshot::default();
 
     loop {
         {
@@ -201,9 +255,55 @@ fn write_video_frames(
                 slot = control.cv.wait(slot).unwrap_or_else(|p| p.into_inner());
             }
 
+            if let Some(cam) = webcam.as_mut() {
+                cam.refresh(&mut scratch);
+            }
+
             let ts = timing.frame_timestamp(slot.timestamp_hns, control.paused_duration_hns());
+
+            // Separate webcam file: one frame per new sequence, pure-counter
+            // timestamps (main.cpp:685-696).
+            if let Some(cam) = webcam.as_mut()
+                && cam.visible()
+            {
+                let WebcamWriter {
+                    frame,
+                    width,
+                    height,
+                    sequence,
+                    separate,
+                    ..
+                } = cam;
+                if let Some(sep) = separate
+                    && *sequence != sep.last_written_sequence
+                {
+                    let view = BgraFrame {
+                        data: frame,
+                        width: *width,
+                        height: *height,
+                    };
+                    let webcam_ts =
+                        ((sep.output_frame_index * 10_000_000) / sep.fps.max(1) as u64) as i64;
+                    if !sep.encoder.write_bgra_frame(&view, webcam_ts) {
+                        control.fail_encode();
+                        return;
+                    }
+                    sep.last_written_sequence = *sequence;
+                    sep.output_frame_index += 1;
+                }
+            }
+
+            // PiP overlay only when NOT writing a separate file
+            // (main.cpp:698-701).
+            let overlay = webcam.as_ref().and_then(|cam| {
+                (cam.separate.is_none() && cam.visible()).then_some(BgraFrame {
+                    data: &cam.frame,
+                    width: cam.width,
+                    height: cam.height,
+                })
+            });
             let texture = slot.texture.as_ref().expect("predicate guarantees texture");
-            if !encoder.write_frame(texture, ts) {
+            if !encoder.write_frame(texture, ts, overlay.as_ref()) {
                 control.fail_encode();
                 return;
             }
@@ -237,14 +337,6 @@ fn main() {
     };
 
     let _ = WRITER.write_line(events::ready_line());
-
-    // PR3 boundary: the Rust helper is opt-in (CLOSESCREEN_WGC_CAPTURE_EXE)
-    // and covers the video + audio paths so far. Refuse webcam configs loudly
-    // rather than recording something different from what was asked.
-    if config.webcam_enabled {
-        eprintln!("ERROR: Webcam capture is not implemented in the Rust helper yet");
-        std::process::exit(1);
-    }
 
     run(config);
 }
@@ -299,6 +391,41 @@ fn run(config: CaptureConfig) {
             std::process::exit(1);
         }
     };
+
+    // Webcam init + format event BEFORE audio init (main.cpp:455-475).
+    // Init failure is fatal; the separate-file decision needs BOTH the
+    // enabled flag and a path (see write_separate_webcam).
+    let mut webcam: Option<WebcamCapture> = None;
+    let write_separate = write_separate_webcam(&config);
+    if config.webcam_enabled {
+        let requested_fps = if config.webcam_fps > 0 {
+            config.webcam_fps
+        } else {
+            config.fps
+        };
+        match WebcamCapture::initialize(
+            &config.webcam_device_id,
+            &config.webcam_device_name,
+            &config.webcam_direct_show_clsid,
+            config.webcam_width,
+            config.webcam_height,
+            requested_fps,
+        ) {
+            Some(capture) => {
+                let _ = WRITER.write_line(&events::webcam_format_line(
+                    capture.width(),
+                    capture.height(),
+                    capture.fps(),
+                    capture.selected_device_name(),
+                ));
+                webcam = Some(capture);
+            }
+            None => {
+                eprintln!("ERROR: Failed to initialize native webcam capture");
+                std::process::exit(1);
+            }
+        }
+    }
 
     // Audio endpoint init + format events, before encoder init (main.cpp
     // ordering). Degradation asymmetry: loopback failure emits
@@ -387,6 +514,36 @@ fn run(config: CaptureConfig) {
             eprintln!("ERROR: Failed to initialize Media Foundation encoder");
             std::process::exit(1);
         }
+    };
+
+    // Separate webcam encoder (main.cpp:544-560): webcam-sized, bitrate
+    // 8M at >=720p else 4M, no audio stream.
+    let webcam_encoder: Option<Arc<MfEncoder>> = if write_separate {
+        let cam = webcam.as_ref().expect("webcam initialized above");
+        let pixels = cam.width().max(1) * cam.height().max(1);
+        let webcam_bitrate = if pixels >= 1280 * 720 {
+            8_000_000
+        } else {
+            4_000_000
+        };
+        match MfEncoder::initialize(
+            &config.webcam_path,
+            cam.width(),
+            cam.height(),
+            cam.fps(),
+            webcam_bitrate,
+            &device,
+            &context,
+            None,
+        ) {
+            Some(e) => Some(Arc::new(e)),
+            None => {
+                eprintln!("ERROR: Failed to initialize native webcam encoder");
+                std::process::exit(1);
+            }
+        }
+    } else {
+        None
     };
 
     let control = Arc::new(Control::new());
@@ -528,8 +685,49 @@ fn run(config: CaptureConfig) {
         None
     };
 
+    // Webcam start + 3s visible-frame warmup, after audio start and before
+    // session.start (main.cpp:812-841). The adopted snapshot seeds the
+    // writer thread's webcam state.
+    let mut warmup = WebcamFrameSnapshot::default();
+    let mut warmup_visible = false;
+    if let Some(cam) = webcam.as_mut() {
+        if !cam.start() {
+            if let Some(capture) = microphone.as_mut() {
+                capture.stop();
+            }
+            if let Some(capture) = loopback.as_mut() {
+                capture.stop();
+            }
+            if let Some(mixer) = &audio_mixer {
+                mixer.stop();
+            }
+            eprintln!("ERROR: Failed to start native webcam capture");
+            std::process::exit(1);
+        }
+        let store = cam.frame_store();
+        let deadline = std::time::Instant::now() + Duration::from_secs(3);
+        let mut candidate = WebcamFrameSnapshot::default();
+        while std::time::Instant::now() < deadline {
+            if store.copy_latest(&mut candidate) && has_visible_bgra_content(&candidate.data) {
+                warmup = candidate;
+                warmup_visible = true;
+                break;
+            }
+            std::thread::sleep(Duration::from_millis(20));
+        }
+        if !warmup_visible {
+            eprintln!(
+                "WARNING: Native webcam started but no visible frame was available before screen capture"
+            );
+        }
+    }
+
     if !session.start() {
-        // Stop the audio captures before exiting, matching main.cpp:843-852.
+        // Stop the captures before exiting, matching main.cpp:843-852
+        // (webcam first, then audio).
+        if let Some(cam) = webcam.as_mut() {
+            cam.stop();
+        }
         if let Some(capture) = microphone.as_mut() {
             capture.stop();
         }
@@ -578,6 +776,9 @@ fn run(config: CaptureConfig) {
             if let Some(capture) = loopback.as_mut() {
                 capture.stop();
             }
+            if let Some(cam) = webcam.as_mut() {
+                cam.stop();
+            }
             if let Some(mixer) = &audio_mixer {
                 mixer.stop();
             }
@@ -597,7 +798,23 @@ fn run(config: CaptureConfig) {
         let encoder = Arc::clone(&encoder);
         let done_pair = Arc::clone(&done_pair);
         let fps = config.fps;
-        std::thread::spawn(move || write_video_frames(control, encoder, fps, done_pair))
+        let webcam_writer = webcam.as_ref().map(|cam| WebcamWriter {
+            store: cam.frame_store(),
+            frame: warmup.data,
+            width: warmup.width,
+            height: warmup.height,
+            sequence: warmup.sequence,
+            has_visible: warmup_visible,
+            separate: webcam_encoder.as_ref().map(|enc| SeparateWebcamWriter {
+                encoder: Arc::clone(enc),
+                fps: cam.fps(),
+                last_written_sequence: 0,
+                output_frame_index: 0,
+            }),
+        });
+        std::thread::spawn(move || {
+            write_video_frames(control, encoder, fps, webcam_writer, done_pair)
+        })
     };
 
     let _ = WRITER.write_line(events::recording_started_line());
@@ -645,6 +862,9 @@ fn run(config: CaptureConfig) {
     if let Some(capture) = loopback.as_mut() {
         capture.stop();
     }
+    if let Some(cam) = webcam.as_mut() {
+        cam.stop();
+    }
     if let Some(mixer) = &audio_mixer {
         mixer.stop();
     }
@@ -652,6 +872,9 @@ fn run(config: CaptureConfig) {
     {
         let _slot = control.slot.lock().unwrap_or_else(|p| p.into_inner());
         encoder.finalize();
+        if let Some(webcam_encoder) = &webcam_encoder {
+            webcam_encoder.finalize();
+        }
     }
 
     drop(stdin_thread);
@@ -661,6 +884,10 @@ fn run(config: CaptureConfig) {
         std::process::exit(1);
     }
 
-    let _ = WRITER.write_line(&events::recording_stopped_line(&config.output_path, None));
+    let webcam_path = write_separate.then_some(config.webcam_path.as_str());
+    let _ = WRITER.write_line(&events::recording_stopped_line(
+        &config.output_path,
+        webcam_path,
+    ));
     let _ = WRITER.write_line(&events::legacy_stopped_line(&config.output_path));
 }
