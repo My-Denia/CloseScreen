@@ -222,6 +222,81 @@ console.log(`rust: ${RUST_EXE}`);
 	for (const f of Object.values(outs)) fs.rmSync(f, { force: true });
 }
 
+// Case 1b (opt-in: CLOSESCREEN_PARITY_AUDIO=1 — needs a render endpoint):
+// system-audio capture parity, including the AAC assertion the wgc-helper
+// harness does not make (it only checks codec_type).
+if (process.env.CLOSESCREEN_PARITY_AUDIO === "1") {
+	const outs = { cpp: tempOut("cpp-audio"), rust: tempOut("rust-audio") };
+	const results = {};
+	for (const [label, exe] of [
+		["cpp", CPP_EXE],
+		["rust", RUST_EXE],
+	]) {
+		const config = {
+			schemaVersion: 2,
+			outputPath: outs[label],
+			sourceType: "display",
+			fps: 30,
+			captureCursor: false,
+			captureSystemAudio: true,
+			captureMic: false,
+			webcamEnabled: false,
+		};
+		results[label] = await runCapture(exe, config, { stopAfterStartedMs: RECORD_MS });
+	}
+	for (const label of ["cpp", "rust"]) {
+		if (results[label].code !== 0) {
+			failures.push(`audio: ${label} exited ${results[label].code} (expected 0)`);
+		}
+	}
+	assertEqual(
+		"audio: stdout sequence",
+		normalizeStdout(results.cpp.stdout),
+		normalizeStdout(results.rust.stdout),
+	);
+	assertEqual(
+		"audio: stderr ERROR lines",
+		normalizeStderr(results.cpp.stderr),
+		normalizeStderr(results.rust.stderr),
+	);
+	const audioMeta = (file) => {
+		const probe = spawnSync(
+			"ffprobe",
+			[
+				"-v",
+				"error",
+				"-select_streams",
+				"a:0",
+				"-show_entries",
+				"stream=codec_name,channels,sample_rate",
+				"-of",
+				"json",
+				file,
+			],
+			{ encoding: "utf8", windowsHide: true },
+		);
+		if (probe.status !== 0) return null;
+		return JSON.parse(probe.stdout).streams?.[0] ?? null;
+	};
+	const meta = { cpp: audioMeta(outs.cpp), rust: audioMeta(outs.rust) };
+	for (const label of ["cpp", "rust"]) {
+		if (!meta[label]) {
+			failures.push(`audio: no audio stream in the ${label} output`);
+		} else if (meta[label].codec_name !== "aac") {
+			failures.push(`audio: ${label} codec is ${meta[label].codec_name}, expected aac`);
+		}
+	}
+	assertEqual("audio: stream meta", meta.cpp, meta.rust);
+	console.log(
+		`  audio: aac ${meta.cpp?.sample_rate}Hz/${meta.cpp?.channels}ch on both (events identical)`,
+	);
+	for (const f of Object.values(outs)) fs.rmSync(f, { force: true });
+} else {
+	console.log(
+		"  audio: skipped (set CLOSESCREEN_PARITY_AUDIO=1 on a machine with a render endpoint)",
+	);
+}
+
 // Case 2: error paths — same stderr shape and exit codes.
 const ERROR_CASES = [
 	["missing-arg", null, null],

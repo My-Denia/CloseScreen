@@ -28,6 +28,7 @@ fn pack_u64(high: u32, low: u32) -> u64 {
 struct WriterState {
     sink_writer: Option<IMFSinkWriter>,
     video_stream_index: u32,
+    audio_stream_index: Option<u32>,
     staging_texture: Option<ID3D11Texture2D>,
     device: Option<ID3D11Device>,
     context: Option<ID3D11DeviceContext>,
@@ -56,6 +57,82 @@ fn to_wide(value: &str) -> Vec<u16> {
     value.encode_utf16().chain(std::iter::once(0)).collect()
 }
 
+/// configureAudioStream (mf_encoder.cpp:155-199): AAC output at 24000 avg
+/// bytes/sec, payload 0; PCM input from the AAC-compatible encoder format
+/// with ALL_SAMPLES_INDEPENDENT. Returns the audio stream index.
+fn configure_audio_stream(
+    sink_writer: &IMFSinkWriter,
+    audio_format: &crate::audio::format::AudioFormat,
+) -> Option<u32> {
+    use windows::Win32::Media::MediaFoundation::{
+        MF_MT_AAC_PAYLOAD_TYPE, MF_MT_ALL_SAMPLES_INDEPENDENT, MF_MT_AUDIO_AVG_BYTES_PER_SECOND,
+        MF_MT_AUDIO_BITS_PER_SAMPLE, MF_MT_AUDIO_BLOCK_ALIGNMENT, MF_MT_AUDIO_NUM_CHANNELS,
+        MF_MT_AUDIO_SAMPLES_PER_SECOND, MFAudioFormat_AAC, MFMediaType_Audio,
+    };
+
+    if audio_format.sample_rate == 0 || audio_format.channels == 0 || audio_format.block_align == 0
+    {
+        eprintln!("ERROR: Invalid audio input format");
+        return None;
+    }
+    let encoder_format = crate::audio::format::make_aac_compatible(audio_format);
+    const AAC_BYTES_PER_SECOND: u32 = 24_000;
+
+    // SAFETY: media-type construction with the exact C++ attribute set.
+    unsafe {
+        let output_type = match MFCreateMediaType() {
+            Ok(t) => t,
+            Err(e) => {
+                eprint_hr("MFCreateMediaType(audio output)", e.code());
+                return None;
+            }
+        };
+        let _ = output_type.SetGUID(&MF_MT_MAJOR_TYPE, &MFMediaType_Audio);
+        let _ = output_type.SetGUID(&MF_MT_SUBTYPE, &MFAudioFormat_AAC);
+        let _ = output_type.SetUINT32(&MF_MT_AUDIO_NUM_CHANNELS, encoder_format.channels);
+        let _ = output_type.SetUINT32(&MF_MT_AUDIO_SAMPLES_PER_SECOND, encoder_format.sample_rate);
+        let _ = output_type.SetUINT32(&MF_MT_AUDIO_BITS_PER_SAMPLE, 16);
+        let _ = output_type.SetUINT32(&MF_MT_AUDIO_AVG_BYTES_PER_SECOND, AAC_BYTES_PER_SECOND);
+        let _ = output_type.SetUINT32(&MF_MT_AAC_PAYLOAD_TYPE, 0);
+
+        let audio_stream_index = match sink_writer.AddStream(&output_type) {
+            Ok(i) => i,
+            Err(e) => {
+                eprint_hr("AddStream(audio)", e.code());
+                return None;
+            }
+        };
+
+        let input_type = match MFCreateMediaType() {
+            Ok(t) => t,
+            Err(e) => {
+                eprint_hr("MFCreateMediaType(audio input)", e.code());
+                return None;
+            }
+        };
+        let _ = input_type.SetGUID(&MF_MT_MAJOR_TYPE, &MFMediaType_Audio);
+        let _ = input_type.SetGUID(&MF_MT_SUBTYPE, &encoder_format.subtype.to_guid());
+        let _ = input_type.SetUINT32(&MF_MT_AUDIO_NUM_CHANNELS, encoder_format.channels);
+        let _ = input_type.SetUINT32(&MF_MT_AUDIO_SAMPLES_PER_SECOND, encoder_format.sample_rate);
+        let _ = input_type.SetUINT32(&MF_MT_AUDIO_BITS_PER_SAMPLE, encoder_format.bits_per_sample);
+        let _ = input_type.SetUINT32(&MF_MT_AUDIO_BLOCK_ALIGNMENT, encoder_format.block_align);
+        let _ = input_type.SetUINT32(
+            &MF_MT_AUDIO_AVG_BYTES_PER_SECOND,
+            encoder_format.avg_bytes_per_sec,
+        );
+        let _ = input_type.SetUINT32(&MF_MT_ALL_SAMPLES_INDEPENDENT, 1);
+
+        if !check(
+            sink_writer.SetInputMediaType(audio_stream_index, &input_type, None),
+            "SetInputMediaType(audio)",
+        ) {
+            return None;
+        }
+
+        Some(audio_stream_index)
+    }
+}
+
 fn check(result: windows::core::Result<()>, label: &str) -> bool {
     match result {
         Ok(()) => true,
@@ -68,7 +145,9 @@ fn check(result: windows::core::Result<()>, label: &str) -> bool {
 
 impl MfEncoder {
     /// Initializes the sink writer. Returns None on failure (stderr already
-    /// carries the `ERROR: <label> failed (hr=...)` line).
+    /// carries the `ERROR: <label> failed (hr=...)` line). The argument list
+    /// mirrors the C++ MFEncoder::initialize signature.
+    #[allow(clippy::too_many_arguments)]
     pub fn initialize(
         output_path: &str,
         width: i32,
@@ -77,6 +156,7 @@ impl MfEncoder {
         bitrate: i32,
         device: &ID3D11Device,
         context: &ID3D11DeviceContext,
+        audio_format: Option<&crate::audio::format::AudioFormat>,
     ) -> Option<Self> {
         let width = (width.max(2) / 2) * 2;
         let height = (height.max(2) / 2) * 2;
@@ -122,6 +202,16 @@ impl MfEncoder {
                 }
             };
 
+            // Audio stream is configured between the video AddStream and the
+            // video input type, matching mf_encoder.cpp:124-132.
+            let audio_stream_index = match audio_format {
+                Some(format) => match configure_audio_stream(&sink_writer, format) {
+                    Some(index) => Some(index),
+                    None => return None,
+                },
+                None => None,
+            };
+
             let input_type = match MFCreateMediaType() {
                 Ok(t) => t,
                 Err(e) => {
@@ -154,6 +244,7 @@ impl MfEncoder {
                 state: Mutex::new(WriterState {
                     sink_writer: Some(sink_writer),
                     video_stream_index,
+                    audio_stream_index,
                     staging_texture: None,
                     device: Some(device.clone()),
                     context: Some(context.clone()),
@@ -318,6 +409,70 @@ impl MfEncoder {
                     .unwrap()
                     .WriteSample(stream_index, &sample),
                 "WriteSample",
+            )
+        }
+    }
+
+    /// Writes one audio sample. Skip conditions and success semantics mirror
+    /// writeAudio (mf_encoder.cpp:408-447): missing stream → false; empty or
+    /// non-positive-duration payloads → true (skipped, not an error).
+    pub fn write_audio(&self, data: &[u8], timestamp_hns: i64, duration_hns: i64) -> bool {
+        let state = self
+            .state
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        if state.sink_writer.is_none() || state.finalized {
+            return false;
+        }
+        let Some(audio_stream_index) = state.audio_stream_index else {
+            return false;
+        };
+        if data.is_empty() || duration_hns <= 0 {
+            return true;
+        }
+
+        // SAFETY: MF buffer/sample construction mirroring the C++ writeAudio.
+        unsafe {
+            let buffer = match MFCreateMemoryBuffer(data.len() as u32) {
+                Ok(b) => b,
+                Err(e) => {
+                    eprint_hr("MFCreateMemoryBuffer(audio)", e.code());
+                    return false;
+                }
+            };
+            let mut destination: *mut u8 = std::ptr::null_mut();
+            let mut max_length = 0u32;
+            if let Err(e) = buffer.Lock(&mut destination, Some(&mut max_length), None) {
+                eprint_hr("IMFMediaBuffer::Lock(audio)", e.code());
+                return false;
+            }
+            if (max_length as usize) < data.len() {
+                let _ = buffer.Unlock();
+                eprintln!("ERROR: Media Foundation audio buffer is too small");
+                return false;
+            }
+            std::ptr::copy_nonoverlapping(data.as_ptr(), destination, data.len());
+            let _ = buffer.Unlock();
+            let _ = buffer.SetCurrentLength(data.len() as u32);
+
+            let sample = match MFCreateSample() {
+                Ok(s) => s,
+                Err(e) => {
+                    eprint_hr("MFCreateSample(audio)", e.code());
+                    return false;
+                }
+            };
+            let _ = sample.AddBuffer(&buffer);
+            let _ = sample.SetSampleTime(timestamp_hns.max(0));
+            let _ = sample.SetSampleDuration(duration_hns);
+
+            check(
+                state
+                    .sink_writer
+                    .as_ref()
+                    .unwrap()
+                    .WriteSample(audio_stream_index, &sample),
+                "WriteSample(audio)",
             )
         }
     }

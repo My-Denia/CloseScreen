@@ -6,6 +6,8 @@
 //! TS parsers, so the formatters here reproduce it rather than delegating to
 //! a general-purpose serializer.
 
+pub mod device_match;
+
 use std::io::Write;
 use std::sync::Mutex;
 

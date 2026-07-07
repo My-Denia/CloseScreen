@@ -124,6 +124,9 @@ pub struct CaptureConfig {
     pub capture_mic: bool,
     pub capture_cursor: bool,
     pub webcam_enabled: bool,
+    pub microphone_device_id: String,
+    pub microphone_device_name: String,
+    pub microphone_gain: f64,
 }
 
 /// Extracts `<handle>` from a `window:<handle>:...` sourceId, matching
@@ -208,6 +211,9 @@ pub fn parse_config(json: &str) -> Result<CaptureConfig, ConfigError> {
         capture_mic: raw.capture_mic,
         capture_cursor: raw.capture_cursor,
         webcam_enabled: raw.webcam_enabled,
+        microphone_device_id: raw.microphone_device_id.unwrap_or_default(),
+        microphone_device_name: raw.microphone_device_name.unwrap_or_default(),
+        microphone_gain: raw.microphone_gain,
     })
 }
 

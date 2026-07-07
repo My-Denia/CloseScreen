@@ -6,6 +6,7 @@
 //! (pause/resume/stop), newline-delimited JSON events + legacy text lines on
 //! stdout. See electron/native/README.md for the contract.
 
+mod audio;
 mod config;
 mod encoder;
 mod events;
@@ -25,6 +26,9 @@ use windows::Win32::Graphics::Direct3D11::{D3D11_TEXTURE2D_DESC, ID3D11Texture2D
 use windows::Win32::System::WinRT::{RO_INIT_MULTITHREADED, RoInitialize};
 use windows::Win32::UI::WindowsAndMessaging::IsWindow;
 
+use crate::audio::format::AudioFormat;
+use crate::audio::mixer::AudioMixer;
+use crate::audio::wasapi::WasapiCapture;
 use crate::config::{
     CaptureConfig, bitrate_for, even_dimension, parse_config, parse_window_handle,
 };
@@ -115,8 +119,9 @@ impl Control {
 }
 
 /// Reads pause/resume/stop commands from stdin (readCaptureCommands port).
-/// EOF requests stop, matching the C++.
-fn stdin_command_loop(control: Arc<Control>) {
+/// EOF requests stop, matching the C++. The mixer pause hook runs before the
+/// event echo, like the C++ onPauseChanged callback.
+fn stdin_command_loop(control: Arc<Control>, mixer: Option<Arc<AudioMixer>>) {
     let stdin = std::io::stdin();
     for line in stdin.lock().lines() {
         let Ok(line) = line else {
@@ -129,11 +134,17 @@ fn stdin_command_loop(control: Arc<Control>) {
             }
             "pause" => {
                 control.set_paused(true);
+                if let Some(mixer) = &mixer {
+                    mixer.set_paused(true);
+                }
                 let _ = WRITER.write_line(events::recording_paused_line());
                 control.cv.notify_all();
             }
             "resume" => {
                 control.set_paused(false);
+                if let Some(mixer) = &mixer {
+                    mixer.set_paused(false);
+                }
                 let _ = WRITER.write_line(events::recording_resumed_line());
                 control.cv.notify_all();
             }
@@ -227,11 +238,11 @@ fn main() {
 
     let _ = WRITER.write_line(events::ready_line());
 
-    // PR2 boundary: the Rust helper is opt-in (CLOSESCREEN_WGC_CAPTURE_EXE)
-    // and only covers the video path so far. Refuse loudly rather than
-    // recording something different from what was asked.
-    if config.capture_system_audio || config.capture_mic || config.webcam_enabled {
-        eprintln!("ERROR: Audio and webcam capture are not implemented in the Rust helper yet");
+    // PR3 boundary: the Rust helper is opt-in (CLOSESCREEN_WGC_CAPTURE_EXE)
+    // and covers the video + audio paths so far. Refuse webcam configs loudly
+    // rather than recording something different from what was asked.
+    if config.webcam_enabled {
+        eprintln!("ERROR: Webcam capture is not implemented in the Rust helper yet");
         std::process::exit(1);
     }
 
@@ -289,6 +300,78 @@ fn run(config: CaptureConfig) {
         }
     };
 
+    // Audio endpoint init + format events, before encoder init (main.cpp
+    // ordering). Degradation asymmetry: loopback failure emits
+    // system-audio-unavailable and continues; microphone failure is fatal.
+    let mut capture_system_audio = config.capture_system_audio;
+    let mut loopback: Option<WasapiCapture> = None;
+    let mut microphone: Option<WasapiCapture> = None;
+    let mut system_format: Option<AudioFormat> = None;
+    let mut microphone_format: Option<AudioFormat> = None;
+    let mut audio_format: Option<AudioFormat> = None;
+
+    if config.capture_system_audio {
+        let (mut capture, ok) = WasapiCapture::new_system_loopback();
+        if !ok {
+            eprintln!("ERROR: Failed to initialize WASAPI loopback capture");
+            let _ = WRITER.write_line(&events::system_audio_unavailable_line(
+                capture.last_failure_reason(),
+            ));
+            capture_system_audio = false;
+        } else if !capture.verify_startable() {
+            eprintln!("ERROR: Failed to start WASAPI loopback capture probe");
+            let _ = WRITER.write_line(&events::system_audio_unavailable_line(
+                capture.last_failure_reason(),
+            ));
+            capture_system_audio = false;
+        }
+        if capture_system_audio {
+            system_format = capture.input_format();
+            audio_format = system_format;
+            loopback = Some(capture);
+        }
+    }
+    if config.capture_mic {
+        let (capture, ok) = WasapiCapture::new_microphone(
+            Some(&config.microphone_device_id),
+            Some(&config.microphone_device_name),
+        );
+        if !ok {
+            eprintln!("ERROR: Failed to initialize WASAPI microphone capture");
+            std::process::exit(1);
+        }
+        microphone_format = capture.input_format();
+        if audio_format.is_none() {
+            audio_format = microphone_format;
+        }
+        microphone = Some(capture);
+    }
+
+    let encoder_audio_format = audio_format.map(|f| audio::format::make_aac_compatible(&f));
+    if let Some(format) = audio_format {
+        let mic_name = if config.capture_mic {
+            microphone
+                .as_ref()
+                .map(|m| m.selected_device_name().to_string())
+        } else {
+            None
+        };
+        let _ = WRITER.write_line(&events::audio_format_line(
+            format.sample_rate,
+            format.channels,
+            format.bits_per_sample,
+            capture_system_audio,
+            config.capture_mic,
+            mic_name.as_deref(),
+        ));
+        let enc = encoder_audio_format.as_ref().unwrap();
+        let _ = WRITER.write_line(&events::encoder_audio_format_line(
+            enc.sample_rate,
+            enc.channels,
+            enc.bits_per_sample,
+        ));
+    }
+
     let encoder = match MfEncoder::initialize(
         &config.output_path,
         width,
@@ -297,6 +380,7 @@ fn run(config: CaptureConfig) {
         bitrate,
         &device,
         &context,
+        encoder_audio_format.as_ref(),
     ) {
         Some(e) => Arc::new(e),
         None => {
@@ -356,16 +440,106 @@ fn run(config: CaptureConfig) {
         }));
     }
 
+    // startAudioCaptures port (main.cpp:743-811): mixer first, then mic
+    // (fatal on failure), then loopback (degrades on failure).
+    let audio_mixer: Option<Arc<AudioMixer>> = if let Some(enc_format) = encoder_audio_format {
+        let mixer_output: audio::mixer::OutputCallback = {
+            let control = Arc::clone(&control);
+            let encoder = Arc::clone(&encoder);
+            Box::new(move |data, timestamp_hns, duration_hns| {
+                if !encoder.write_audio(data, timestamp_hns, duration_hns) {
+                    control.fail_encode();
+                    return false;
+                }
+                true
+            })
+        };
+        let mixer = Arc::new(AudioMixer::new(
+            enc_format,
+            if capture_system_audio {
+                system_format.unwrap()
+            } else {
+                enc_format
+            },
+            if config.capture_mic {
+                microphone_format.unwrap()
+            } else {
+                enc_format
+            },
+            capture_system_audio,
+            config.capture_mic,
+            config.microphone_gain,
+            mixer_output,
+        ));
+        if !mixer.start() {
+            eprintln!("ERROR: Failed to start native audio mixer");
+            std::process::exit(1);
+        }
+
+        if config.capture_mic {
+            let callback: audio::wasapi::AudioCallback = {
+                let control = Arc::clone(&control);
+                let mixer = Arc::clone(&mixer);
+                Box::new(move |data, _ts, _dur| {
+                    if control.stop.load(Ordering::SeqCst) {
+                        return;
+                    }
+                    mixer.push_microphone(data);
+                })
+            };
+            if !microphone
+                .as_mut()
+                .expect("mic initialized above")
+                .start(callback)
+            {
+                eprintln!("ERROR: Failed to start WASAPI microphone capture");
+                mixer.stop();
+                std::process::exit(1);
+            }
+        }
+
+        if capture_system_audio {
+            let callback: audio::wasapi::AudioCallback = {
+                let control = Arc::clone(&control);
+                let mixer = Arc::clone(&mixer);
+                Box::new(move |data, _ts, _dur| {
+                    if control.stop.load(Ordering::SeqCst) {
+                        return;
+                    }
+                    mixer.push_system(data);
+                })
+            };
+            let capture = loopback.as_mut().expect("loopback initialized above");
+            if !capture.start(callback) {
+                eprintln!("ERROR: Failed to start WASAPI loopback capture");
+                let _ = WRITER.write_line(&events::system_audio_unavailable_line(
+                    capture.last_failure_reason(),
+                ));
+                if !config.capture_mic {
+                    // No audio source remains: stop the mixer; the AAC stream
+                    // simply receives no samples (main.cpp:797-803).
+                    mixer.stop();
+                }
+            }
+        }
+
+        Some(mixer)
+    } else {
+        None
+    };
+
     if !session.start() {
         eprintln!("ERROR: Failed to start WGC session");
         std::process::exit(1);
     }
 
     // stdin command thread. Detached on exit paths like the C++ (dropping the
-    // JoinHandle detaches).
+    // JoinHandle detaches). Pause/resume reach the mixer BEFORE the event
+    // echo (the C++ onPauseChanged hook).
     let stdin_thread = {
         let control = Arc::clone(&control);
-        std::thread::spawn(move || stdin_command_loop(control))
+        let mixer = audio_mixer.clone();
+        std::thread::spawn(move || stdin_command_loop(control, mixer))
     };
 
     // First-frame gate: 10s. An early stop (stdin `stop`/EOF) before the
@@ -388,10 +562,23 @@ fn run(config: CaptureConfig) {
             // (WGC shutdown race, main.cpp:866-872).
             drop(slot);
             drop(stdin_thread);
+            if let Some(capture) = microphone.as_mut() {
+                capture.stop();
+            }
+            if let Some(capture) = loopback.as_mut() {
+                capture.stop();
+            }
+            if let Some(mixer) = &audio_mixer {
+                mixer.stop();
+            }
             session.stop();
             eprintln!("ERROR: Timed out waiting for first WGC frame");
             std::process::exit(1);
         }
+    }
+
+    if let Some(mixer) = &audio_mixer {
+        mixer.begin_timeline();
     }
 
     let done_pair = Arc::new((Mutex::new(false), Condvar::new()));
@@ -431,9 +618,10 @@ fn run(config: CaptureConfig) {
     };
 
     if wedged {
-        // Force-exit without touching finalize()/session.stop(): both need
-        // locks or a device the wedged thread still holds. The mp4 is left
-        // non-finalized — a wedged recording is already lost (issue #14).
+        // Force-exit without touching finalize()/session.stop() OR any audio
+        // stop: mixer.stop() joins a thread calling write_audio on the same
+        // writer mutex the wedged write_frame holds forever (issue #14 —
+        // the wedge check MUST run before the audio stops below).
         eprintln!("ERROR: video writer wedged during shutdown; forcing exit");
         let _ = WRITER.write_line(events::recording_failed_wedged_line());
         let _ = std::io::stdout().flush();
@@ -441,6 +629,15 @@ fn run(config: CaptureConfig) {
         std::process::exit(1);
     }
 
+    if let Some(capture) = microphone.as_mut() {
+        capture.stop();
+    }
+    if let Some(capture) = loopback.as_mut() {
+        capture.stop();
+    }
+    if let Some(mixer) = &audio_mixer {
+        mixer.stop();
+    }
     session.stop();
     {
         let _slot = control.slot.lock().unwrap_or_else(|p| p.into_inner());
