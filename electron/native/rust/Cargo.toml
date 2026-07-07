@@ -1,0 +1,22 @@
+[workspace]
+resolver = "2"
+members = ["protocol", "cursor-sampler"]
+
+[workspace.package]
+edition = "2024"
+rust-version = "1.96"
+license = "MIT"
+
+[workspace.lints.rust]
+unsafe_op_in_unsafe_fn = "deny"
+
+[workspace.lints.clippy]
+undocumented_unsafe_blocks = "warn"
+
+# Release binaries are committed to electron/native/bin/<arch>/ at cutover (PR5);
+# keep them small and make any panic kill the helper process (the Electron side
+# treats a dead helper as a failed recording — a half-alive helper is worse).
+[profile.release]
+panic = "abort"
+lto = "thin"
+strip = "symbols"
