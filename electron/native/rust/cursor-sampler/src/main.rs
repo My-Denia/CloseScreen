@@ -45,11 +45,12 @@ fn run_gdi_leak_test(iterations_arg: Option<&str>) -> i32 {
     // one-time objects that are not per-sample leaks; baseline after warm-up.
     for &(id, _) in STANDARD_CURSORS.iter() {
         // SAFETY: shared system cursor lookup, no ownership taken.
-        if let Ok(hc) =
-            unsafe { LoadCursorW(None, windows::core::PCWSTR(id as usize as *const u16)) }
-        {
-            let _ = cursor_asset::build_asset_json(hc, "warmup");
-        }
+        let Ok(hc) =
+            (unsafe { LoadCursorW(None, windows::core::PCWSTR(id as usize as *const u16)) })
+        else {
+            continue;
+        };
+        let _ = cursor_asset::build_asset_json(hc, "warmup");
     }
 
     // SAFETY: pseudo-handle query of our own process's GUI object counts.

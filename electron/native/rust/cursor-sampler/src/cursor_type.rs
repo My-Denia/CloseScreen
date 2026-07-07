@@ -101,20 +101,26 @@ pub fn detect_custom_cursor_type(
 mod tests {
     use super::*;
 
-    /// Builds a w×h transparent canvas with an opaque axis-aligned block.
-    fn canvas_with_block(
+    /// Builds a w×h transparent canvas with an axis-aligned block of pixels
+    /// carrying the given BGRA word.
+    fn canvas_with_block_value(
         w: i32,
         h: i32,
         block: (i32, i32, i32, i32), // left, top, right, bottom inclusive
+        value: u32,
     ) -> Vec<u32> {
         let mut px = vec![0u32; (w * h) as usize];
         let (l, t, r, b) = block;
         for y in t..=b {
             for x in l..=r {
-                px[(y * w + x) as usize] = 0xFF00_0000; // opaque black
+                px[(y * w + x) as usize] = value;
             }
         }
         px
+    }
+
+    fn canvas_with_block(w: i32, h: i32, block: (i32, i32, i32, i32)) -> Vec<u32> {
+        canvas_with_block_value(w, h, block, 0xFF00_0000) // opaque black
     }
 
     #[test]
@@ -172,16 +178,20 @@ mod tests {
 
     #[test]
     fn alpha_threshold_is_exclusive_at_32() {
-        // Alpha exactly 32 counts as transparent (a <= 32 skipped).
-        let mut px = vec![0x2000_0000u32; 32 * 32];
-        assert_eq!(detect_custom_cursor_type(&px, 32, 32, 16, 10), None);
-        // Alpha 33 counts as opaque.
-        for p in px.iter_mut() {
-            *p = 0x2100_0000;
-        }
-        // Full-canvas block: ow == w > 0.9*w → rejected by the width ratio,
-        // proving pixels were counted (not the opaque<90 branch).
-        let px2 = canvas_with_block(32, 32, (8, 6, 26, 28));
-        assert!(detect_custom_cursor_type(&px2, 32, 32, 16, 10).is_some());
+        // Same block geometry the open-hand test accepts, but with alpha
+        // exactly 32: every pixel counts as transparent (a <= 32 skipped),
+        // so detection falls through to None.
+        let block = (8, 6, 26, 28);
+        let at_threshold = canvas_with_block_value(32, 32, block, 0x2000_0000);
+        assert_eq!(
+            detect_custom_cursor_type(&at_threshold, 32, 32, 16, 10),
+            None
+        );
+        // Alpha 33 counts as opaque: identical geometry now detects.
+        let above_threshold = canvas_with_block_value(32, 32, block, 0x2100_0000);
+        assert_eq!(
+            detect_custom_cursor_type(&above_threshold, 32, 32, 16, 10),
+            Some("open-hand")
+        );
     }
 }
