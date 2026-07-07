@@ -18,7 +18,58 @@ fn default_gain() -> f64 {
 #[serde(rename_all = "camelCase", default)]
 pub struct RawOutputs {
     pub screen_path: Option<String>,
-    pub webcam_path: Option<String>,
+}
+
+/// Byte-exact port of the C++ findString scanner (main.cpp:243-293), used
+/// for webcamPath: the FIRST textual occurrence of `"key"` at ANY depth
+/// wins — including a present-but-empty value, and including an occurrence
+/// inside `outputs` when that is serialized first. serde cannot observe key
+/// order, and Codex round 2 (PR #81) showed the order matters for a config
+/// carrying both locations. Same escape subset (\\ \" \/ \n \r \t, unknown
+/// escapes pass through) and the same empty-on-shape-mismatch behavior.
+/// The C++ quirk that the needle can match inside a string VALUE is
+/// preserved deliberately.
+fn find_string_first(json: &str, key: &str) -> String {
+    let bytes = json.as_bytes();
+    let needle = format!("\"{key}\"");
+    let Some(pos) = json.find(&needle) else {
+        return String::new();
+    };
+    let Some(colon) = json[pos..].find(':') else {
+        return String::new();
+    };
+    let mut i = pos + colon + 1;
+    while i < bytes.len() && bytes[i].is_ascii_whitespace() {
+        i += 1;
+    }
+    if i >= bytes.len() || bytes[i] != b'"' {
+        return String::new();
+    }
+    i += 1;
+
+    let mut result: Vec<u8> = Vec::new();
+    while i < bytes.len() {
+        let c = bytes[i];
+        i += 1;
+        if c == b'"' {
+            break;
+        }
+        if c == b'\\' && i < bytes.len() {
+            let escaped = bytes[i];
+            i += 1;
+            match escaped {
+                b'n' => result.push(b'\n'),
+                b'r' => result.push(b'\r'),
+                b't' => result.push(b'\t'),
+                other => result.push(other),
+            }
+            continue;
+        }
+        result.push(c);
+    }
+    // '"' and '\\' are ASCII and cannot appear inside UTF-8 continuation
+    // bytes, so the collected bytes are valid UTF-8 whenever the input was.
+    String::from_utf8_lossy(&result).into_owned()
 }
 
 #[derive(Debug, Deserialize)]
@@ -57,7 +108,6 @@ pub struct RawConfig {
     pub webcam_device_id: Option<String>,
     pub webcam_device_name: Option<String>,
     pub webcam_direct_show_clsid: Option<String>,
-    pub webcam_path: Option<String>,
     pub webcam_width: i64,
     pub webcam_height: i64,
     pub webcam_fps: i64,
@@ -95,7 +145,6 @@ impl Default for RawConfig {
             webcam_device_id: None,
             webcam_device_name: None,
             webcam_direct_show_clsid: None,
-            webcam_path: None,
             webcam_width: 0,
             webcam_height: 0,
             webcam_fps: 0,
@@ -206,17 +255,11 @@ pub fn parse_config(json: &str) -> Result<CaptureConfig, ConfigError> {
 
     let fps = (raw.fps as i64).clamp(1, 120) as i32;
 
-    // webcamPath: the C++ findString takes the FIRST textual occurrence of
-    // the single "webcamPath" key — including an empty value; there is no
-    // empty-falls-through chain like screenPath (that fallback is between
-    // two DIFFERENT keys). So a PRESENT top-level webcamPath wins even when
-    // empty (Codex review, PR #81): a caller sending webcamPath:"" +
-    // outputs.webcamPath must get PiP, not a sidecar. Real senders
-    // (handlers.ts, harnesses) only ever set outputs.webcamPath.
-    let webcam_path = raw
-        .webcam_path
-        .or(raw.outputs.webcam_path)
-        .unwrap_or_default();
+    // webcamPath: first-textual-occurrence scan, exactly the C++ findString
+    // (see find_string_first) — key ORDER decides between a top-level
+    // webcamPath and outputs.webcamPath, and a present-but-empty first
+    // occurrence stays empty (PiP), with no falls-through.
+    let webcam_path = find_string_first(json, "webcamPath");
 
     Ok(CaptureConfig {
         output_path,
@@ -419,8 +462,8 @@ mod tests {
             (640, 360, 30)
         );
 
-        // A PRESENT-but-empty top-level webcamPath STICKS (PiP), matching the
-        // C++ single-key findString — it must NOT fall through to outputs.
+        // TEXTUAL order decides, exactly like the C++ findString: an empty
+        // first occurrence STICKS (PiP), it must not fall through.
         let c = parse_config(
             r#"{"outputPath":"a.mp4","webcamEnabled":true,"webcamPath":"",
                 "outputs":{"webcamPath":"nested.mp4"}}"#,
@@ -429,6 +472,15 @@ mod tests {
         .unwrap();
         assert_eq!(c.webcam_path, "");
         assert!(!write_separate_webcam(&c));
+        // outputs serialized FIRST → its value wins over a later top-level
+        // key (Codex round 2, PR #81).
+        let c = parse_config(
+            r#"{"outputPath":"a.mp4","webcamEnabled":true,
+                "outputs":{"webcamPath":"nested.mp4"},"webcamPath":"top.mp4"}"#,
+        )
+        .ok()
+        .unwrap();
+        assert_eq!(c.webcam_path, "nested.mp4");
         // Absent top-level key → outputs.webcamPath (the handlers.ts shape).
         let c = parse_config(
             r#"{"outputPath":"a.mp4","webcamEnabled":true,
@@ -438,6 +490,12 @@ mod tests {
         .unwrap();
         assert_eq!(c.webcam_path, "nested.mp4");
         assert!(write_separate_webcam(&c));
+        // Escaped Windows paths round-trip through the scanner's escape
+        // subset (same as the C++).
+        let c = parse_config(r#"{"outputPath":"a.mp4","webcamPath":"C:\\out\\w id.mp4"}"#)
+            .ok()
+            .unwrap();
+        assert_eq!(c.webcam_path, "C:\\out\\w id.mp4");
 
         // Enabled + NO path → PiP mode (composited into the screen file).
         let c = parse_config(r#"{"outputPath":"a.mp4","webcamEnabled":true}"#)
