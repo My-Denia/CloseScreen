@@ -13,6 +13,9 @@ path = "src/main.rs"
 closescreen-native-protocol = { path = "../protocol" }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+# Direct dependency for the #[interface] macro (local ISampleGrabber decl —
+# qedit.h is not in the win32 metadata); version tracks the windows crate.
+windows-core = "0.62"
 
 [dependencies.windows]
 version = "0.62"
@@ -30,6 +33,7 @@ features = [
     "Win32_Graphics_Dxgi_Common",
     "Win32_Graphics_Gdi",
     "Win32_Media_Audio",
+    "Win32_Media_DirectShow",
     "Win32_Media_KernelStreaming",
     "Win32_Media_MediaFoundation",
     "Win32_Media_Multimedia",

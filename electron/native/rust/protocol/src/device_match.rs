@@ -71,6 +71,65 @@ pub const AUDIO_STOP_WORDS: &[&str] = &["microphone", "mic", "audio", "input"];
 /// Stop-words for webcam matching (webcam selectors + test harness).
 pub const WEBCAM_STOP_WORDS: &[&str] = &["camera", "webcam", "video", "input"];
 
+/// Webcam device scoring — port of deviceMatchScore
+/// (webcam_capture.cpp:87-130). DIFFERENT semantics from the audio
+/// waterfall above: every tier is aggregated with max(), the requested
+/// DEVICE ID gets its own 700/600 tiers, and the symbolic link participates
+/// in the name tiers. `contains_insensitive` in the C++ is bidirectional
+/// substring over already-normalized strings and returns false when either
+/// side is empty.
+pub fn score_webcam_device(
+    candidate_name: &str,
+    candidate_link: &str,
+    requested_name: &str,
+    requested_id: &str,
+) -> i32 {
+    fn contains_either(a: &str, b: &str) -> bool {
+        !a.is_empty() && !b.is_empty() && (a.contains(b) || b.contains(a))
+    }
+
+    let name = normalize_device_name(candidate_name);
+    let link = normalize_device_name(candidate_link);
+    let req_name = normalize_device_name(requested_name);
+    let req_id = normalize_device_name(requested_id);
+
+    let mut score = 0;
+    if !req_name.is_empty() {
+        if name == req_name {
+            score = score.max(1000);
+        }
+        if contains_either(&name, &req_name) {
+            score = score.max(900);
+        }
+        if contains_either(&link, &req_name) {
+            score = score.max(800);
+        }
+
+        let mut word_score = 0;
+        for word in req_name.split(' ') {
+            if word.chars().count() > 1 && !WEBCAM_STOP_WORDS.contains(&word) {
+                if name.contains(word) {
+                    word_score += 100;
+                } else if link.contains(word) {
+                    word_score += 50;
+                }
+            }
+        }
+        score = score.max(word_score);
+    }
+
+    if !req_id.is_empty() {
+        if contains_either(&link, &req_id) {
+            score = score.max(700);
+        }
+        if contains_either(&name, &req_id) {
+            score = score.max(600);
+        }
+    }
+
+    score
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -112,5 +171,55 @@ mod tests {
         );
         assert_eq!(score_device_name("anything", "id", "", sw), 0);
         assert_eq!(score_device_name("", "", "microphone", sw), 0);
+    }
+
+    #[test]
+    fn webcam_score_tiers_match_cpp() {
+        // Exact normalized name.
+        assert_eq!(
+            score_webcam_device("HD Pro Webcam C920", "", "hd pro webcam c920", ""),
+            1000
+        );
+        // Bidirectional name containment.
+        assert_eq!(
+            score_webcam_device("Logi HD Pro Webcam C920", "", "HD Pro Webcam", ""),
+            900
+        );
+        assert_eq!(
+            score_webcam_device("C920", "", "Logi C920 Stream Edition", ""),
+            900
+        );
+        // Link contains requested name → 800 (name itself misses).
+        assert_eq!(
+            score_webcam_device("Integrated Camera", "usb vid 046d c920", "c920", ""),
+            800
+        );
+        // Requested id vs link → 700, vs name → 600.
+        assert_eq!(
+            score_webcam_device("Foo", "usb vid 1bcf 2c99", "", "vid 1bcf"),
+            700
+        );
+        assert_eq!(score_webcam_device("Device 2C99", "other", "", "2c99"), 600);
+        // Word tier sums then maxes: "logi" name +100, "c920" link +50;
+        // stop words camera/webcam/video/input and 1-char words skipped.
+        assert_eq!(
+            score_webcam_device("logi thing", "path c920 x", "logi c920 camera webcam a", ""),
+            150
+        );
+        // Word tier LOSES to a higher id tier via max, never adds: name
+        // word-hit alone is 100, but the id-in-link tier lifts to 700.
+        assert_eq!(
+            score_webcam_device("has alpha only", "usb 2c99", "alpha beta", "2c99"),
+            700
+        );
+        // Bidirectional containment beats the id tier when both fire.
+        assert_eq!(
+            score_webcam_device("logi thing", "usb 2c99", "logi", "2c99"),
+            900
+        );
+        // Nothing requested → 0 (caller selects first device).
+        assert_eq!(score_webcam_device("Any Cam", "any link", "", ""), 0);
+        // CJK-only requested name strips to empty → name tiers skipped.
+        assert_eq!(score_webcam_device("Any Cam", "link", "摄像头", ""), 0);
     }
 }

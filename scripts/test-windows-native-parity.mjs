@@ -297,6 +297,95 @@ if (process.env.CLOSESCREEN_PARITY_AUDIO === "1") {
 	);
 }
 
+// Case 1c (opt-in: CLOSESCREEN_PARITY_WEBCAM=1 — needs a capture device that
+// delivers VISIBLE frames; set CLOSESCREEN_PARITY_WEBCAM_DEVICE_NAME /
+// _CLSID to pin one, e.g. a virtual camera): separate-webcam-file parity —
+// webcam-format payloads, webcamPath in the stopped event, and both webcam
+// mp4s carrying a real video stream.
+if (process.env.CLOSESCREEN_PARITY_WEBCAM === "1") {
+	const outs = { cpp: tempOut("cpp-webcam"), rust: tempOut("rust-webcam") };
+	const webcamOut = (f) => f.replace(/\.mp4$/i, "-webcam.mp4");
+	const results = {};
+	for (const [label, exe] of [
+		["cpp", CPP_EXE],
+		["rust", RUST_EXE],
+	]) {
+		const config = {
+			schemaVersion: 2,
+			outputPath: outs[label],
+			sourceType: "display",
+			fps: 30,
+			captureCursor: false,
+			captureSystemAudio: false,
+			captureMic: false,
+			webcamEnabled: true,
+			webcamDeviceId: "",
+			webcamDeviceName: process.env.CLOSESCREEN_PARITY_WEBCAM_DEVICE_NAME ?? "",
+			webcamDirectShowClsid: process.env.CLOSESCREEN_PARITY_WEBCAM_CLSID ?? "",
+			webcamWidth: 640,
+			webcamHeight: 360,
+			webcamFps: 30,
+			outputs: { screenPath: outs[label], webcamPath: webcamOut(outs[label]) },
+		};
+		results[label] = await runCapture(exe, config, { stopAfterStartedMs: RECORD_MS });
+	}
+	for (const label of ["cpp", "rust"]) {
+		if (results[label].code !== 0) {
+			failures.push(`webcam: ${label} exited ${results[label].code} (expected 0)`);
+		}
+	}
+	assertEqual(
+		"webcam: stdout sequence",
+		normalizeStdout(results.cpp.stdout),
+		normalizeStdout(results.rust.stdout),
+	);
+	assertEqual(
+		"webcam: stderr ERROR lines",
+		normalizeStderr(results.cpp.stderr),
+		normalizeStderr(results.rust.stderr),
+	);
+	// The webcam-format payloads must match on every field (same machine,
+	// same device → same negotiated size/fps/name).
+	const webcamFormat = (stdout) => {
+		const line = stdout.split(/\r?\n/).find((l) => l.includes('"event":"webcam-format"'));
+		return line ? JSON.parse(line) : null;
+	};
+	assertEqual(
+		"webcam: webcam-format payload",
+		webcamFormat(results.cpp.stdout),
+		webcamFormat(results.rust.stdout),
+	);
+	for (const label of ["cpp", "rust"]) {
+		const stopped = results[label].stdout
+			.split(/\r?\n/)
+			.find((l) => l.includes('"event":"recording-stopped"'));
+		if (!stopped || !JSON.parse(stopped).webcamPath) {
+			failures.push(`webcam: ${label} recording-stopped is missing webcamPath`);
+		}
+		const meta = ffprobeMeta(webcamOut(outs[label]));
+		if (!meta || meta.codec !== "h264") {
+			failures.push(`webcam: ${label} webcam output has no h264 stream (${JSON.stringify(meta)})`);
+		}
+	}
+	const meta = { cpp: ffprobeMeta(webcamOut(outs.cpp)), rust: ffprobeMeta(webcamOut(outs.rust)) };
+	assertEqual(
+		"webcam: webcam mp4 dims",
+		[meta.cpp?.width, meta.cpp?.height],
+		[meta.rust?.width, meta.rust?.height],
+	);
+	console.log(
+		`  webcam: ${meta.cpp?.width}x${meta.cpp?.height} h264 on both (cpp ${meta.cpp?.duration}s / rust ${meta.rust?.duration}s)`,
+	);
+	for (const f of Object.values(outs)) {
+		fs.rmSync(f, { force: true });
+		fs.rmSync(webcamOut(f), { force: true });
+	}
+} else {
+	console.log(
+		"  webcam: skipped (set CLOSESCREEN_PARITY_WEBCAM=1 on a machine with a frame-delivering capture device)",
+	);
+}
+
 // Case 2: error paths — same stderr shape and exit codes.
 const ERROR_CASES = [
 	["missing-arg", null, null],

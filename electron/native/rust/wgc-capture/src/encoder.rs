@@ -330,10 +330,65 @@ impl MfEncoder {
         true
     }
 
-    /// Writes one video frame. Timestamps get the encoder-side latch + bump
-    /// layer on top of what the writer thread already computed — both layers
-    /// exist in the C++ and are kept.
-    pub fn write_frame(&self, texture: &ID3D11Texture2D, timestamp_hns: i64) -> bool {
+    /// Nearest-neighbor copy of a BGRA frame into the encoder-sized buffer,
+    /// alpha forced 255 — copyBgraFrameToBuffer (mf_encoder.cpp:260-297).
+    fn copy_bgra_frame_to_buffer(
+        frame: &crate::pip::BgraFrame<'_>,
+        width: i32,
+        height: i32,
+        destination: &mut [u8],
+    ) -> bool {
+        if frame.data.is_empty() || frame.width <= 0 || frame.height <= 0 {
+            return false;
+        }
+
+        let row_bytes = (width * 4) as usize;
+        let required = row_bytes * height as usize;
+        if destination.len() < required {
+            eprintln!("ERROR: Media Foundation webcam buffer is too small");
+            return false;
+        }
+
+        if frame.width == width && frame.height == height {
+            let mut i = 0;
+            while i < required {
+                destination[i] = frame.data[i];
+                destination[i + 1] = frame.data[i + 1];
+                destination[i + 2] = frame.data[i + 2];
+                destination[i + 3] = 255;
+                i += 4;
+            }
+            return true;
+        }
+
+        for y in 0..height {
+            let source_y = ((i64::from(y) * i64::from(frame.height)) / i64::from(height)) as i32;
+            let dest_row = row_bytes * y as usize;
+            for x in 0..width {
+                let source_x = ((i64::from(x) * i64::from(frame.width)) / i64::from(width)) as i32;
+                let src = ((source_y * frame.width + source_x) * 4) as usize;
+                let dst = dest_row + (x * 4) as usize;
+                destination[dst] = frame.data[src];
+                destination[dst + 1] = frame.data[src + 1];
+                destination[dst + 2] = frame.data[src + 2];
+                destination[dst + 3] = 255;
+            }
+        }
+
+        true
+    }
+
+    /// Writes one video frame, compositing the PiP webcam overlay when given
+    /// (compositeWebcam runs after the staging copy, mf_encoder.cpp:252-254).
+    /// Timestamps get the encoder-side latch + bump layer on top of what the
+    /// writer thread already computed — both layers exist in the C++ and are
+    /// kept.
+    pub fn write_frame(
+        &self,
+        texture: &ID3D11Texture2D,
+        timestamp_hns: i64,
+        webcam: Option<&crate::pip::BgraFrame<'_>>,
+    ) -> bool {
         let mut state = self
             .state
             .lock()
@@ -384,6 +439,9 @@ impl MfEncoder {
                 texture,
                 destination,
             );
+            if copied && let Some(webcam) = webcam {
+                crate::pip::composite_webcam(destination, self.width, self.height, webcam);
+            }
             let _ = buffer.Unlock();
             if !copied {
                 return false;
@@ -409,6 +467,73 @@ impl MfEncoder {
                     .unwrap()
                     .WriteSample(stream_index, &sample),
                 "WriteSample",
+            )
+        }
+    }
+
+    /// Writes one CPU-side BGRA frame (the separate webcam file) —
+    /// writeBgraFrame (mf_encoder.cpp:360-406). Same timing latch as
+    /// write_frame; a separate MfEncoder instance means a separate latch,
+    /// exactly like the second C++ MFEncoder. Deliberately NO fault
+    /// injection: the C++ writeBgraFrame has no fault check, so under
+    /// fault+webcam the webcam frame lands BEFORE the screen write hangs.
+    pub fn write_bgra_frame(&self, frame: &crate::pip::BgraFrame<'_>, timestamp_hns: i64) -> bool {
+        let mut state = self
+            .state
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        if state.sink_writer.is_none() || state.finalized {
+            return false;
+        }
+
+        let sample_time = state.timing.sample_time(timestamp_hns);
+        let sample_duration = state.timing.sample_duration();
+
+        let frame_bytes = (self.width * self.height * 4) as u32;
+        // SAFETY: MF buffer lock/copy/unlock + sample write, mirroring the
+        // C++ writeBgraFrame.
+        unsafe {
+            let buffer = match MFCreateMemoryBuffer(frame_bytes) {
+                Ok(b) => b,
+                Err(e) => {
+                    eprint_hr("MFCreateMemoryBuffer(webcam)", e.code());
+                    return false;
+                }
+            };
+            let mut data: *mut u8 = std::ptr::null_mut();
+            let mut max_length = 0u32;
+            if let Err(e) = buffer.Lock(&mut data, Some(&mut max_length), None) {
+                eprint_hr("IMFMediaBuffer::Lock(webcam)", e.code());
+                return false;
+            }
+            let destination = std::slice::from_raw_parts_mut(data, max_length as usize);
+            let copied =
+                Self::copy_bgra_frame_to_buffer(frame, self.width, self.height, destination);
+            let _ = buffer.Unlock();
+            if !copied {
+                return false;
+            }
+            let _ = buffer.SetCurrentLength(frame_bytes);
+
+            let sample = match MFCreateSample() {
+                Ok(s) => s,
+                Err(e) => {
+                    eprint_hr("MFCreateSample(webcam)", e.code());
+                    return false;
+                }
+            };
+            let _ = sample.AddBuffer(&buffer);
+            let _ = sample.SetSampleTime(sample_time);
+            let _ = sample.SetSampleDuration(sample_duration);
+
+            let stream_index = state.video_stream_index;
+            check(
+                state
+                    .sink_writer
+                    .as_ref()
+                    .unwrap()
+                    .WriteSample(stream_index, &sample),
+                "WriteSample(webcam)",
             )
         }
     }

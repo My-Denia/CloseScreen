@@ -14,6 +14,15 @@ pub fn cursor_capture_line(requested: bool, applied: bool) -> String {
     )
 }
 
+/// webcam-format event (main.cpp:469-473), emitted after webcam init,
+/// before audio init.
+pub fn webcam_format_line(width: i32, height: i32, fps: i32, device_name: &str) -> String {
+    format!(
+        "{{\"event\":\"webcam-format\",\"schemaVersion\":2,\"width\":{width},\"height\":{height},\"fps\":{fps},\"deviceName\":\"{}\"}}",
+        json_escape(device_name)
+    )
+}
+
 /// normalizeSystemAudioUnavailableReason + emit (main.cpp:136-150).
 pub fn system_audio_unavailable_line(reason: &str) -> String {
     let normalized = match reason {
@@ -115,6 +124,19 @@ mod tests {
         assert_eq!(
             encoder_audio_format_line(48000, 2, 16),
             "{\"event\":\"encoder-audio-format\",\"schemaVersion\":2,\"sampleRate\":48000,\"channels\":2,\"bitsPerSample\":16}"
+        );
+    }
+
+    #[test]
+    fn webcam_format_line_matches_cpp() {
+        assert_eq!(
+            webcam_format_line(640, 360, 30, "HD Pro Webcam C920"),
+            "{\"event\":\"webcam-format\",\"schemaVersion\":2,\"width\":640,\"height\":360,\"fps\":30,\"deviceName\":\"HD Pro Webcam C920\"}"
+        );
+        // Escaping goes through jsonEscape like the C++ emitter.
+        assert_eq!(
+            webcam_format_line(1280, 720, 60, "Cam \"X\"\\Y"),
+            "{\"event\":\"webcam-format\",\"schemaVersion\":2,\"width\":1280,\"height\":720,\"fps\":60,\"deviceName\":\"Cam \\\"X\\\"\\\\Y\"}"
         );
     }
 
