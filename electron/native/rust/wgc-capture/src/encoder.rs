@@ -195,14 +195,14 @@ impl MfEncoder {
                 desc.CPUAccessFlags = D3D11_CPU_ACCESS_READ.0 as u32;
                 desc.MiscFlags = 0;
                 let mut staging: Option<ID3D11Texture2D> = None;
-                if device
-                    .CreateTexture2D(&desc, None, Some(&mut staging))
-                    .is_err()
-                    || staging.is_none()
-                {
-                    eprint_hr("CreateTexture2D(staging)", HRESULT(-1));
+                if let Err(e) = device.CreateTexture2D(&desc, None, Some(&mut staging)) {
+                    eprint_hr("CreateTexture2D(staging)", e.code());
                     return false;
                 }
+                let Some(_) = staging.as_ref() else {
+                    eprint_hr("CreateTexture2D(staging)", HRESULT(-1));
+                    return false;
+                };
                 state.staging_texture = staging;
             }
             let staging = state.staging_texture.as_ref().unwrap();

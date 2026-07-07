@@ -167,11 +167,13 @@ pub enum ConfigError {
 pub fn parse_config(json: &str) -> Result<CaptureConfig, ConfigError> {
     let raw: RawConfig = serde_json::from_str(json).map_err(|_| ConfigError::Parse)?;
 
-    // screenPath at any depth beats outputPath (main.cpp:327-333).
-    let output_path = raw
-        .screen_path
-        .or(raw.outputs.screen_path)
-        .or(raw.output_path)
+    // screenPath at any depth beats outputPath (main.cpp:327-333); the C++
+    // treats an EMPTY screenPath as absent and falls through to outputPath,
+    // so empty candidates must be skipped, not selected.
+    let non_empty = |o: Option<String>| o.filter(|s| !s.is_empty());
+    let output_path = non_empty(raw.screen_path)
+        .or_else(|| non_empty(raw.outputs.screen_path))
+        .or_else(|| non_empty(raw.output_path))
         .unwrap_or_default();
     if output_path.is_empty() {
         return Err(ConfigError::Parse);
@@ -242,6 +244,14 @@ mod tests {
             .unwrap();
         assert_eq!(c.output_path, "n.mp4");
         let c = parse_config(r#"{"outputPath":"b.mp4"}"#).ok().unwrap();
+        assert_eq!(c.output_path, "b.mp4");
+        // Empty screenPath candidates fall through to outputPath, like the
+        // C++ scanner treating "" as absent (handlers.ts can send empty
+        // outputs entries).
+        let c =
+            parse_config(r#"{"screenPath":"","outputs":{"screenPath":""},"outputPath":"b.mp4"}"#)
+                .ok()
+                .unwrap();
         assert_eq!(c.output_path, "b.mp4");
         assert!(parse_config(r#"{"fps":30}"#).is_err());
         assert!(parse_config("not json").is_err());

@@ -63,15 +63,18 @@ function runCapture(exe, config, { stopAfterStartedMs }) {
 		});
 		child.once("error", reject);
 		const killer = setTimeout(() => child.kill(), 30_000);
-		child.once("exit", (code) => {
+		// `close`, not `exit`: the stdio pipes must be drained before the
+		// captured strings are compared, or trailing lines can go missing.
+		child.once("close", (code) => {
 			clearTimeout(killer);
 			resolve({ code, stdout, stderr });
 		});
 	});
 }
 
-// Normalizes one stdout line to its comparable shape: JSON lines become
-// `event/sorted-key-list` (values dropped where volatile), text lines have
+// Normalizes one stdout line to its comparable shape: JSON lines keep every
+// stable key AND value (schemaVersion, requested/applied, reason, ...) with
+// only genuinely volatile values (output paths) masked; text lines have
 // paths stripped.
 function normalizeStdoutLine(line) {
 	const trimmed = line.trim();
@@ -79,7 +82,12 @@ function normalizeStdoutLine(line) {
 	if (trimmed.startsWith("{")) {
 		try {
 			const json = JSON.parse(trimmed);
-			return `json:${json.event}:${Object.keys(json).join(",")}`;
+			for (const volatileKey of ["screenPath", "webcamPath"]) {
+				if (typeof json[volatileKey] === "string") {
+					json[volatileKey] = "<path>";
+				}
+			}
+			return `json:${JSON.stringify(json)}`;
 		} catch {
 			return `unparseable:${trimmed.slice(0, 60)}`;
 		}
@@ -169,6 +177,13 @@ console.log(`rust: ${RUST_EXE}`);
 		};
 		results[label] = await runCapture(exe, config, { stopAfterStartedMs: RECORD_MS });
 	}
+	// The happy path must actually succeed — equal-but-nonzero exits or
+	// missing outputs would otherwise sail through the parity diffs.
+	for (const label of ["cpp", "rust"]) {
+		if (results[label].code !== 0) {
+			failures.push(`display: ${label} exited ${results[label].code} (expected 0)`);
+		}
+	}
 	assertEqual("display: exit code", results.cpp.code, results.rust.code);
 	assertEqual(
 		"display: stdout sequence",
@@ -181,6 +196,11 @@ console.log(`rust: ${RUST_EXE}`);
 		normalizeStderr(results.rust.stderr),
 	);
 	const meta = { cpp: ffprobeMeta(outs.cpp), rust: ffprobeMeta(outs.rust) };
+	for (const label of ["cpp", "rust"]) {
+		if (!meta[label]) {
+			failures.push(`display: ffprobe could not read the ${label} output file`);
+		}
+	}
 	assertEqual("display: codec", meta.cpp?.codec, meta.rust?.codec);
 	assertEqual(
 		"display: dims",
@@ -239,7 +259,7 @@ for (const [tag, arg] of ERROR_CASES) {
 			});
 			child.once("error", reject);
 			const killer = setTimeout(() => child.kill(), 15_000);
-			child.once("exit", (code) => {
+			child.once("close", (code) => {
 				clearTimeout(killer);
 				resolve({ code, stdout, stderr });
 			});
