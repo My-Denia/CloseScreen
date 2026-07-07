@@ -77,7 +77,7 @@ jobs:
       - run: cargo fmt --check
       # clippy cross-checks the Windows target without linking, so it runs
       # on the Linux host; the real build + tests run on Windows below.
-      - run: cargo clippy --target x86_64-pc-windows-msvc --all-targets -- -D warnings
+      - run: cargo clippy --locked --target x86_64-pc-windows-msvc --all-targets -- -D warnings
 
   native-rust-windows:
     name: Native Rust (build + test)
@@ -90,5 +90,5 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: electron/native/rust
-      - run: cargo build --release --target x86_64-pc-windows-msvc
-      - run: cargo test --target x86_64-pc-windows-msvc
+      - run: cargo build --locked --release --target x86_64-pc-windows-msvc
+      - run: cargo test --locked --target x86_64-pc-windows-msvc

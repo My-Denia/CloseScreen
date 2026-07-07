@@ -46,12 +46,22 @@ const ASSET_KEY_ORDER = [
 const BOUNDS_KEY_ORDER = ["x", "y", "width", "height"];
 
 function resolveHelperPath() {
+	// A non-empty override must point at a real file — falling back to the
+	// C++ binary here would make a Rust-contract run pass vacuously.
 	const envPath = process.env.CLOSESCREEN_CURSOR_SAMPLER_EXE?.trim();
+	if (envPath) {
+		if (!fs.existsSync(envPath)) {
+			console.error(`CLOSESCREEN_CURSOR_SAMPLER_EXE points at a missing file: ${envPath}`);
+			process.exit(1);
+		}
+		return envPath;
+	}
+	// Same order the app resolver uses (windowsNativeRecordingSession.ts):
+	// local build first, then the committed bin.
 	const candidates = [
-		envPath,
-		path.join(ROOT, "electron", "native", "bin", "win32-x64", "cursor-sampler.exe"),
 		path.join(ROOT, "electron", "native", "wgc-capture", "build", "cursor-sampler.exe"),
-	].filter(Boolean);
+		path.join(ROOT, "electron", "native", "bin", "win32-x64", "cursor-sampler.exe"),
+	];
 	for (const candidate of candidates) {
 		if (fs.existsSync(candidate)) {
 			return candidate;
