@@ -529,6 +529,16 @@ fn run(config: CaptureConfig) {
     };
 
     if !session.start() {
+        // Stop the audio captures before exiting, matching main.cpp:843-852.
+        if let Some(capture) = microphone.as_mut() {
+            capture.stop();
+        }
+        if let Some(capture) = loopback.as_mut() {
+            capture.stop();
+        }
+        if let Some(mixer) = &audio_mixer {
+            mixer.stop();
+        }
         eprintln!("ERROR: Failed to start WGC session");
         std::process::exit(1);
     }

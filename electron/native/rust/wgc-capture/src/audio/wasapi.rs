@@ -191,14 +191,19 @@ impl WasapiCapture {
 
             let mix_format = match audio_client.GetMixFormat() {
                 Ok(f) if !f.is_null() => f,
-                Ok(_) | Err(_) => {
-                    let hr = audio_client
-                        .GetMixFormat()
-                        .err()
-                        .map(|e| e.code())
-                        .unwrap_or(windows::core::HRESULT(-1));
-                    return self.fail(hr, "IAudioClient::GetMixFormat");
+                Ok(_) => {
+                    // C++ parity: a succeeded-but-null result prints no ERROR
+                    // line (succeeded() passes, the null check trips) and
+                    // classifies the S_OK hr as init-failed.
+                    self.last_failure_reason = classify_failure(
+                        windows::core::HRESULT(0),
+                        self.endpoint,
+                        "IAudioClient::GetMixFormat",
+                    )
+                    .to_string();
+                    return false;
                 }
+                Err(e) => return self.fail(e.code(), "IAudioClient::GetMixFormat"),
             };
 
             let resolved = resolve_input_format(&*mix_format);
@@ -264,12 +269,15 @@ impl WasapiCapture {
     ) -> bool {
         // SAFETY: enumeration of active capture endpoints, read-only.
         unsafe {
-            let Ok(devices) = enumerator.EnumAudioEndpoints(eCapture, DEVICE_STATE_ACTIVE) else {
-                eprint_hr(
-                    "IMMDeviceEnumerator::EnumAudioEndpoints(eCapture)",
-                    windows::core::HRESULT(-1),
-                );
-                return false;
+            let devices = match enumerator.EnumAudioEndpoints(eCapture, DEVICE_STATE_ACTIVE) {
+                Ok(d) => d,
+                Err(e) => {
+                    eprint_hr(
+                        "IMMDeviceEnumerator::EnumAudioEndpoints(eCapture)",
+                        e.code(),
+                    );
+                    return false;
+                }
             };
             let Ok(count) = devices.GetCount() else {
                 return false;
