@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["protocol", "cursor-sampler"]
+members = ["protocol", "cursor-sampler", "wgc-capture"]
 
 [workspace.package]
 edition = "2024"
