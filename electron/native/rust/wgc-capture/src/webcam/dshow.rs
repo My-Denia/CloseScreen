@@ -491,6 +491,16 @@ fn capture_loop(
     let grabber = grabber;
     let interval = std::time::Duration::from_millis(1000 / u64::from(fps.max(1) as u32));
 
+    // SAFETY: per-thread COM init, matching the C++ captureLoop
+    // (dshow_webcam_capture.cpp:306) instead of relying on implicit MTA. The
+    // matching CoUninitialize below is guarded on this hr like the C++.
+    let coinit_hr = unsafe {
+        windows::Win32::System::Com::CoInitializeEx(
+            None,
+            windows::Win32::System::Com::COINIT_MULTITHREADED,
+        )
+    };
+
     while !store.stop_requested() {
         let mut buffer_size = 0i32;
         // SAFETY: qedit GetCurrentBuffer contract — null buffer queries the
@@ -504,14 +514,28 @@ fn capture_loop(
                 let hr = grabber
                     .0
                     .GetCurrentBuffer(&mut buffer_size, buffer.as_mut_ptr() as *mut i32);
-                if hr.is_ok()
-                    && let Some(frame) =
+                // The second call may report a DIFFERENT byte count; the C++
+                // gates storeFrame on that updated length, so shrink the
+                // buffer to what the grabber actually wrote before the
+                // expected-length gate runs (Codex review, PR #81).
+                if hr.is_ok() {
+                    buffer.truncate(buffer_size.max(0) as usize);
+                    if let Some(frame) =
                         convert_frame(&buffer, format, width, height, stride, top_down)
-                {
-                    store.store(frame, width, height);
+                    {
+                        store.store(frame, width, height);
+                    }
                 }
             }
         }
         std::thread::sleep(interval);
+    }
+
+    if coinit_hr.is_ok() {
+        // SAFETY: paired with the successful CoInitializeEx above
+        // (dshow_webcam_capture.cpp:319-321).
+        unsafe {
+            windows::Win32::System::Com::CoUninitialize();
+        }
     }
 }

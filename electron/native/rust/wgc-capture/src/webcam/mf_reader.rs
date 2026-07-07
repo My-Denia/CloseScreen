@@ -393,6 +393,14 @@ impl Drop for MfWebcam {
 /// latest-frame slot, 20ms backoff on read errors.
 fn capture_loop(reader: SendReader, store: Arc<FrameStore>, width: i32, height: i32) {
     let reader = reader;
+    // SAFETY: per-thread COM init/uninit pair, matching the C++ captureLoop
+    // (webcam_capture.cpp:322, 374) instead of relying on implicit MTA.
+    unsafe {
+        let _ = windows::Win32::System::Com::CoInitializeEx(
+            None,
+            windows::Win32::System::Com::COINIT_MULTITHREADED,
+        );
+    }
     let expected_length = (width.max(0) as usize) * (height.max(0) as usize) * 4;
 
     while !store.stop_requested() {
@@ -444,5 +452,11 @@ fn capture_loop(reader: SendReader, store: Arc<FrameStore>, width: i32, height: 
             }
             let _ = buffer.Unlock();
         }
+    }
+
+    // SAFETY: paired with the CoInitializeEx at thread start, unconditional
+    // like the C++ (webcam_capture.cpp:374).
+    unsafe {
+        windows::Win32::System::Com::CoUninitialize();
     }
 }

@@ -115,9 +115,11 @@ pub fn convert_frame(
                 }
                 if w % 2 == 1 {
                     // Odd width: the last pixel reuses the PREVIOUS pair's
-                    // chroma (dshow_webcam_capture.cpp:380-392).
+                    // chroma (dshow_webcam_capture.cpp:380-392). Signed math
+                    // like the C++: for a width-1 frame x==0 and (x-1)/2
+                    // truncates to 0 — usize would underflow (Codex, PR #81).
                     let x = w - 1;
-                    let previous_pair_start = ((x - 1) / 2) * 4;
+                    let previous_pair_start = ((x as i32 - 1) / 2 * 4) as usize;
                     let y = source[x * 2];
                     let u = source[previous_pair_start + 1];
                     let v = source[previous_pair_start + 3];
@@ -209,5 +211,15 @@ mod tests {
         assert_eq!(&out[4..8], &[0, 0, 0, 255]);
         // Pixel 2: y=235 with NEUTRAL chroma from pair 0 → white.
         assert_eq!(&out[8..12], &[255, 255, 255, 255]);
+    }
+
+    #[test]
+    fn yuy2_width_one_uses_offset_zero_chroma() {
+        // Width 1: the odd-width tail hits x==0; the C++ signed (x-1)/2
+        // truncates to offset 0 — must not underflow. Stride for 1px YUY2 is
+        // ((16+31)/32)*4 = 4: [y, u, pad, v].
+        let row = [235u8, 128, 0, 128];
+        let out = convert_frame(&row, PixelFormat::Yuy2, 1, 1, 4, true).unwrap();
+        assert_eq!(out, vec![255, 255, 255, 255]);
     }
 }

@@ -206,11 +206,16 @@ pub fn parse_config(json: &str) -> Result<CaptureConfig, ConfigError> {
 
     let fps = (raw.fps as i64).clamp(1, 120) as i32;
 
-    // webcamPath: the C++ findString takes the first occurrence at any
-    // depth; the real senders put it top-level (harness) or under outputs
-    // (handlers.ts). Same non-empty-filter chain as screenPath.
-    let webcam_path = non_empty(raw.webcam_path)
-        .or_else(|| non_empty(raw.outputs.webcam_path))
+    // webcamPath: the C++ findString takes the FIRST textual occurrence of
+    // the single "webcamPath" key — including an empty value; there is no
+    // empty-falls-through chain like screenPath (that fallback is between
+    // two DIFFERENT keys). So a PRESENT top-level webcamPath wins even when
+    // empty (Codex review, PR #81): a caller sending webcamPath:"" +
+    // outputs.webcamPath must get PiP, not a sidecar. Real senders
+    // (handlers.ts, harnesses) only ever set outputs.webcamPath.
+    let webcam_path = raw
+        .webcam_path
+        .or(raw.outputs.webcam_path)
         .unwrap_or_default();
 
     Ok(CaptureConfig {
@@ -414,13 +419,25 @@ mod tests {
             (640, 360, 30)
         );
 
+        // A PRESENT-but-empty top-level webcamPath STICKS (PiP), matching the
+        // C++ single-key findString — it must NOT fall through to outputs.
         let c = parse_config(
             r#"{"outputPath":"a.mp4","webcamEnabled":true,"webcamPath":"",
                 "outputs":{"webcamPath":"nested.mp4"}}"#,
         )
         .ok()
         .unwrap();
+        assert_eq!(c.webcam_path, "");
+        assert!(!write_separate_webcam(&c));
+        // Absent top-level key → outputs.webcamPath (the handlers.ts shape).
+        let c = parse_config(
+            r#"{"outputPath":"a.mp4","webcamEnabled":true,
+                "outputs":{"webcamPath":"nested.mp4"}}"#,
+        )
+        .ok()
+        .unwrap();
         assert_eq!(c.webcam_path, "nested.mp4");
+        assert!(write_separate_webcam(&c));
 
         // Enabled + NO path → PiP mode (composited into the screen file).
         let c = parse_config(r#"{"outputPath":"a.mp4","webcamEnabled":true}"#)
