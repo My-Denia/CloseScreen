@@ -28,13 +28,21 @@ describe("native Windows capture stdout parsing", () => {
 		const result = createNativeWindowsRecordingStartResult(
 			24,
 			"C:\\recordings\\recording-24.mp4",
-			"C:\\helper\\wgc-capture.exe",
+			{
+				requestedBackend: "rust",
+				effectiveIdentity: "rust",
+				capture: { kind: "capture", path: "C:\\helper\\wgc-capture.exe", source: "rust" },
+				cursor: { kind: "cursor", path: "C:\\helper\\cursor-sampler.exe", source: "rust" },
+			},
 			'{"event":"system-audio-unavailable","schemaVersion":2,"reason":"unsupported-format"}',
 		);
 
 		expect(result).toMatchObject({
 			success: true,
 			recordingId: 24,
+			requestedBackend: "rust",
+			backend: "rust",
+			helperPath: "C:\\helper\\wgc-capture.exe",
 			systemAudioUnavailableReason: "unsupported-format",
 		});
 	});

@@ -1,6 +1,29 @@
 # Windows Native Recorder Roadmap
 
-CloseScreen's Windows recorder should be owned by one native backend. Electron capture can remain available for non-Windows platforms and temporary developer diagnostics, but Windows production recording should not silently fall back to `getDisplayMedia` / `MediaRecorder`.
+CloseScreen's Windows recorder is owned by one process contract with two transition implementations. Rust is the Windows x64 release default; the legacy C++ implementation is packaged under distinct filenames for explicit rollback. Electron capture remains the non-Windows path, but Windows production recording does not silently fall back to `getDisplayMedia` / `MediaRecorder`.
+
+## Migration boundary status
+
+The implementation phases below record how the native recorder was built. The final backend
+migration now preserves that architecture and changes only the implementation boundary:
+
+- Electron resolves one capture/cursor pair per recording attempt.
+- Unset `CLOSESCREEN_WINDOWS_CAPTURE_BACKEND` selects Rust; `legacy` selects the packaged C++ pair.
+- Both pairs implement the V2 lifecycle/error contract and remain covered by parity, normal-stop,
+  fault-injection, and cursor-sampler gates.
+- Windows packages contain both x64 pairs under `resources/electron/native/bin/win32-x64`.
+- The renderer, editor, exporter, and `RecordingSession` architecture are unchanged.
+- Webcam media is a separate editable `webcamVideoPath` sidecar in production sessions.
+
+The current maintainer validation environment is one Windows x64 laptop. Multi-monitor behavior,
+external audio hardware, other GPU/driver combinations, Windows ARM64, macOS, Linux Wayland,
+signing, and notarization are not established by this migration.
+
+The laptop's current webcam path is also not a passed release gate: both transition backends
+exceeded the 9-second post-stop bound, and the Rust diagnostic run exited under a 30-second ceiling
+without producing the webcam sidecar. Because the failure is shared with the legacy backend and no
+device-independent root cause is established, it remains a documented hardware-specific limitation
+rather than a speculative migration patch.
 
 ## Goals
 
@@ -9,16 +32,18 @@ CloseScreen's Windows recorder should be owned by one native backend. Electron c
 - Capture system audio through WASAPI loopback.
 - Capture microphone audio through WASAPI.
 - Mix system audio and microphone audio into the primary screen recording.
-- Capture webcam video natively and compose it into the Windows helper MP4 during the native-recording migration.
-- Keep preview/export aligned because screen video, audio, webcam, and cursor share one native timing origin.
+- Capture webcam video natively into the separate sidecar used by the existing editor.
+- Keep preview/export aligned by preserving normalized screen/audio/cursor timing and the existing
+  webcam sidecar session contract.
 - Keep exported MP4s Windows-friendly: H.264 video plus AAC audio. Opus-in-MP4 is not an acceptable Windows export target.
 - Package the native helper with the Windows app.
 
 ## Non-Goals
 
-- Replacing the editor/export pipeline.
-- Replacing the editor/export pipeline. A later pass can reintroduce a separate editable native `webcamVideoPath`; the current Windows-native milestone prioritizes a helper-owned multi-flux MP4 with deterministic screen/audio/mic/webcam sync.
-- Adding a native fallback for macOS or Linux in this branch.
+- Replacing the renderer, editor, session, or export pipeline.
+- Adding a native backend for macOS or Linux in this migration.
+- Removing the legacy C++ implementation before transition evidence and a later removal decision.
+- Claiming hardware or platform coverage unavailable to the maintainer's validation environment.
 
 ## Target Architecture
 
@@ -33,6 +58,10 @@ Electron owns the native recording session:
 - sends pause/resume/stop/cancel commands;
 - writes `RecordingSession` manifests;
 - reports explicit errors when a Windows-native capability is unavailable.
+
+`electron/native-bridge/windowsNativeHelpers.ts` selects the Rust or legacy pair once before these
+steps. A selected backend failure remains explicit; the app does not automatically retry the other
+implementation after startup.
 
 The helper owns Windows media capture:
 
@@ -113,7 +142,9 @@ Acceptance:
 
 ### 2. WASAPI System Audio
 
-Status: initial implementation landed. The helper captures the default render endpoint with WASAPI loopback, passes the runtime mix format into `MFEncoder`, and muxes AAC audio into the primary MP4. Long-run drift correction and explicit silence insertion remain follow-up hardening work.
+Status: implemented in the legacy and Rust helpers. Pure timing/audio logic and opt-in real-device
+parity cover the maintained contract. Long-run drift on unavailable hardware remains an unverified
+limitation, not a completed matrix claim.
 
 - Add `WasapiLoopbackCapture`.
 - Capture the default render endpoint in shared loopback mode.
@@ -141,7 +172,10 @@ SSOT rules for this phase:
 
 ### 3. WASAPI Microphone
 
-Status: initial implementation in progress. The helper can open the default WASAPI capture endpoint, apply the CloseScreen microphone gain, encode mic-only audio, and mix system loopback plus microphone through a single queued `AudioMixer` timeline when both endpoints expose the same runtime format. Audio endpoints are warmed before WGC starts, the mixer drops pre-roll and begins its paced timeline on the first encoded video frame, then cuts queued tail audio on stop so the MP4 does not drift past the video. Browser `deviceId` to MMDevice id mapping, resampling between mismatched endpoint formats, and drift correction remain follow-up hardening work.
+Status: implemented in the legacy and Rust helpers. The helper opens the selected/default WASAPI
+capture endpoint, applies microphone gain, and mixes system plus microphone audio into one queued
+timeline. Device unplug, mismatched endpoint formats, and long-run external-device behavior remain
+device-dependent checks.
 
 - Add microphone device enumeration and stable device-id mapping.
 - Capture selected/default microphone through WASAPI.
@@ -155,24 +189,30 @@ Acceptance:
 
 ### 4. Webcam Capture
 
+Status: implemented in both transition backends as a separate `webcamPath` output. The renderer and
+editor keep ownership of webcam layout.
+
 - Add Media Foundation webcam source reader.
 - Select requested dimensions/fps or the nearest format accepted by Media Foundation.
-- Convert webcam samples to BGRA and compose them into the primary helper MP4 as an initial bottom-right picture-in-picture overlay.
-- Ignore black webcam warmup frames and keep the overlay hidden until the first visible frame is available, so virtual cameras do not flash a black picture-in-picture rectangle at recording start.
-- Keep the helper process as the SSOT for screen/window, WASAPI system audio, microphone, webcam, and mux timing.
+- Encode webcam samples into the explicit sidecar path supplied by Electron.
+- Ignore black webcam warmup frames until the first visible frame is available.
+- Keep the helper process as the SSOT for screen/window, WASAPI system audio, microphone, webcam
+  capture, and native timestamp normalization.
 - Match the requested webcam through Media Foundation friendly names first, then browser device ids/symbolic links, so UI selection remains stable across Chromium and Windows native device namespaces.
 - Use the Electron-resolved DirectShow CLSID when the selected virtual camera, for example NVIDIA Broadcast, is registered for DirectShow but absent from Media Foundation enumeration.
-- Later: promote the same webcam capture source to a separate editable native `webcamVideoPath` if product requirements need post-recording layout edits.
 
 Acceptance:
 
 - Native display/window recordings can include webcam without returning to Electron capture.
 - `npm run test:wgc-webcam:win` validates the helper path when a webcam is available and skips explicitly when no webcam device exists.
-- Combined webcam + system audio + microphone produces one MP4 with H.264 video and AAC audio.
+- Combined webcam + system audio + microphone produces a screen MP4 with optional AAC audio and a
+  readable H.264 webcam sidecar for the existing session/editor path.
 
 ### 5. Native Window Capture
 
-Status: initial implementation in progress. Electron parses the `window:<HWND>:...` desktop source id through the shared native Windows recording contract and passes `windowHandle` to the helper. The helper resolves the `HWND`, validates it with `IsWindow`, and creates the WGC item with `CreateForWindow(HWND)`. Resize/minimize/move hardening and protected-window diagnostics remain follow-up work.
+Status: baseline implementation exists in both helpers. Electron parses the `window:<HWND>:...`
+source id and the helper creates the WGC item with `CreateForWindow(HWND)`. Resize, minimize,
+protected-window, DPI, and monitor-move behavior remains hardware/window-specific validation.
 
 - Resolve Electron `window:*` selections to an `HWND`.
 - Use WGC `CreateForWindow(HWND)`.
@@ -186,6 +226,9 @@ Acceptance:
 
 ### 6. Runtime Controls
 
+Status: pause/resume and bounded normal/fault shutdown are implemented in both helpers. Cancel
+cleanup remains orchestrated by Electron rather than a new application architecture.
+
 - Add pause/resume commands to the helper.
 - Add cancel command that removes partial screen/webcam outputs.
 - Keep restart as stop-discard-start from Electron until the helper supports a native restart event.
@@ -197,11 +240,18 @@ Acceptance:
 
 ### 7. Test Pipeline
 
-- `npm run test:wgc-helper:win`: display-only helper smoke test.
+- `npm run test:wgc-helper:win`: display-only normal-start/stop gate for both backends, with a hard
+  post-stop deadline.
+- `npm run test:wgc-parity:win`: paired lifecycle, pause/resume, error, metadata, and packet-timestamp
+  comparison.
+- `npm run test:wgc-fault:win`: deterministic wedged-writer shutdown gate for both backends.
+- `npm run test:cursor-sampler:win`: black-box cursor protocol and GDI regression gate for both
+  cursor helpers.
 - `npm run test:wgc-audio:win`: validates AAC track presence and duration.
 - `npm run test:wgc-window:win`: captures a fixture window by HWND.
 - `npm run test:wgc-webcam:win`: validates webcam output when a webcam is available, otherwise skips explicitly.
-- Packaging check: confirms the helper is in `app.asar.unpacked`.
+- Packaging check: confirms exactly four x64 helpers plus attribution under the unpacked app's
+  `resources/` directory; native helpers are `extraResources`, not `app.asar.unpacked` contents.
 - Export check: exported MP4s generated from native recordings keep an AAC audio track when the source has audio.
 - `npm run test:wgc-mic:win`: validates default-microphone capture writes an AAC track when an input endpoint is available.
 - `npm run test:wgc-mixed-audio:win`: validates system loopback plus microphone writes one mixed AAC track when endpoint formats are compatible.
@@ -241,8 +291,13 @@ Next investigation when resumed:
 
 ## Ship Criteria
 
-- Windows display capture works with cursor, system audio, microphone, and webcam.
-- Windows window capture works with cursor, system audio, microphone, and webcam.
-- Preview and export show no cursor position drift.
-- Preview and export show no measurable audio/video/webcam drift.
+- Rust is the default packaged Windows x64 capture/cursor pair.
+- The legacy C++ pair remains packaged and selectable with one documented environment variable.
+- Both implementations satisfy the non-device parity, bounded shutdown, fault, and cursor gates.
+- Device-dependent audio, microphone, webcam, and window checks record the environment or an
+  explicit skip; they are not generalized beyond the available laptop.
+- The packaged Rust recording can be loaded by the unchanged editor and exported to MP4/GIF in the
+  manual release gate.
+- Final uploaded release assets have unique names, verified SHA-256 checksums, packaged attribution,
+  and source/tool/input provenance.
 - Windows production builds do not depend on Electron capture fallback.

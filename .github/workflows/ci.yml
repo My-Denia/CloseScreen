@@ -14,8 +14,8 @@ jobs:
     name: Lint
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
-      - uses: actions/setup-node@v6
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
           node-version-file: .nvmrc
           cache: npm
@@ -27,8 +27,8 @@ jobs:
     name: Type Check
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
-      - uses: actions/setup-node@v6
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
           node-version-file: .nvmrc
           cache: npm
@@ -39,8 +39,8 @@ jobs:
     name: Test
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
-      - uses: actions/setup-node@v6
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
           node-version-file: .nvmrc
           cache: npm
@@ -53,8 +53,8 @@ jobs:
     name: Build
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
-      - uses: actions/setup-node@v6
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
           node-version-file: .nvmrc
           cache: npm
@@ -68,16 +68,16 @@ jobs:
       run:
         working-directory: electron/native/rust
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
       - run: rustup toolchain install 1.96.1 --profile minimal --component rustfmt,clippy
       - run: rustup target add x86_64-pc-windows-msvc --toolchain 1.96.1
-      - uses: Swatinem/rust-cache@v2
+      - uses: Swatinem/rust-cache@e18b497796c12c097a38f9edb9d0641fb99eee32 # v2
         with:
           workspaces: electron/native/rust
-      - run: cargo fmt --check
+      - run: cargo +1.96.1 fmt --check
       # clippy cross-checks the Windows target without linking, so it runs
       # on the Linux host; the real build + tests run on Windows below.
-      - run: cargo clippy --locked --target x86_64-pc-windows-msvc --all-targets -- -D warnings
+      - run: cargo +1.96.1 clippy --locked --target x86_64-pc-windows-msvc --all-targets -- -D warnings
 
   native-rust-windows:
     name: Native Rust (build + test)
@@ -86,9 +86,11 @@ jobs:
       run:
         working-directory: electron/native/rust
     steps:
-      - uses: actions/checkout@v6
-      - uses: Swatinem/rust-cache@v2
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+      - run: rustup toolchain install 1.96.1 --profile minimal
+      - run: rustup target add x86_64-pc-windows-msvc --toolchain 1.96.1
+      - uses: Swatinem/rust-cache@e18b497796c12c097a38f9edb9d0641fb99eee32 # v2
         with:
           workspaces: electron/native/rust
-      - run: cargo build --locked --release --target x86_64-pc-windows-msvc
-      - run: cargo test --locked --target x86_64-pc-windows-msvc
+      - run: cargo +1.96.1 build --locked --release --target x86_64-pc-windows-msvc
+      - run: cargo +1.96.1 test --locked --target x86_64-pc-windows-msvc

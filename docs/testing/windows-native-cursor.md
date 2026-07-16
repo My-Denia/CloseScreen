@@ -99,7 +99,7 @@ Current native availability rules:
 - Windows 10 build 19041 or newer
 - a helper executable is available
 
-The helper currently implements display/window video capture, system audio loopback, default microphone capture, Media Foundation webcam capture, and DirectShow fallback for selected virtual cameras such as NVIDIA Broadcast. Webcam frames are composed into the primary MP4 as a bottom-right picture-in-picture overlay, and black webcam warmup frames are ignored until the first visible frame is available.
+The Rust helper is the Windows x64 release default and the legacy C++ helper is packaged as an explicit rollback. Both implement display/window video, system audio, microphone, and device-dependent webcam capture. Production webcam capture is written to a separate sidecar for the existing editor; it is not permanently composed into the primary screen MP4.
 
 Build CloseScreen's helper locally:
 
@@ -119,10 +119,24 @@ npm run test:wgc-mixed-audio:win
 npm run test:wgc-webcam:win
 ```
 
-For local diagnostics with another compatible helper, point CloseScreen at that executable:
+`test:wgc-helper:win`, `test:wgc-fault:win`, and `test:cursor-sampler:win` run the Rust and legacy
+staged executables sequentially by default. Use `-- --backend rust` or `-- --backend legacy` to
+isolate one. `test:wgc-parity:win` always compares both and checks pause/resume lifecycle, packet
+timestamps, output metadata, and error semantics.
+
+For packaged rollback, set the paired backend before launching CloseScreen:
+
+```powershell
+$env:CLOSESCREEN_WINDOWS_CAPTURE_BACKEND = "legacy"
+npm run dev
+```
+
+For local diagnostics with another compatible capture helper, point CloseScreen at that executable.
+Set the cursor override as well if a fully custom pair is intended:
 
 ```powershell
 $env:CLOSESCREEN_WGC_CAPTURE_EXE = "C:\path\to\wgc-capture.exe"
+$env:CLOSESCREEN_CURSOR_SAMPLER_EXE = "C:\path\to\cursor-sampler.exe"
 npm run build-vite
 npm run dev
 ```

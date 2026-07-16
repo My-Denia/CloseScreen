@@ -7,8 +7,8 @@
 // contract.
 //
 // Usage: node scripts/test-windows-native-parity.mjs
-//   CPP exe:  electron/native/bin/win32-x64/wgc-capture.exe (or CLOSESCREEN_PARITY_CPP_EXE)
-//   Rust exe: electron/native/rust/target/dist/wgc-capture.exe (or CLOSESCREEN_PARITY_RUST_EXE)
+//   C++ exe:  electron/native/bin/win32-x64/wgc-capture-legacy.exe (or CLOSESCREEN_PARITY_CPP_EXE)
+//   Rust exe: electron/native/bin/win32-x64/wgc-capture.exe (or CLOSESCREEN_PARITY_RUST_EXE)
 
 import { spawn, spawnSync } from "node:child_process";
 import { randomUUID } from "node:crypto";
@@ -22,10 +22,10 @@ const ROOT = path.join(__dirname, "..");
 
 const CPP_EXE =
 	process.env.CLOSESCREEN_PARITY_CPP_EXE ??
-	path.join(ROOT, "electron", "native", "bin", "win32-x64", "wgc-capture.exe");
+	path.join(ROOT, "electron", "native", "bin", "win32-x64", "wgc-capture-legacy.exe");
 const RUST_EXE =
 	process.env.CLOSESCREEN_PARITY_RUST_EXE ??
-	path.join(ROOT, "electron", "native", "rust", "target", "dist", "wgc-capture.exe");
+	path.join(ROOT, "electron", "native", "bin", "win32-x64", "wgc-capture.exe");
 
 const RECORD_MS = 4000;
 const failures = [];
@@ -38,7 +38,11 @@ function assertEqual(label, cpp, rust) {
 	}
 }
 
-function runCapture(exe, config, { stopAfterStartedMs }) {
+function runCapture(
+	exe,
+	config,
+	{ stopAfterStartedMs, pauseAfterStartedMs = null, pauseForMs = 0 },
+) {
 	return new Promise((resolve, reject) => {
 		const child = spawn(exe, [JSON.stringify(config)], {
 			stdio: ["pipe", "pipe", "pipe"],
@@ -47,14 +51,23 @@ function runCapture(exe, config, { stopAfterStartedMs }) {
 		let stdout = "";
 		let stderr = "";
 		let stopSent = false;
+		let commandsScheduled = false;
 		child.stdout.on("data", (chunk) => {
 			stdout += chunk.toString();
-			if (!stopSent && stopAfterStartedMs !== null && stdout.includes("Recording started")) {
-				stopSent = true;
+			if (!commandsScheduled && stdout.includes("Recording started")) {
+				commandsScheduled = true;
+				if (pauseAfterStartedMs !== null) {
+					setTimeout(() => child.stdin.write("pause\n"), pauseAfterStartedMs);
+					setTimeout(() => child.stdin.write("resume\n"), pauseAfterStartedMs + pauseForMs);
+				}
 				setTimeout(() => {
+					if (stopSent || stopAfterStartedMs === null) return;
+					stopSent = true;
 					try {
 						child.stdin.write("stop\n");
-					} catch {}
+					} catch {
+						// The process may have exited between the lifecycle event and the stop timer.
+					}
 				}, stopAfterStartedMs);
 			}
 		});
@@ -70,6 +83,47 @@ function runCapture(exe, config, { stopAfterStartedMs }) {
 			resolve({ code, stdout, stderr });
 		});
 	});
+}
+
+function packetTimeline(file, stream) {
+	const probe = spawnSync(
+		"ffprobe",
+		[
+			"-v",
+			"error",
+			"-select_streams",
+			stream,
+			"-show_entries",
+			"packet=pts_time,duration_time",
+			"-of",
+			"json",
+			file,
+		],
+		{ encoding: "utf8", windowsHide: true },
+	);
+	if (probe.status !== 0) return null;
+	const packets = JSON.parse(probe.stdout).packets ?? [];
+	const pts = packets.map((packet) => Number(packet.pts_time)).filter(Number.isFinite);
+	if (pts.length === 0) return null;
+	const durations = packets.map((packet) => Number(packet.duration_time)).filter(Number.isFinite);
+	return {
+		first: pts[0],
+		last: pts.at(-1),
+		end: pts.at(-1) + (durations.at(-1) ?? 0),
+		monotonic: pts.every((value, index) => index === 0 || value >= pts[index - 1]),
+		packets: pts.length,
+	};
+}
+
+function assertTimeline(label, timeline) {
+	if (!timeline) {
+		failures.push(`${label}: no packet timestamps`);
+		return;
+	}
+	if (!timeline.monotonic) failures.push(`${label}: packet PTS are not monotonic`);
+	if (timeline.first < -0.05 || timeline.first > 0.25) {
+		failures.push(`${label}: first PTS ${timeline.first}s is not rebased near zero`);
+	}
 }
 
 // Normalizes one stdout line to its comparable shape: JSON lines keep every
@@ -141,6 +195,48 @@ function tempOut(tag) {
 	return path.join(os.tmpdir(), `closescreen-parity-${tag}-${randomUUID()}.mp4`);
 }
 
+async function startSilentLoopbackStimulus() {
+	const available = spawnSync("ffplay", ["-version"], {
+		encoding: "utf8",
+		windowsHide: true,
+	});
+	if (available.status !== 0) {
+		throw new Error(
+			"CLOSESCREEN_PARITY_AUDIO=1 requires ffplay to keep the loopback endpoint active.",
+		);
+	}
+	const child = spawn(
+		"ffplay",
+		[
+			"-nodisp",
+			"-autoexit",
+			"-loglevel",
+			"quiet",
+			"-f",
+			"lavfi",
+			"-i",
+			"anullsrc=r=48000:cl=stereo",
+			"-t",
+			"15",
+		],
+		{ stdio: "ignore", windowsHide: true },
+	);
+	await new Promise((resolve, reject) => {
+		const timer = setTimeout(resolve, 400);
+		child.once("error", (error) => {
+			clearTimeout(timer);
+			reject(error);
+		});
+		child.once("exit", (code) => {
+			if (code !== null && code !== 0) {
+				clearTimeout(timer);
+				reject(new Error(`Silent loopback stimulus exited early with code ${code}.`));
+			}
+		});
+	});
+	return child;
+}
+
 if (process.platform !== "win32") {
 	console.error("This parity harness is Windows-only.");
 	process.exit(1);
@@ -175,13 +271,22 @@ console.log(`rust: ${RUST_EXE}`);
 			captureMic: false,
 			webcamEnabled: false,
 		};
-		results[label] = await runCapture(exe, config, { stopAfterStartedMs: RECORD_MS });
+		results[label] = await runCapture(exe, config, {
+			stopAfterStartedMs: RECORD_MS,
+			pauseAfterStartedMs: 1000,
+			pauseForMs: 1000,
+		});
 	}
 	// The happy path must actually succeed — equal-but-nonzero exits or
 	// missing outputs would otherwise sail through the parity diffs.
 	for (const label of ["cpp", "rust"]) {
 		if (results[label].code !== 0) {
 			failures.push(`display: ${label} exited ${results[label].code} (expected 0)`);
+		}
+		for (const event of ["recording-paused", "recording-resumed"]) {
+			if (!results[label].stdout.includes(`"event":"${event}"`)) {
+				failures.push(`display: ${label} did not emit ${event}`);
+			}
 		}
 	}
 	assertEqual("display: exit code", results.cpp.code, results.rust.code);
@@ -215,6 +320,14 @@ console.log(`rust: ${RUST_EXE}`);
 				`display: duration divergence cpp=${meta.cpp.duration}s rust=${meta.rust.duration}s`,
 			);
 		}
+		for (const label of ["cpp", "rust"]) {
+			if (meta[label].duration < 2.4 || meta[label].duration > 3.8) {
+				failures.push(
+					`display: ${label} duration ${meta[label].duration}s did not exclude the 1s pause`,
+				);
+			}
+			assertTimeline(`display: ${label} video`, packetTimeline(outs[label], "v:0"));
+		}
 	}
 	console.log(
 		`  display: cpp ${meta.cpp?.duration}s / rust ${meta.rust?.duration}s @ ${meta.cpp?.width}x${meta.cpp?.height}`,
@@ -242,7 +355,12 @@ if (process.env.CLOSESCREEN_PARITY_AUDIO === "1") {
 			captureMic: false,
 			webcamEnabled: false,
 		};
-		results[label] = await runCapture(exe, config, { stopAfterStartedMs: RECORD_MS });
+		const stimulus = await startSilentLoopbackStimulus();
+		try {
+			results[label] = await runCapture(exe, config, { stopAfterStartedMs: RECORD_MS });
+		} finally {
+			stimulus.kill();
+		}
 	}
 	for (const label of ["cpp", "rust"]) {
 		if (results[label].code !== 0) {
@@ -287,8 +405,24 @@ if (process.env.CLOSESCREEN_PARITY_AUDIO === "1") {
 		}
 	}
 	assertEqual("audio: stream meta", meta.cpp, meta.rust);
+	for (const label of ["cpp", "rust"]) {
+		const videoTimeline = packetTimeline(outs[label], "v:0");
+		const audioTimeline = packetTimeline(outs[label], "a:0");
+		assertTimeline(`audio: ${label} video`, videoTimeline);
+		assertTimeline(`audio: ${label} audio`, audioTimeline);
+		if (
+			videoTimeline &&
+			audioTimeline &&
+			(Math.abs(videoTimeline.first - audioTimeline.first) > 0.25 ||
+				Math.abs(videoTimeline.end - audioTimeline.end) > 0.75)
+		) {
+			failures.push(
+				`audio: ${label} A/V timeline drift first=${Math.abs(videoTimeline.first - audioTimeline.first)}s end=${Math.abs(videoTimeline.end - audioTimeline.end)}s`,
+			);
+		}
+	}
 	console.log(
-		`  audio: aac ${meta.cpp?.sample_rate}Hz/${meta.cpp?.channels}ch on both (events identical)`,
+		`  audio: aac ${meta.cpp?.sample_rate}Hz/${meta.cpp?.channels}ch on both (events and packet timelines valid)`,
 	);
 	for (const f of Object.values(outs)) fs.rmSync(f, { force: true });
 } else {
@@ -366,6 +500,7 @@ if (process.env.CLOSESCREEN_PARITY_WEBCAM === "1") {
 		if (!meta || meta.codec !== "h264") {
 			failures.push(`webcam: ${label} webcam output has no h264 stream (${JSON.stringify(meta)})`);
 		}
+		assertTimeline(`webcam: ${label}`, packetTimeline(webcamOut(outs[label]), "v:0"));
 	}
 	const meta = { cpp: ffprobeMeta(webcamOut(outs.cpp)), rust: ffprobeMeta(webcamOut(outs.rust)) };
 	assertEqual(
@@ -428,6 +563,11 @@ for (const [tag, arg] of ERROR_CASES) {
 				resolve({ code, stdout, stderr });
 			});
 		});
+	}
+	for (const label of ["cpp", "rust"]) {
+		if (results[label].code === 0) {
+			failures.push(`${tag}: ${label} exited 0 (expected a nonzero error exit)`);
+		}
 	}
 	assertEqual(`${tag}: exit code`, results.cpp.code, results.rust.code);
 	assertEqual(

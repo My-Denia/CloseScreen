@@ -190,10 +190,10 @@ if (!fs.existsSync(cursorSamplerOutputPath)) {
 }
 
 fs.mkdirSync(BIN_DIR, { recursive: true });
-const distributablePath = path.join(BIN_DIR, "wgc-capture.exe");
+const distributablePath = path.join(BIN_DIR, "wgc-capture-legacy.exe");
 fs.copyFileSync(outputPath, distributablePath);
 
-const cursorSamplerDistributablePath = path.join(BIN_DIR, "cursor-sampler.exe");
+const cursorSamplerDistributablePath = path.join(BIN_DIR, "cursor-sampler-legacy.exe");
 fs.copyFileSync(cursorSamplerOutputPath, cursorSamplerDistributablePath);
 
 console.log(`Built ${outputPath}`);

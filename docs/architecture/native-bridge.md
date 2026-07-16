@@ -37,3 +37,20 @@ This repository now contains the initial scaffold:
 - unified handler registration in `electron/ipc/nativeBridge.ts`
 
 The legacy `window.electronAPI` surface still exists for backward compatibility. New native-facing features should prefer the unified bridge client.
+
+## Windows capture backend boundary
+
+Windows recording keeps the existing Electron IPC and session architecture, but the external helper
+pair is selected through `electron/native-bridge/windowsNativeHelpers.ts`. The selector resolves the
+capture executable and cursor sampler together, freezes the result for one recording attempt, and
+reports the requested and effective backend identity.
+
+- Unset `CLOSESCREEN_WINDOWS_CAPTURE_BACKEND` means the Rust x64 backend.
+- `CLOSESCREEN_WINDOWS_CAPTURE_BACKEND=legacy` selects the packaged C++ rollback pair.
+- Invalid explicit values fail before capture starts.
+- Individual executable overrides remain diagnostic-only and are reported as `mixed` or `custom`.
+- A selected helper failure is explicit; there is no automatic backend retry or Windows browser
+  fallback after native startup.
+
+Both implementations preserve the V2 process/event contract, so this migration does not change the
+renderer, editor, exporter, or `RecordingSession` model.

@@ -1,4 +1,5 @@
 import type { Rectangle } from "electron";
+import type { ResolvedWindowsNativeHelper } from "../../windowsNativeHelpers";
 import type { CursorRecordingSession } from "./session";
 import { TelemetryRecordingSession } from "./telemetryRecordingSession";
 import { WindowsNativeRecordingSession } from "./windowsNativeRecordingSession";
@@ -10,18 +11,23 @@ interface CreateCursorRecordingSessionOptions {
 	sampleIntervalMs: number;
 	sourceId?: string | null;
 	startTimeMs?: number;
+	windowsHelper?: ResolvedWindowsNativeHelper;
 }
 
 export function createCursorRecordingSession(
 	options: CreateCursorRecordingSessionOptions,
 ): CursorRecordingSession {
 	if (options.platform === "win32") {
+		if (!options.windowsHelper) {
+			throw new Error("Windows cursor recording requires a frozen native helper selection.");
+		}
 		return new WindowsNativeRecordingSession({
 			getDisplayBounds: options.getDisplayBounds,
 			maxSamples: options.maxSamples,
 			sampleIntervalMs: options.sampleIntervalMs,
 			sourceId: options.sourceId,
 			startTimeMs: options.startTimeMs,
+			windowsHelper: options.windowsHelper,
 		});
 	}
 

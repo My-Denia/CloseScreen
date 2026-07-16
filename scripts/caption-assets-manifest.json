@@ -1,0 +1,24 @@
+{
+	"schemaVersion": 1,
+	"model": {
+		"id": "Xenova/whisper-tiny",
+		"revision": "5332fcc35e32a33b86612b9a57a89be7906102b1"
+	},
+	"assets": {
+		"models/Xenova/whisper-tiny/added_tokens.json": "ce949fe720c14311cb6c446e69cfe340dc669d7b006077a6feed6ae571dd7e88",
+		"models/Xenova/whisper-tiny/config.json": "2b2e4e519084e0ea028b19b153f95202735a971870d6844aa26e559edd292e94",
+		"models/Xenova/whisper-tiny/generation_config.json": "68ac791fcb4999461a313472125042934656240ba1cba7d1c2627fcbb19ac24c",
+		"models/Xenova/whisper-tiny/merges.txt": "2df2990a395e35e8dfbc7511e08c12d56018d8d04691e0133e5d63b21e154dc6",
+		"models/Xenova/whisper-tiny/normalizer.json": "bf1c507dc8724ca9cf9903640dacfb69dae2f00edee4f21ceba106a7392f26dd",
+		"models/Xenova/whisper-tiny/onnx/decoder_model_merged_quantized.onnx": "6c0c125986b007d2e3734bec84c18bda0152071b90b87fadac6d7764499927a0",
+		"models/Xenova/whisper-tiny/onnx/encoder_model_quantized.onnx": "fd9d995b9dcb0520f0dbf6cf68651af639fc385f594d9d876e69ca2802dc438e",
+		"models/Xenova/whisper-tiny/preprocessor_config.json": "a6a76d28c93edb273669eb9e0b0636a2bddbb1272c3261e47b7ca6dfdbac1b8d",
+		"models/Xenova/whisper-tiny/quantize_config.json": "5be0072d627cc8094c2051c38629aed10a509844f562de6d17277756ff0a602c",
+		"models/Xenova/whisper-tiny/special_tokens_map.json": "e67ae3a0aaa99abcd9f187138e12db1f65c16a14761c50ef10eef2c174a7a691",
+		"models/Xenova/whisper-tiny/tokenizer.json": "27fc476bfe7f17299480be2273fc0608e4d5a99aba2ab5dec5374b4482d1a566",
+		"models/Xenova/whisper-tiny/tokenizer_config.json": "2a4c4281cf9f51ac6ccc406fdc711a087afe6530f671fa7b80953edc498275ce",
+		"models/Xenova/whisper-tiny/vocab.json": "50d6a919f0a0601d56a04eb583c780d18553aa388254ba3158eb6a00f13e2c1a",
+		"ort/ort-wasm-simd-threaded.asyncify.mjs": "5959c6733039619c9af710d8e1bae8d6e84402787990637be987c2b1bd6c5fa9",
+		"ort/ort-wasm-simd-threaded.asyncify.wasm": "e0c0c6d3e73d43b8a249972f8358f845b08cc16fec3c80efafdf8bed40366786"
+	}
+}

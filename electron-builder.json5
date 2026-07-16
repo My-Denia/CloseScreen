@@ -53,6 +53,10 @@
     {
       "from": "README.md",
       "to": "licenses/README.md"
+    },
+    {
+      "from": "RUST_THIRD_PARTY_NOTICES.md",
+      "to": "licenses/RUST_THIRD_PARTY_NOTICES.md"
     }
   ],
 

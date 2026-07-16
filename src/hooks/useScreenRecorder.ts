@@ -756,11 +756,6 @@ export function useScreenRecorder(): UseScreenRecorderReturn {
 				if (availability.reason === "unsupported-os") {
 					return false;
 				}
-				if (availability.reason === "missing-helper") {
-					console.warn("Native Windows capture helper is not available; using browser capture.");
-					return false;
-				}
-
 				throw new Error(availability.error ?? "Native Windows capture is not available.");
 			}
 

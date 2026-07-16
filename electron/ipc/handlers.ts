@@ -37,6 +37,12 @@ import { getFreeBytes, isLowDiskSpace } from "../diskSpace";
 import { mainT } from "../i18n";
 import { createCursorRecordingSession } from "../native-bridge/cursor/recording/factory";
 import type { CursorRecordingSession } from "../native-bridge/cursor/recording/session";
+import {
+	type ResolvedWindowsNativeHelper,
+	type ResolvedWindowsNativeHelperPair,
+	resolveWindowsNativeHelperPair,
+	WindowsNativeHelperResolutionError,
+} from "../native-bridge/windowsNativeHelpers";
 import { patchWebmDurationOnDisk } from "../recording/webm-duration";
 import {
 	cleanupRecordingsWithLock,
@@ -333,6 +339,7 @@ let nativeWindowsCaptureOutput = "";
 let nativeWindowsCaptureTargetPath: string | null = null;
 let nativeWindowsCaptureWebcamTargetPath: string | null = null;
 let nativeWindowsCaptureRecordingId: number | null = null;
+let nativeWindowsHelperSelection: ResolvedWindowsNativeHelperPair | null = null;
 let nativeWindowsCursorOffsetMs = 0;
 let nativeWindowsCursorCaptureMode: CursorCaptureMode = "editable-overlay";
 let nativeWindowsCursorRecordingStartMs = 0;
@@ -509,57 +516,23 @@ function getSelectedDisplay() {
 	return screen.getAllDisplays().find((display) => display.id === sourceDisplayId) ?? null;
 }
 
-function resolveUnpackedAppPath(...segments: string[]) {
-	const resolved = path.join(app.getAppPath(), ...segments);
-	if (app.isPackaged) {
-		return resolved.replace(/\.asar([/\\])/, ".asar.unpacked$1");
-	}
-
-	return resolved;
-}
-
-function resolvePackagedResourcePath(...segments: string[]) {
-	if (!app.isPackaged) {
-		return null;
-	}
-
-	return path.join(process.resourcesPath, ...segments);
-}
-
-function getNativeWindowsCaptureHelperCandidates() {
-	const envPath = process.env.CLOSESCREEN_WGC_CAPTURE_EXE?.trim();
-	const archTag = process.arch === "arm64" ? "win32-arm64" : "win32-x64";
-	return [
-		envPath,
-		resolveUnpackedAppPath(
-			"electron",
-			"native",
-			"wgc-capture",
-			"build",
-			"Release",
-			"wgc-capture.exe",
-		),
-		resolveUnpackedAppPath("electron", "native", "wgc-capture", "build", "wgc-capture.exe"),
-		resolveUnpackedAppPath("electron", "native", "bin", archTag, "wgc-capture.exe"),
-		resolvePackagedResourcePath("electron", "native", "bin", archTag, "wgc-capture.exe"),
-	].filter((candidate): candidate is string => Boolean(candidate));
-}
-
-async function findNativeWindowsCaptureHelperPath() {
-	if (process.platform !== "win32") {
-		return null;
-	}
-
-	for (const candidate of getNativeWindowsCaptureHelperCandidates()) {
-		try {
-			await fs.access(candidate, fsConstants.X_OK);
-			return candidate;
-		} catch {
-			// Try the next configured helper location.
-		}
-	}
-
-	return null;
+async function resolveNativeWindowsHelperPair() {
+	return resolveWindowsNativeHelperPair({
+		appPath: app.getAppPath(),
+		arch: process.arch,
+		env: { ...process.env },
+		isExecutable: async (candidate) => {
+			try {
+				await fs.access(candidate, fsConstants.X_OK);
+				return true;
+			} catch {
+				return false;
+			}
+		},
+		isPackaged: app.isPackaged,
+		platform: process.platform,
+		resourcesPath: process.resourcesPath,
+	});
 }
 
 function isWindowsGraphicsCaptureOsSupported() {
@@ -673,7 +646,11 @@ async function resolveDirectShowWebcamClsid(deviceName?: string) {
 // on native (a real recordingId plus a separate cursor-start timestamp), so they
 // are passed separately — otherwise a native batch would be keyed by a timestamp
 // and its store lookup (by real recordingId) would miss it.
-async function startCursorRecording(recordingId?: number, startTimeMs?: number) {
+async function startCursorRecording(
+	recordingId?: number,
+	startTimeMs?: number,
+	frozenWindowsHelper?: ResolvedWindowsNativeHelper,
+) {
 	if (cursorRecordingSession) {
 		await cursorRecordingSession.stop();
 		cursorRecordingSession = null;
@@ -688,16 +665,20 @@ async function startCursorRecording(recordingId?: number, startTimeMs?: number) 
 			: typeof recordingId === "number" && Number.isFinite(recordingId)
 				? recordingId
 				: undefined;
-	cursorRecordingSession = createCursorRecordingSession({
-		getDisplayBounds: getSelectedSourceBounds,
-		maxSamples: MAX_CURSOR_SAMPLES,
-		platform: process.platform,
-		sampleIntervalMs: CURSOR_SAMPLE_INTERVAL_MS,
-		sourceId: getSelectedSourceId(),
-		startTimeMs: resolvedStartTimeMs,
-	});
-
 	try {
+		const windowsHelper =
+			process.platform === "win32"
+				? (frozenWindowsHelper ?? (await resolveNativeWindowsHelperPair()).cursor)
+				: undefined;
+		cursorRecordingSession = createCursorRecordingSession({
+			getDisplayBounds: getSelectedSourceBounds,
+			maxSamples: MAX_CURSOR_SAMPLES,
+			platform: process.platform,
+			sampleIntervalMs: CURSOR_SAMPLE_INTERVAL_MS,
+			sourceId: getSelectedSourceId(),
+			startTimeMs: resolvedStartTimeMs,
+			windowsHelper,
+		});
 		await cursorRecordingSession.start();
 	} catch (error) {
 		console.error("Failed to start cursor recording session:", error);
@@ -1112,10 +1093,27 @@ export function registerIpcHandlers(
 			return { success: true, available: false, reason: "unsupported-os" };
 		}
 
-		const helperPath = await findNativeWindowsCaptureHelperPath();
-		return helperPath
-			? { success: true, available: true, helperPath }
-			: { success: true, available: false, reason: "missing-helper" };
+		try {
+			const selection = await resolveNativeWindowsHelperPair();
+			return {
+				success: true,
+				available: true,
+				helperPath: selection.capture.path,
+				cursorHelperPath: selection.cursor.path,
+				requestedBackend: selection.requestedBackend,
+				backend: selection.effectiveIdentity,
+			};
+		} catch (error) {
+			if (error instanceof WindowsNativeHelperResolutionError) {
+				return {
+					success: false,
+					available: false,
+					reason: error.code,
+					error: error.message,
+				};
+			}
+			throw error;
+		}
 	});
 
 	ipcMain.handle(
@@ -1132,10 +1130,8 @@ export function registerIpcHandlers(
 					return { success: false, error: "Native Windows capture is already running." };
 				}
 
-				const helperPath = await findNativeWindowsCaptureHelperPath();
-				if (!helperPath) {
-					return { success: false, error: "Native Windows capture helper is not available." };
-				}
+				const helperSelection = await resolveNativeWindowsHelperPair();
+				const helperPath = helperSelection.capture.path;
 
 				if (!request?.source?.sourceId) {
 					return {
@@ -1221,6 +1217,9 @@ export function registerIpcHandlers(
 				};
 
 				console.info("[native-wgc] starting Windows capture", {
+					requestedBackend: helperSelection.requestedBackend,
+					backend: helperSelection.effectiveIdentity,
+					helperSource: helperSelection.capture.source,
 					helperPath,
 					source: request.source,
 					audio: request.audio,
@@ -1237,6 +1236,7 @@ export function registerIpcHandlers(
 				nativeWindowsCaptureTargetPath = outputPath;
 				nativeWindowsCaptureWebcamTargetPath = request.webcam.enabled ? webcamOutputPath : null;
 				nativeWindowsCaptureRecordingId = recordingId;
+				nativeWindowsHelperSelection = helperSelection;
 				nativeWindowsCursorOffsetMs = 0;
 				nativeWindowsCursorCaptureMode = cursorCaptureMode;
 				nativeWindowsCursorRecordingStartMs = 0;
@@ -1248,8 +1248,10 @@ export function registerIpcHandlers(
 				if (cursorCaptureMode === "editable-overlay") {
 					nativeWindowsCursorRecordingStartMs = cursorStartTimeMs;
 					// Stamp with the real recordingId, keep the timestamp as the sample base.
-					await startCursorRecording(recordingId, cursorStartTimeMs);
+					await startCursorRecording(recordingId, cursorStartTimeMs, helperSelection.cursor);
 					console.info("[native-wgc] cursor sampler ready", {
+						backend: helperSelection.cursor.source,
+						helperPath: helperSelection.cursor.path,
 						cursorStartTimeMs,
 						warmupMs: Date.now() - cursorStartTimeMs,
 					});
@@ -1276,6 +1278,9 @@ export function registerIpcHandlers(
 					nativeWindowsCaptureOutput,
 				);
 				console.info("[native-wgc] capture started", {
+					requestedBackend: helperSelection.requestedBackend,
+					backend: helperSelection.effectiveIdentity,
+					helperPath,
 					captureStartedAtMs,
 					cursorOffsetMs: nativeWindowsCursorOffsetMs,
 					webcamFormat,
@@ -1290,16 +1295,22 @@ export function registerIpcHandlers(
 				return createNativeWindowsRecordingStartResult(
 					recordingId,
 					outputPath,
-					helperPath,
+					helperSelection,
 					nativeWindowsCaptureOutput,
 				);
 			} catch (error) {
-				console.error("Failed to start native Windows recording:", error);
+				console.error("Failed to start native Windows recording:", {
+					requestedBackend: nativeWindowsHelperSelection?.requestedBackend ?? null,
+					backend: nativeWindowsHelperSelection?.effectiveIdentity ?? null,
+					helperPath: nativeWindowsHelperSelection?.capture.path ?? null,
+					error,
+				});
 				nativeWindowsCaptureProcess?.kill();
 				nativeWindowsCaptureProcess = null;
 				nativeWindowsCaptureTargetPath = null;
 				nativeWindowsCaptureWebcamTargetPath = null;
 				nativeWindowsCaptureRecordingId = null;
+				nativeWindowsHelperSelection = null;
 				nativeWindowsCursorOffsetMs = 0;
 				nativeWindowsCursorCaptureMode = "editable-overlay";
 				nativeWindowsCursorRecordingStartMs = 0;
@@ -1362,6 +1373,7 @@ export function registerIpcHandlers(
 		const preferredWebcamPath = nativeWindowsCaptureWebcamTargetPath;
 		const recordingId = nativeWindowsCaptureRecordingId ?? Date.now();
 		const cursorCaptureMode = nativeWindowsCursorCaptureMode;
+		const helperSelection = nativeWindowsHelperSelection;
 
 		if (!proc) {
 			return { success: false, error: "Native Windows capture is not running." };
@@ -1376,6 +1388,13 @@ export function registerIpcHandlers(
 			if (!screenVideoPath) {
 				throw new Error("Native Windows capture did not return an output path.");
 			}
+			console.info("[native-wgc] capture stopped", {
+				requestedBackend: helperSelection?.requestedBackend ?? null,
+				backend: helperSelection?.effectiveIdentity ?? null,
+				helperPath: helperSelection?.capture.path ?? null,
+				screenVideoPath,
+				discard: discard === true,
+			});
 
 			if (cursorCaptureMode === "editable-overlay") {
 				await stopCursorRecording();
@@ -1435,7 +1454,12 @@ export function registerIpcHandlers(
 				message: "Native Windows recording session stored successfully",
 			};
 		} catch (error) {
-			console.error("Failed to stop native Windows recording:", error);
+			console.error("Failed to stop native Windows recording:", {
+				requestedBackend: helperSelection?.requestedBackend ?? null,
+				backend: helperSelection?.effectiveIdentity ?? null,
+				helperPath: helperSelection?.capture.path ?? null,
+				error,
+			});
 			await stopCursorRecording();
 			return { success: false, error: String(error) };
 		} finally {
@@ -1443,6 +1467,7 @@ export function registerIpcHandlers(
 			nativeWindowsCaptureTargetPath = null;
 			nativeWindowsCaptureWebcamTargetPath = null;
 			nativeWindowsCaptureRecordingId = null;
+			nativeWindowsHelperSelection = null;
 			nativeWindowsCursorOffsetMs = 0;
 			nativeWindowsCursorCaptureMode = "editable-overlay";
 			nativeWindowsCursorRecordingStartMs = 0;

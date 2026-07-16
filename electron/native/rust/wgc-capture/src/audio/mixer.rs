@@ -275,3 +275,94 @@ fn mix_loop(
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use std::sync::mpsc;
+
+    use super::*;
+    use crate::audio::format::AudioSubtype;
+
+    fn test_format() -> AudioFormat {
+        AudioFormat {
+            subtype: AudioSubtype::Pcm,
+            sample_rate: 1_000,
+            channels: 1,
+            bits_per_sample: 16,
+            block_align: 2,
+            avg_bytes_per_sec: 2_000,
+        }
+    }
+
+    fn system_mixer() -> (AudioMixer, mpsc::Receiver<(Vec<u8>, i64, i64)>) {
+        let format = test_format();
+        let (tx, rx) = mpsc::channel();
+        let mixer = AudioMixer::new(
+            format,
+            format,
+            format,
+            true,
+            false,
+            1.0,
+            Box::new(move |data, timestamp, duration| {
+                tx.send((data.to_vec(), timestamp, duration)).is_ok()
+            }),
+        );
+        (mixer, rx)
+    }
+
+    #[test]
+    fn timeline_emits_ten_millisecond_chunks_and_rebases() {
+        let (mixer, rx) = system_mixer();
+        assert!(mixer.start());
+
+        // Pre-roll must be discarded when the first video frame starts the
+        // shared timeline.
+        mixer.push_system(&[7; 20]);
+        mixer.begin_timeline();
+        mixer.push_system(&[1; 40]);
+
+        let first = rx.recv_timeout(Duration::from_secs(1)).unwrap();
+        let second = rx.recv_timeout(Duration::from_secs(1)).unwrap();
+        assert_eq!((first.1, first.2), (0, 100_000));
+        assert_eq!((second.1, second.2), (100_000, 100_000));
+
+        mixer.begin_timeline();
+        mixer.push_system(&[2; 20]);
+        let rebased = rx.recv_timeout(Duration::from_secs(1)).unwrap();
+        assert_eq!((rebased.1, rebased.2), (0, 100_000));
+        mixer.stop();
+    }
+
+    #[test]
+    fn pause_clears_partial_queues_drops_pushes_and_resume_keeps_timeline() {
+        let (mixer, rx) = system_mixer();
+        assert!(mixer.start());
+        mixer.begin_timeline();
+        mixer.push_system(&[1; 20]);
+        let first = rx.recv_timeout(Duration::from_secs(1)).unwrap();
+        assert_eq!(first.1, 0);
+
+        mixer.push_system(&[9; 10]);
+        mixer.set_paused(true);
+        mixer.push_system(&[8; 20]);
+        assert!(rx.recv_timeout(Duration::from_millis(50)).is_err());
+
+        mixer.set_paused(false);
+        mixer.push_system(&[2; 20]);
+        let resumed = rx.recv_timeout(Duration::from_secs(1)).unwrap();
+        assert_eq!(resumed.1, 100_000);
+        assert_eq!(resumed.0, vec![2; 20]);
+
+        let started = Instant::now();
+        mixer.stop();
+        assert!(started.elapsed() < Duration::from_secs(1));
+    }
+
+    #[test]
+    fn invalid_output_format_does_not_start() {
+        let (mut mixer, _rx) = system_mixer();
+        mixer.format.sample_rate = 0;
+        assert!(!mixer.start());
+    }
+}

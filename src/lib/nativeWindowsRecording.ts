@@ -1,4 +1,6 @@
 export type NativeWindowsSourceType = "display" | "window";
+export type NativeWindowsRequestedBackend = "rust" | "legacy";
+export type NativeWindowsBackendIdentity = NativeWindowsRequestedBackend | "custom" | "mixed";
 
 export type SystemAudioUnavailableReason =
 	| "no-render-endpoint"
@@ -51,6 +53,8 @@ export type NativeWindowsRecordingStartResult = {
 	recordingId?: number;
 	path?: string;
 	helperPath?: string;
+	requestedBackend?: NativeWindowsRequestedBackend;
+	backend?: NativeWindowsBackendIdentity;
 	systemAudioUnavailableReason?: SystemAudioUnavailableReason;
 	error?: string;
 };
