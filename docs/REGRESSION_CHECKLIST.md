@@ -16,7 +16,8 @@ packaging. Labels mean:
 | Lint and i18n key parity | automated | `npm run lint`; `npm run i18n:check` in CI |
 | Source selector handles no-source/error paths | automated | `tests/e2e/first-record-no-source.spec.ts`, `src/components/launch/SourceSelector.test.tsx` |
 | Camera/microphone permission UI on real devices | manual | Launch the app on target OS with real devices |
-| Windows native helper availability | manual | `npm run build:native:win`; `npm run test:wgc-full:win` on Windows |
+| Rust-default/legacy helper selection | automated | `electron/native-bridge/windowsNativeHelpers.test.ts` |
+| Windows native helper availability | automated + manual | `npm run build:native:win`; `npm run test:wgc-helper:win` runs both staged backends |
 | macOS startup and capture permissions | not yet covered | No current macOS release target |
 
 ## Recording
@@ -27,7 +28,11 @@ packaging. Labels mean:
 | Custom recordings directory set/reset UI | automated | `tests/e2e/storage-settings.spec.ts` |
 | Recordings directory containment rules | automated | `electron/appSettings.test.ts` |
 | Low disk warning threshold logic | automated | `electron/diskSpace.test.ts` |
-| Windows screen/window/audio/mic/webcam native capture | manual | `npm run test:wgc-full:win`, `npm run test:wgc-window:win`, `npm run test:e2e:windows-native-checklist` |
+| Windows display capture, pause/resume, timestamps, and error parity | automated on available display | `npm run test:wgc-parity:win` compares explicit Rust and legacy helpers |
+| Windows bounded normal/fault shutdown | automated on available display | `npm run test:wgc-helper:win`; `npm run test:wgc-fault:win` runs both backends |
+| Windows audio/mic/webcam devices | manual, environment-dependent | `test:wgc-audio:win`, `test:wgc-mic:win`, `test:wgc-webcam:win`; record actual devices and skipped cases |
+| Current laptop webcam limitation | not yet covered | Both backends exceeded the 9-second post-stop gate during migration validation; Rust exited under a 30-second diagnostic ceiling without a webcam sidecar. Track as device-specific until reproducible root cause/evidence exists. |
+| Native recording through editor to MP4/GIF export | manual | Packaged Rust recording on the available Windows x64 laptop; do not substitute `windows-native-checklist.spec.ts`, which does not start the helper |
 | Real low-space recording drive behavior | manual | Run the app against a low-space test volume; verify no automatic deletion occurs |
 | Linux screen/window capture under Wayland/X11 | manual | Run packaged app on target Linux sessions |
 | Recording retention/cleanup planner | automated | `electron/recordingRetention.test.ts` |
@@ -74,9 +79,9 @@ packaging. Labels mean:
 | Check | Coverage | Command or path |
 | --- | --- | --- |
 | Renderer build | automated | `npm run build-vite`; CI `Build` job |
-| Windows installer packaging | manual | `npm run build:win` or release workflow on Windows |
+| Windows installer packaging | automated + manual | Build/release workflow verifies `win-unpacked/resources`; launch installer manually |
 | Linux AppImage/deb/pacman packaging | manual | `npm run build:linux` or release workflow on Linux |
-| Attribution resources packaged | manual | Check packaged `resources/licenses/LICENSE` and `resources/licenses/README.md` |
+| Dual x64 helper payload and attribution resources packaged | automated | `scripts/verify-windows-native-payload.mjs` checks four helpers plus LICENSE, README, and Rust notices |
 | macOS packaging | not yet covered | No current macOS target |
 | Code signing/notarization | not yet covered | Builds are currently unsigned |
 
@@ -86,6 +91,8 @@ packaging. Labels mean:
 | --- | --- | --- |
 | Tag matches `package.json` version | automated | `.github/workflows/release.yml` `verify-version` |
 | GitHub Release assets are Windows/Linux only | automated | Release workflow artifact upload paths |
+| Final asset names are unique and checksums verify | automated | Release workflow flat staging plus `sha256sum -c SHA256SUMS.txt` |
+| Source/tool/input provenance is published | automated | `scripts/write-build-provenance.mjs`; Windows/Linux provenance JSON assets |
 | Update check points to this fork's GitHub Releases | automated | `electron/ipc/updateCheck.util.test.ts`; e2e update notice |
 | Release notes mention unsigned build prompts | manual | Maintainer release checklist |
 | CI green before merge | automated | GitHub Actions on PR and `main` |

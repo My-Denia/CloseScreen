@@ -127,7 +127,7 @@ function installElectronAPI(overrides: Partial<ElectronAPI> = {}) {
 		isNativeWindowsCaptureAvailable: vi.fn(async () => ({
 			success: true,
 			available: false,
-			reason: "missing-helper",
+			reason: "unsupported-os",
 		})),
 		startNativeWindowsRecording: vi.fn(async () => ({
 			success: false,

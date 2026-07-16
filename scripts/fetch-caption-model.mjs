@@ -9,8 +9,9 @@
 // Idempotent: existing non-empty files are left alone, so re-runs and CI cache hits are no-ops.
 // `caption-assets/` is gitignored and shipped via electron-builder `extraResources`.
 
-import { createWriteStream, existsSync } from "node:fs";
-import { copyFile, mkdir, readdir, stat } from "node:fs/promises";
+import { createHash } from "node:crypto";
+import { createReadStream, createWriteStream, existsSync, readFileSync } from "node:fs";
+import { copyFile, mkdir, readdir, rm, stat } from "node:fs/promises";
 import path from "node:path";
 import { Readable } from "node:stream";
 import { pipeline } from "node:stream/promises";
@@ -18,8 +19,11 @@ import { fileURLToPath } from "node:url";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const OUT = path.join(ROOT, "caption-assets");
-const MODEL_ID = "Xenova/whisper-tiny";
-const HF_BASE = `https://huggingface.co/${MODEL_ID}/resolve/main`;
+const MANIFEST_PATH = path.join(ROOT, "scripts", "caption-assets-manifest.json");
+const MANIFEST = JSON.parse(readFileSync(MANIFEST_PATH, "utf8"));
+const MODEL_ID = MANIFEST.model.id;
+const MODEL_REVISION = MANIFEST.model.revision;
+const HF_BASE = `https://huggingface.co/${MODEL_ID}/resolve/${MODEL_REVISION}`;
 
 // Small config/tokenizer/preprocessor files plus the quantized ONNX the ASR pipeline loads by
 // default (encoder + merged decoder). Grab every metadata file so transformers never requests
@@ -46,6 +50,28 @@ async function exists(filePath) {
 		return s.isFile() && s.size > 0;
 	} catch {
 		return false;
+	}
+}
+
+async function sha256(filePath) {
+	const hash = createHash("sha256");
+	for await (const chunk of createReadStream(filePath)) hash.update(chunk);
+	return hash.digest("hex");
+}
+
+function expectedHash(assetKey) {
+	const expected = MANIFEST.assets[assetKey];
+	if (!/^[0-9a-f]{64}$/.test(expected ?? "")) {
+		throw new Error(`Missing or invalid SHA-256 for ${assetKey} in ${MANIFEST_PATH}`);
+	}
+	return expected;
+}
+
+async function verifyHash(filePath, assetKey) {
+	const expected = expectedHash(assetKey);
+	const actual = await sha256(filePath);
+	if (actual !== expected) {
+		throw new Error(`SHA-256 mismatch for ${assetKey}: expected ${expected}, got ${actual}`);
 	}
 }
 
@@ -100,10 +126,16 @@ async function fetchWithRetry(url) {
 	throw lastErr;
 }
 
-async function download(url, dest) {
+async function download(url, dest, assetKey) {
 	if (await exists(dest)) {
-		console.log(`  ✓ cached  ${path.relative(OUT, dest)}`);
-		return;
+		try {
+			await verifyHash(dest, assetKey);
+			console.log(`  ✓ cached  ${path.relative(OUT, dest)}`);
+			return;
+		} catch {
+			console.warn(`  ! replacing cached asset with invalid hash: ${assetKey}`);
+			await rm(dest, { force: true });
+		}
 	}
 	await mkdir(path.dirname(dest), { recursive: true });
 	const res = await fetchWithRetry(url);
@@ -111,6 +143,7 @@ async function download(url, dest) {
 	await pipeline(Readable.fromWeb(res.body), createWriteStream(tmp));
 	const { rename } = await import("node:fs/promises");
 	await rename(tmp, dest);
+	await verifyHash(dest, assetKey);
 	const mb = ((await stat(dest)).size / 1_000_000).toFixed(1);
 	console.log(`  ↓ ${path.relative(OUT, dest)} (${mb} MB)`);
 }
@@ -159,27 +192,57 @@ async function copyOrtWasm() {
 				"Is @huggingface/transformers installed? Run npm ci first.",
 		);
 	}
+	const expectedNames = Object.keys(MANIFEST.assets)
+		.filter((asset) => asset.startsWith("ort/"))
+		.map((asset) => asset.slice("ort/".length))
+		.sort();
+	if (JSON.stringify(names.toSorted()) !== JSON.stringify(expectedNames)) {
+		throw new Error(
+			`ORT asset set does not match the manifest. Expected ${expectedNames.join(", ")}, found ${names.toSorted().join(", ")}`,
+		);
+	}
 	const ortOut = path.join(OUT, "ort");
 	await mkdir(ortOut, { recursive: true });
 	for (const name of names) {
+		const assetKey = `ort/${name}`;
+		await verifyHash(path.join(distDir, name), assetKey);
 		const dest = path.join(ortOut, name);
 		if (await exists(dest)) {
-			console.log(`  ✓ cached  ort/${name}`);
-			continue;
+			try {
+				await verifyHash(dest, assetKey);
+				console.log(`  ✓ cached  ort/${name}`);
+				continue;
+			} catch {
+				await rm(dest, { force: true });
+			}
 		}
 		await copyFile(path.join(distDir, name), dest);
+		await verifyHash(dest, assetKey);
 		console.log(`  + copied ort/${name}`);
 	}
 }
 
 async function main() {
+	if (!/^[0-9a-f]{40}$/.test(MODEL_REVISION)) {
+		throw new Error("Caption model revision must be an immutable 40-character commit SHA.");
+	}
+	const modelAssetKeys = MODEL_FILES.map((rel) => `models/${MODEL_ID}/${rel}`);
+	const manifestAssetKeys = Object.keys(MANIFEST.assets).toSorted();
+	const requiredAssetKeys = [
+		...modelAssetKeys,
+		...manifestAssetKeys.filter((asset) => asset.startsWith("ort/")),
+	].toSorted();
+	if (JSON.stringify(manifestAssetKeys) !== JSON.stringify(requiredAssetKeys)) {
+		throw new Error("Caption asset manifest contains missing or unexpected files.");
+	}
 	console.log(`Fetching caption assets → ${path.relative(ROOT, OUT)}/`);
 	console.log("ONNX Runtime wasm:");
 	await copyOrtWasm();
 	console.log(`Whisper model (${MODEL_ID}):`);
 	const modelDir = path.join(OUT, "models", ...MODEL_ID.split("/"));
 	for (const rel of MODEL_FILES) {
-		await download(`${HF_BASE}/${rel}`, path.join(modelDir, rel));
+		const assetKey = `models/${MODEL_ID}/${rel}`;
+		await download(`${HF_BASE}/${rel}`, path.join(modelDir, rel), assetKey);
 	}
 	console.log("Caption assets ready.");
 }

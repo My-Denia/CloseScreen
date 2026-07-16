@@ -4,9 +4,9 @@
 // Asserts the stdout contract the TS session depends on: `ready` as the
 // first line within 5s, zero error events, sample cadence, exact sample and
 // asset field order, handle/bounds/PNG shapes, and a flat --gdi-leak-test.
-// Runs against the default C++ binary; point CLOSESCREEN_CURSOR_SAMPLER_EXE
-// at the Rust build (scripts/build-windows-native-rust.mjs) to verify the
-// port against the same contract.
+// Runs against both packaged/staged backends by default. Use
+// --backend rust|legacy to isolate one, or CLOSESCREEN_CURSOR_SAMPLER_EXE
+// for a diagnostic custom executable.
 
 import { spawn, spawnSync } from "node:child_process";
 import fs from "node:fs";
@@ -15,6 +15,34 @@ import { fileURLToPath } from "node:url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.join(__dirname, "..");
+const SCRIPT_PATH = fileURLToPath(import.meta.url);
+const BACKEND_ARG_INDEX = process.argv.indexOf("--backend");
+const BACKEND_OVERRIDE = process.env.CLOSESCREEN_CURSOR_SAMPLER_EXE?.trim();
+const BACKEND =
+	BACKEND_ARG_INDEX >= 0
+		? process.argv[BACKEND_ARG_INDEX + 1]
+		: BACKEND_OVERRIDE
+			? "custom"
+			: "all";
+if (BACKEND === "all") {
+	for (const backend of ["rust", "legacy"]) {
+		const result = spawnSync(process.execPath, [SCRIPT_PATH, "--backend", backend], {
+			stdio: "inherit",
+			windowsHide: true,
+			env: process.env,
+		});
+		if (result.status !== 0) process.exit(result.status ?? 1);
+	}
+	process.exit(0);
+}
+if (
+	!["rust", "legacy", "custom"].includes(BACKEND) ||
+	(BACKEND === "custom" && !BACKEND_OVERRIDE)
+) {
+	throw new Error(
+		"--backend must be rust or legacy (custom requires CLOSESCREEN_CURSOR_SAMPLER_EXE).",
+	);
+}
 
 const READY_TIMEOUT_MS = 5000;
 const SAMPLE_INTERVAL_MS = 25;
@@ -48,7 +76,7 @@ const BOUNDS_KEY_ORDER = ["x", "y", "width", "height"];
 function resolveHelperPath() {
 	// A non-empty override must point at a real file — falling back to the
 	// C++ binary here would make a Rust-contract run pass vacuously.
-	const envPath = process.env.CLOSESCREEN_CURSOR_SAMPLER_EXE?.trim();
+	const envPath = BACKEND === "custom" ? BACKEND_OVERRIDE : undefined;
 	if (envPath) {
 		if (!fs.existsSync(envPath)) {
 			console.error(`CLOSESCREEN_CURSOR_SAMPLER_EXE points at a missing file: ${envPath}`);
@@ -56,11 +84,15 @@ function resolveHelperPath() {
 		}
 		return envPath;
 	}
-	// Same order the app resolver uses (windowsNativeRecordingSession.ts):
-	// local build first, then the committed bin.
 	const candidates = [
-		path.join(ROOT, "electron", "native", "wgc-capture", "build", "cursor-sampler.exe"),
-		path.join(ROOT, "electron", "native", "bin", "win32-x64", "cursor-sampler.exe"),
+		path.join(
+			ROOT,
+			"electron",
+			"native",
+			"bin",
+			"win32-x64",
+			BACKEND === "legacy" ? "cursor-sampler-legacy.exe" : "cursor-sampler.exe",
+		),
 	];
 	for (const candidate of candidates) {
 		if (fs.existsSync(candidate)) {
@@ -288,7 +320,7 @@ if (process.platform !== "win32") {
 }
 
 const helperPath = resolveHelperPath();
-console.log(`Testing ${helperPath}`);
+console.log(`Testing ${BACKEND}: ${helperPath}`);
 
 // Case 1: plain run, no window handle — every bounds must be null.
 {
@@ -328,7 +360,7 @@ for (const bogus of ["abc", "null"]) {
 	try {
 		fixture = await startFixtureWindow();
 	} catch (error) {
-		console.warn(`  window: SKIPPED (${error.message})`);
+		failures.push(`[window] fixture failed: ${error.message}`);
 	}
 	if (fixture) {
 		try {
@@ -386,4 +418,4 @@ if (failures.length > 0) {
 	}
 	process.exit(1);
 }
-console.log("\nPASS: cursor-sampler protocol contract holds.");
+console.log(`\nPASS: ${BACKEND} cursor-sampler protocol contract holds.`);

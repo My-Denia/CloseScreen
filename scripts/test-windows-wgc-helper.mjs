@@ -7,11 +7,53 @@ import { fileURLToPath } from "node:url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.join(__dirname, "..");
+const SCRIPT_PATH = fileURLToPath(import.meta.url);
+const BACKEND_ARG_INDEX = process.argv.indexOf("--backend");
+const BACKEND_OVERRIDE = process.env.CLOSESCREEN_WGC_CAPTURE_EXE?.trim();
+const BACKEND =
+	BACKEND_ARG_INDEX >= 0
+		? process.argv[BACKEND_ARG_INDEX + 1]
+		: BACKEND_OVERRIDE
+			? "custom"
+			: "all";
+if (BACKEND === "all") {
+	const forwarded = process.argv
+		.slice(2)
+		.filter((value, index, values) => value !== "--backend" && values[index - 1] !== "--backend");
+	for (const backend of ["rust", "legacy"]) {
+		const result = spawnSync(process.execPath, [SCRIPT_PATH, "--backend", backend, ...forwarded], {
+			stdio: "inherit",
+			windowsHide: true,
+			env: process.env,
+		});
+		if (result.status !== 0) process.exit(result.status ?? 1);
+	}
+	process.exit(0);
+}
+if (
+	!["rust", "legacy", "custom"].includes(BACKEND) ||
+	(BACKEND === "custom" && !BACKEND_OVERRIDE)
+) {
+	throw new Error(
+		"--backend must be rust or legacy (custom requires CLOSESCREEN_WGC_CAPTURE_EXE).",
+	);
+}
 const HELPER_PATH =
-	process.env.CLOSESCREEN_WGC_CAPTURE_EXE ??
-	path.join(ROOT, "electron", "native", "bin", "win32-x64", "wgc-capture.exe");
+	(BACKEND === "custom" ? BACKEND_OVERRIDE : undefined) ??
+	path.join(
+		ROOT,
+		"electron",
+		"native",
+		"bin",
+		"win32-x64",
+		BACKEND === "legacy" ? "wgc-capture-legacy.exe" : "wgc-capture.exe",
+	);
 
 const DURATION_MS = Number(process.env.CLOSESCREEN_WGC_TEST_DURATION_MS ?? 5000);
+const POST_STOP_TIMEOUT_MS = Number(process.env.CLOSESCREEN_WGC_POST_STOP_TIMEOUT_MS ?? 9000);
+if (!Number.isFinite(POST_STOP_TIMEOUT_MS) || POST_STOP_TIMEOUT_MS <= 0) {
+	throw new Error("CLOSESCREEN_WGC_POST_STOP_TIMEOUT_MS must be a positive number.");
+}
 const WITH_SYSTEM_AUDIO =
 	process.env.CLOSESCREEN_WGC_TEST_SYSTEM_AUDIO === "true" ||
 	process.argv.includes("--system-audio");
@@ -37,12 +79,20 @@ function runHelper(config) {
 		let stdout = "";
 		let stderr = "";
 		let stopTimer = null;
+		let postStopTimer = null;
+		let stopTimedOut = false;
+		let stopSentAt = 0;
 		const scheduleStop = () => {
 			if (stopTimer) {
 				return;
 			}
 			stopTimer = setTimeout(() => {
+				stopSentAt = Date.now();
 				child.stdin.write("stop\n");
+				postStopTimer = setTimeout(() => {
+					stopTimedOut = true;
+					child.kill();
+				}, POST_STOP_TIMEOUT_MS);
 			}, DURATION_MS);
 		};
 		const fallbackTimer = setTimeout(scheduleStop, 15_000);
@@ -59,10 +109,24 @@ function runHelper(config) {
 		child.once("error", reject);
 		child.once("exit", (code) => {
 			clearTimeout(fallbackTimer);
+			if (postStopTimer) clearTimeout(postStopTimer);
 			if (stopTimer) {
 				clearTimeout(stopTimer);
 			}
-			resolve({ code, stdout, stderr });
+			if (stopTimedOut) {
+				reject(
+					new Error(
+						`${BACKEND} WGC helper exceeded the ${POST_STOP_TIMEOUT_MS}ms post-stop deadline\n${stdout}\n${stderr}`,
+					),
+				);
+				return;
+			}
+			resolve({
+				code,
+				stdout,
+				stderr,
+				postStopMs: stopSentAt > 0 ? Date.now() - stopSentAt : null,
+			});
 		});
 	});
 }
@@ -429,6 +493,9 @@ console.log(
 	JSON.stringify(
 		{
 			success: true,
+			backend: BACKEND,
+			helperPath: HELPER_PATH,
+			postStopMs: result.postStopMs,
 			outputPath,
 			webcamOutputPath,
 			bytes: fs.statSync(outputPath).size,

@@ -2,6 +2,7 @@ import type {
 	NativeWindowsRecordingStartResult,
 	SystemAudioUnavailableReason,
 } from "../../src/lib/nativeWindowsRecording";
+import type { ResolvedWindowsNativeHelperPair } from "../native-bridge/windowsNativeHelpers";
 
 export type NativeWindowsWebcamFormat = {
 	width?: number;
@@ -70,7 +71,7 @@ export function readNativeWindowsSystemAudioUnavailableReason(
 export function createNativeWindowsRecordingStartResult(
 	recordingId: number,
 	outputPath: string,
-	helperPath: string,
+	helperSelection: ResolvedWindowsNativeHelperPair,
 	output: string,
 ): NativeWindowsRecordingStartResult {
 	const systemAudioUnavailableReason = readNativeWindowsSystemAudioUnavailableReason(output);
@@ -78,7 +79,9 @@ export function createNativeWindowsRecordingStartResult(
 		success: true,
 		recordingId,
 		path: outputPath,
-		helperPath,
+		helperPath: helperSelection.capture.path,
+		requestedBackend: helperSelection.requestedBackend,
+		backend: helperSelection.effectiveIdentity,
 		...(systemAudioUnavailableReason ? { systemAudioUnavailableReason } : {}),
 	};
 }

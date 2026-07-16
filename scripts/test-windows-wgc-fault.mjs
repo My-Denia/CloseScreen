@@ -22,7 +22,7 @@
 // GREEN after the fix: the helper exits within a few seconds of stop with the
 // wedged diagnostic, and the run PASSES.
 
-import { spawn } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import fs from "node:fs";
 import os from "node:os";
@@ -31,9 +31,44 @@ import { fileURLToPath } from "node:url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.join(__dirname, "..");
+const SCRIPT_PATH = fileURLToPath(import.meta.url);
+const BACKEND_ARG_INDEX = process.argv.indexOf("--backend");
+const BACKEND_OVERRIDE = process.env.CLOSESCREEN_WGC_CAPTURE_EXE?.trim();
+const BACKEND =
+	BACKEND_ARG_INDEX >= 0
+		? process.argv[BACKEND_ARG_INDEX + 1]
+		: BACKEND_OVERRIDE
+			? "custom"
+			: "all";
+if (BACKEND === "all") {
+	for (const backend of ["rust", "legacy"]) {
+		const result = spawnSync(
+			process.execPath,
+			[SCRIPT_PATH, "--backend", backend, ...(process.argv.includes("--audio") ? ["--audio"] : [])],
+			{ stdio: "inherit", windowsHide: true, env: process.env },
+		);
+		if (result.status !== 0) process.exit(result.status ?? 1);
+	}
+	process.exit(0);
+}
+if (
+	!["rust", "legacy", "custom"].includes(BACKEND) ||
+	(BACKEND === "custom" && !BACKEND_OVERRIDE)
+) {
+	throw new Error(
+		"--backend must be rust or legacy (custom requires CLOSESCREEN_WGC_CAPTURE_EXE).",
+	);
+}
 const HELPER_PATH =
-	process.env.CLOSESCREEN_WGC_CAPTURE_EXE ??
-	path.join(ROOT, "electron", "native", "bin", "win32-x64", "wgc-capture.exe");
+	(BACKEND === "custom" ? BACKEND_OVERRIDE : undefined) ??
+	path.join(
+		ROOT,
+		"electron",
+		"native",
+		"bin",
+		"win32-x64",
+		BACKEND === "legacy" ? "wgc-capture-legacy.exe" : "wgc-capture.exe",
+	);
 
 const WITH_AUDIO =
 	process.argv.includes("--audio") || process.env.CLOSESCREEN_WGC_FAULT_AUDIO === "true";
@@ -175,6 +210,8 @@ console.log(
 	JSON.stringify(
 		{
 			faultHangShutdown: pass ? "passed" : "FAILED",
+			backend: BACKEND,
+			helperPath: HELPER_PATH,
 			audio: WITH_AUDIO,
 			outcome: result.outcome,
 			faultTriggered,
@@ -202,6 +239,6 @@ if (!pass) {
 	process.exit(1);
 }
 console.log(
-	`PASS: wedged writer detected${WITH_AUDIO ? " with audio enabled" : ""}; process force-exited cleanly instead of hanging.`,
+	`PASS: ${BACKEND} wedged writer detected${WITH_AUDIO ? " with audio enabled" : ""}; process force-exited cleanly instead of hanging.`,
 );
 process.exit(0);

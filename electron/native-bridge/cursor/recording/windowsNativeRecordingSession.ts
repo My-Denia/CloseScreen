@@ -1,8 +1,6 @@
 import { type ChildProcessByStdio, spawn } from "node:child_process";
-import { existsSync } from "node:fs";
-import { join } from "node:path";
 import type { Readable } from "node:stream";
-import { app, screen } from "electron";
+import { screen } from "electron";
 import { parseWindowHandleFromSourceId } from "../../../../src/lib/nativeWindowsRecording";
 import type {
 	CursorRecordingData,
@@ -14,31 +12,6 @@ import type {
 	WindowsCursorEvent,
 	WindowsNativeRecordingSessionOptions,
 } from "./windowsNativeRecordingSession.types";
-
-function getCursorSamplerCandidates(): string[] {
-	const envPath = process.env.CLOSESCREEN_CURSOR_SAMPLER_EXE?.trim();
-	const archTag = process.arch === "arm64" ? "win32-arm64" : "win32-x64";
-	const resolve = (...segs: string[]) => {
-		const p = join(app.getAppPath(), ...segs);
-		return app.isPackaged ? p.replace(/\.asar([/\\])/, ".asar.unpacked$1") : p;
-	};
-	const resolvePackaged = (...segs: string[]) => {
-		return app.isPackaged ? join(process.resourcesPath, ...segs) : null;
-	};
-	return [
-		envPath,
-		resolve("electron", "native", "wgc-capture", "build", "cursor-sampler.exe"),
-		resolve("electron", "native", "bin", archTag, "cursor-sampler.exe"),
-		resolvePackaged("electron", "native", "bin", archTag, "cursor-sampler.exe"),
-	].filter((c): c is string => Boolean(c));
-}
-
-function findCursorSamplerPath(): string | null {
-	for (const candidate of getCursorSamplerCandidates()) {
-		if (existsSync(candidate)) return candidate;
-	}
-	return null;
-}
 
 const READY_TIMEOUT_MS = 5_000;
 
@@ -71,10 +44,7 @@ export class WindowsNativeRecordingSession implements CursorRecordingSession {
 		this.outOfBoundsSampleCount = 0;
 		this.previousLeftButtonDown = false;
 
-		const helperPath = findCursorSamplerPath();
-		if (!helperPath) {
-			throw new Error("Windows cursor sampler helper is not available.");
-		}
+		const helperPath = this.options.windowsHelper.path;
 
 		const windowHandle = parseWindowHandleFromSourceId(this.options.sourceId);
 		const args = [String(this.options.sampleIntervalMs)];
@@ -87,6 +57,8 @@ export class WindowsNativeRecordingSession implements CursorRecordingSession {
 
 		this.process = child;
 		this.logDiagnostic("spawn", {
+			backend: this.options.windowsHelper.source,
+			helperPath,
 			pid: child.pid ?? null,
 			sampleIntervalMs: this.options.sampleIntervalMs,
 			sourceId: this.options.sourceId ?? null,

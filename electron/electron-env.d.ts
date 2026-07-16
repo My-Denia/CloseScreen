@@ -127,6 +127,9 @@ interface Window {
 			success: boolean;
 			available: boolean;
 			helperPath?: string;
+			cursorHelperPath?: string;
+			requestedBackend?: import("../src/lib/nativeWindowsRecording").NativeWindowsRequestedBackend;
+			backend?: import("../src/lib/nativeWindowsRecording").NativeWindowsBackendIdentity;
 			reason?: string;
 			error?: string;
 		}>;

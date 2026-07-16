@@ -22,7 +22,7 @@ community fork. macOS is not a current release target for this fork. See the ful
 
 | Platform | Current status | Capture path | Release artifact |
 | --- | --- | --- | --- |
-| Windows 10 2004+ / Windows 11 | Primary maintained desktop target | Native WGC/WASAPI/MediaFoundation helper, with browser fallback behavior where implemented | Unsigned NSIS installer from GitHub Releases |
+| Windows 10 2004+ / Windows 11 x64 | Primary maintained desktop target | Rust WGC/WASAPI/Media Foundation backend by default; packaged legacy C++ rollback | Unsigned NSIS installer from GitHub Releases |
 | Linux | Community-supported | Browser capture path, with Wayland PipeWire flags enabled when detected | Unsigned AppImage, deb, and pacman packages from GitHub Releases |
 | macOS | Not a current release target | Not validated for this fork's current release flow | No macOS artifact in the current electron-builder config or GitHub release workflow |
 
@@ -61,7 +61,10 @@ Windows packaging:
 
 ```powershell
 npm run build:native:win
-npm run test:wgc-full:win
+npm run test:wgc-helper:win
+npm run test:wgc-parity:win
+npm run test:wgc-fault:win
+npm run test:cursor-sampler:win
 npm run build:win
 ```
 
@@ -78,7 +81,7 @@ Packaging runs `scripts/before-pack.cjs`, which ensures the offline caption mode
 - `npm run lint`, `npm test`, and `npm run build-vite` are the baseline local gates.
 - `.github/workflows/ci.yml` runs lint, i18n parity, typecheck, unit tests, browser tests, and Vite build on pull requests and `main`.
 - `.github/workflows/build.yml` is a manual build workflow for unsigned Windows and Linux artifacts.
-- `.github/workflows/release.yml` runs on `v*` tags, verifies the tag matches `package.json`, builds Windows and Linux artifacts, then publishes a GitHub Release.
+- `.github/workflows/release.yml` runs on `v*` tags, verifies the tag and source SHA, builds Windows and Linux artifacts, verifies the packaged Windows native payload, records build provenance, then publishes a flat asset set with verified SHA-256 checksums.
 - The app's update check reads stable GitHub Releases from the main process and only surfaces a download link.
 
 ## Recording And Export Storage
@@ -106,7 +109,7 @@ For the detailed security policy and privacy notes, see [SECURITY.md](./SECURITY
 
 ## Native Windows Helper
 
-The Windows helper source is in `electron/native/wgc-capture`. Build and diagnostic commands are documented in [electron/native/README.md](./electron/native/README.md). The Windows native roadmap is tracked in [docs/engineering/windows-native-recorder-roadmap.md](./docs/engineering/windows-native-recorder-roadmap.md).
+The default Windows helper source is in `electron/native/rust`; the transition fallback remains in `electron/native/wgc-capture`. Runtime selection, rollback, packaged filenames, and diagnostic commands are documented in [electron/native/README.md](./electron/native/README.md). The migration history and remaining limitations are tracked in [docs/engineering/windows-native-recorder-roadmap.md](./docs/engineering/windows-native-recorder-roadmap.md).
 
 ## License
 

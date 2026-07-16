@@ -11,10 +11,19 @@ jobs:
     runs-on: windows-2022
     steps:
       - name: Checkout code
-        uses: actions/checkout@v6
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+        with:
+          ref: ${{ github.sha }}
+
+      - name: Assert checked-out source
+        shell: pwsh
+        run: |
+          if ((git rev-parse HEAD) -ne "${{ github.sha }}") {
+            throw "Checked-out source does not match the workflow event SHA"
+          }
 
       - name: Setup Node.js
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
           node-version-file: .nvmrc
           cache: npm
@@ -22,12 +31,17 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Install pinned Rust toolchain
+        run: |
+          rustup toolchain install 1.96.1 --profile minimal
+          rustup target add x86_64-pc-windows-msvc --toolchain 1.96.1
+
       # Cache the downloaded caption model so we don't re-fetch from HuggingFace every run.
       - name: Cache caption assets
-        uses: actions/cache@v5
+        uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5
         with:
           path: caption-assets
-          key: caption-assets-${{ hashFiles('scripts/fetch-caption-model.mjs') }}
+          key: caption-assets-${{ runner.os }}-${{ hashFiles('scripts/caption-assets-manifest.json', 'scripts/fetch-caption-model.mjs', 'package-lock.json') }}
 
       - name: Build native Windows helpers
         run: npm run build:native:win
@@ -40,11 +54,23 @@ jobs:
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: "false"
 
+      - name: Verify packaged native payload
+        shell: pwsh
+        run: |
+          $version = node -p "require('./package.json').version"
+          node scripts/verify-windows-native-payload.mjs --resources "release/$version/win-unpacked/resources"
+
+      - name: Record Windows build provenance
+        run: node scripts/write-build-provenance.mjs --platform windows --output release-provenance/windows-build-provenance.json
+
       - name: Upload Windows build
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: windows-installer
-          path: release/**/*.exe
+          path: |
+            release/**/*Setup*.exe
+            !release/**/*.__uninstaller.exe
+            release-provenance/windows-build-provenance.json
           if-no-files-found: error
           retention-days: 30
 
@@ -52,10 +78,16 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v6
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+        with:
+          ref: ${{ github.sha }}
+
+      - name: Assert checked-out source
+        shell: bash
+        run: test "$(git rev-parse HEAD)" = "${{ github.sha }}"
 
       - name: Setup Node.js
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
           node-version-file: .nvmrc
           cache: npm
@@ -68,10 +100,10 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y libarchive-tools
 
       - name: Cache caption assets
-        uses: actions/cache@v5
+        uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5
         with:
           path: caption-assets
-          key: caption-assets-${{ hashFiles('scripts/fetch-caption-model.mjs') }}
+          key: caption-assets-${{ runner.os }}-${{ hashFiles('scripts/caption-assets-manifest.json', 'scripts/fetch-caption-model.mjs', 'package-lock.json') }}
 
       - name: Build Vite output
         run: npm run build-vite
@@ -81,8 +113,11 @@ jobs:
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: "false"
 
+      - name: Record Linux build provenance
+        run: node scripts/write-build-provenance.mjs --platform linux --output release-provenance/linux-build-provenance.json
+
       - name: Upload Linux build
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: linux-installer
           path: |
@@ -90,5 +125,6 @@ jobs:
             release/**/*.zsync
             release/**/*.deb
             release/**/*.pacman
+            release-provenance/linux-build-provenance.json
           if-no-files-found: error
           retention-days: 30
