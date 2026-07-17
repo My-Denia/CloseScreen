@@ -8,7 +8,8 @@ This project is based on [Siddharth Vaddem's OpenScreen](https://github.com/sidd
 
 ## Project Status
 
-- Maintained fork: active takeover, CI hardening, and Windows native verification are in progress.
+- Maintained fork: active maintenance; the Rust-default Windows native migration is complete, with
+  release verification tracked separately.
 - Product identity: `CloseScreen`, package slug `closescreen`, appId `io.github.my-denia.closescreen`.
 - Package manager: npm with `package-lock.json`; use the Node version in `.nvmrc`.
 - Distribution: GitHub Actions can build unsigned Windows and Linux artifacts for this fork's GitHub Releases. External package-manager channels are not automated.
@@ -47,7 +48,9 @@ Unsigned builds can trigger operating-system warnings. Windows may show Microsof
 
 ## Install And Build
 
-Release artifacts, when present, are attached to this fork's GitHub Releases. Tags must match `package.json` exactly, for example `v1.5.0-fork.3`. Use the latest stable GitHub Release as the recommended download.
+Release artifacts, when present, are attached to this fork's GitHub Releases. Tags must match
+`package.json` exactly, for example `v1.5.0-fork.4`. Use the latest stable GitHub Release as the
+recommended download.
 
 Local development and renderer build:
 
