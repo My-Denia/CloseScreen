@@ -16,6 +16,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { analyzeAudibleSpan } from "./windows-native-audio-analysis.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.join(__dirname, "..");
@@ -37,6 +38,9 @@ const AUDIO_CHANNELS = 2;
 const AUDIO_RMS_MIN = 500;
 const AUDIO_PEAK_MIN = 2000;
 const TONE_TOLERANCE_HZ = 10;
+const AAC_FRAME_SAMPLES = 1024;
+const MAX_TRAILING_WITHOUT_VALID_TONE_FRAMES =
+	AAC_FRAME_SAMPLES + Math.ceil(AUDIO_SAMPLE_RATE / (TONE_HZ - TONE_TOLERANCE_HZ));
 const START_DRIFT_MAX_SECONDS = 0.25;
 const END_DRIFT_MAX_SECONDS = 0.75;
 const DURATION_TOLERANCE_SECONDS = 0.75;
@@ -237,25 +241,6 @@ function analyzeLeftChannel(pcm, startFrame = 0, endFrame = Number.POSITIVE_INFI
 	};
 }
 
-function analyzeAudibleSpan(pcm, startFrame, endFrame) {
-	const frameCount = Math.floor(pcm.length / (AUDIO_CHANNELS * 2));
-	const start = Math.max(0, Math.min(frameCount, Math.floor(startFrame)));
-	const end = Math.max(start, Math.min(frameCount, Math.floor(endFrame)));
-	let firstAudible = null;
-	let lastAudible = null;
-	for (let frame = start; frame < end; frame++) {
-		const sample = pcm.readInt16LE(frame * AUDIO_CHANNELS * 2);
-		if (Math.abs(sample) >= 200) {
-			if (firstAudible === null) firstAudible = frame;
-			lastAudible = frame;
-		}
-	}
-	if (firstAudible === null || lastAudible === null) {
-		return analyzeLeftChannel(pcm, start, start);
-	}
-	return analyzeLeftChannel(pcm, firstAudible, lastAudible + 1);
-}
-
 function assertAudioEvidence(label, file, expectedDurationSeconds) {
 	const audio = probeAudio(file);
 	if (!audio) {
@@ -300,8 +285,20 @@ function assertAudioEvidence(label, file, expectedDurationSeconds) {
 	const first = analyzeLeftChannel(decoded.pcm, 0, windowFrames);
 	const totalFrames = Math.floor(decoded.pcm.length / (AUDIO_CHANNELS * 2));
 	const last = analyzeLeftChannel(decoded.pcm, totalFrames - windowFrames, totalFrames);
-	const firstTone = analyzeAudibleSpan(decoded.pcm, 0, windowFrames);
-	const lastTone = analyzeAudibleSpan(decoded.pcm, totalFrames - windowFrames, totalFrames);
+	const toneAnalysisOptions = {
+		channels: AUDIO_CHANNELS,
+		sampleRate: AUDIO_SAMPLE_RATE,
+		threshold: 200,
+		expectedFrequency: TONE_HZ,
+		frequencyTolerance: TONE_TOLERANCE_HZ,
+	};
+	const firstTone = analyzeAudibleSpan(decoded.pcm, 0, windowFrames, toneAnalysisOptions);
+	const lastTone = analyzeAudibleSpan(
+		decoded.pcm,
+		totalFrames - windowFrames,
+		totalFrames,
+		toneAnalysisOptions,
+	);
 	const middle = analyzeLeftChannel(decoded.pcm, windowFrames, totalFrames - windowFrames);
 	if (whole.rms < AUDIO_RMS_MIN || whole.peak < AUDIO_PEAK_MIN) {
 		failures.push(
@@ -327,6 +324,19 @@ function assertAudioEvidence(label, file, expectedDurationSeconds) {
 				`${label}: ${position} 250ms tone frequency ${tone.frequency.toFixed(2)}Hz is not ${TONE_HZ}+/-${TONE_TOLERANCE_HZ}Hz`,
 			);
 		}
+		if (position === "last" && tone.trailingBelowThresholdFrames > AAC_FRAME_SAMPLES) {
+			failures.push(
+				`${label}: last 250ms has ${tone.trailingBelowThresholdFrames} trailing below-threshold frames (maximum one AAC frame / ${AAC_FRAME_SAMPLES})`,
+			);
+		}
+		if (
+			position === "last" &&
+			tone.trailingWithoutValidToneFrames > MAX_TRAILING_WITHOUT_VALID_TONE_FRAMES
+		) {
+			failures.push(
+				`${label}: last 250ms has ${tone.trailingWithoutValidToneFrames} frames after the last valid ${TONE_HZ}Hz cycle window (maximum ${MAX_TRAILING_WITHOUT_VALID_TONE_FRAMES})`,
+			);
+		}
 	}
 	return {
 		...audio,
@@ -338,6 +348,8 @@ function assertAudioEvidence(label, file, expectedDurationSeconds) {
 		lastRms: last.rms,
 		firstFrequency: firstTone.frequency,
 		lastFrequency: lastTone.frequency,
+		lastTrailingBelowThresholdFrames: lastTone.trailingBelowThresholdFrames,
+		lastTrailingWithoutValidToneFrames: lastTone.trailingWithoutValidToneFrames,
 	};
 }
 
