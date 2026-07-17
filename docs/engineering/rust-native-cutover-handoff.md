@@ -1,7 +1,9 @@
 # Rust native capture cutover handoff
 
 Date: 2026-07-16
-Source baseline: `bb632283917d8adc9ae35b14a96fcdab970f7ba3`
+Implementation baseline: `bb632283917d8adc9ae35b14a96fcdab970f7ba3`
+Cutover integrated in main: `71b991a50f54f2cabbc0698c44e4637f554a69ea`
+Packet-production gate integrated in main: `0c58b89f05e231d8868ae876d5c7fabb5edf404b`
 
 ## Architecture state
 
@@ -49,6 +51,8 @@ Rust 1.96.1 MSVC toolchain.
 - Rust/C++ parity passed startup, pause/resume, duration, monotonic/near-zero packet timestamps,
   explicit error exits, optional AAC audio timing, and A/V drift checks.
 - Self-contained system-audio parity and direct system-audio smoke tests passed for both backends.
+  The packet-production gate plays deterministic render audio and requires non-zero AAC
+  packets/frames, full decode, and the expected signal; AAC stream metadata alone is not a pass.
 - Fault injection passed for both backends: the deliberately wedged writer produced the expected
   diagnostic and exited within the bounded shutdown gate.
 - Cursor protocol/window-bounds/GDI checks passed for both backends. The self-contained window
@@ -61,16 +65,17 @@ Rust 1.96.1 MSVC toolchain.
 
 ## Remaining release gates and risks
 
-The migration boundary is complete, but release promotion still requires maintainer-owned evidence
-that cannot be substituted by automated local checks:
+The migration boundary and the maintainer-owned Rust-default packaged-application gate are
+complete:
 
-- Run the packaged application through native recording, editor load, and MP4/GIF export on the
-  release candidate. Browser exporter tests and import-oriented E2E checks passed, but they are not
-  evidence of this full packaged interactive path.
-- The current laptop's webcam run exceeded the 9-second post-stop bound for both Rust and legacy
-  backends. A Rust diagnostic run exited under a 30-second ceiling without a webcam sidecar. This is
-  a shared device-specific limitation, not evidence of a Rust-only regression, and no unverified
-  hardware-specific fix was attempted.
+- The packaged application passed native recording, normal UI stop and finalization, editor load,
+  MP4/GIF export, system-audio, microphone, webcam, and native save-dialog validation on the
+  maintainer's Windows x64 laptop.
+- Packaged legacy UI behavior was not repeated in this validation round and is `NOT VERIFIED`, not
+  failed. The explicit rollback remains packaged.
+- Earlier direct-helper microphone and webcam runs exceeded a fixed 9-second post-stop deadline.
+  Those results did not reproduce through the Electron-managed packaged lifecycle and are
+  test-contract false negatives relative to the product path, not product or hardware failures.
 - The locally built installer is unsigned. Code signing and publication were not attempted.
 - GitHub Actions YAML, action pinning, artifact layout, provenance, and checksum logic were validated
   locally; the remote release workflow itself was not dispatched and no release was published.
@@ -86,7 +91,6 @@ Windows native backend as not applicable.
 
 ## Release readiness decision
 
-The Rust-default Windows x64 migration and rollback boundary are ready for a release candidate. A
-stable release should be promoted only after the packaged interactive record-to-editor-to-export
-gate passes and the webcam limitation is accepted or reproduced as a separately tracked issue.
-Keep the legacy pair in the package until a later evidence-based removal decision.
+The Rust-default Windows x64 migration, rollback boundary, and packaged interactive
+record-to-editor-to-export gate are ready for release promotion. Keep the legacy pair in the
+package until a later evidence-based removal decision.

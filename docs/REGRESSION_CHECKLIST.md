@@ -32,7 +32,7 @@ packaging. Labels mean:
 | Windows bounded normal/fault shutdown | automated on available display | `npm run test:wgc-helper:win`; `npm run test:wgc-fault:win` runs both backends |
 | Windows system-audio packet production | automated on available render endpoint | `test:wgc-audio:win` plays a deterministic tone and requires real AAC packets/frames plus decodable non-silent PCM from both helpers |
 | Windows mic/webcam devices | manual, environment-dependent | `test:wgc-mic:win`, `test:wgc-webcam:win`; record actual devices and skipped cases |
-| Current laptop webcam limitation | not yet covered | Both backends exceeded the 9-second post-stop gate during migration validation; Rust exited under a 30-second diagnostic ceiling without a webcam sidecar. Track as device-specific until reproducible root cause/evidence exists. |
+| Current laptop packaged webcam path | manual PASS (Rust default) | Packaged preview, recording, normal UI stop/finalization, editor load, and exported picture-in-picture passed. Packaged legacy UI is `NOT VERIFIED`. Earlier fixed-deadline helper results were test-contract false negatives relative to this Electron-managed product path, not product or hardware failures. |
 | Native recording through editor to MP4/GIF export | manual | Packaged Rust recording on the available Windows x64 laptop; do not substitute `windows-native-checklist.spec.ts`, which does not start the helper |
 | Real low-space recording drive behavior | manual | Run the app against a low-space test volume; verify no automatic deletion occurs |
 | Linux screen/window capture under Wayland/X11 | manual | Run packaged app on target Linux sessions |

@@ -35,7 +35,12 @@ npm run build-vite
 
 Additional gates by area:
 
-- Windows native capture: `npm run build:native:win`, then `npm run test:wgc-full:win` on Windows.
+- Windows native capture: `npm run build:native:win`, `npm run test:wgc-helper:win`,
+  `npm run test:wgc-parity:win`, `npm run test:wgc-fault:win`, and
+  `npm run test:cursor-sampler:win` on Windows; verify the packaged native payload after building
+  an installer. Device-dependent audio, microphone, and webcam checks must report each exercised
+  path as `PASS`, `FAIL`, or `NOT VERIFIED`; helper-level timeouts must not be promoted to product
+  failures without packaged-application evidence.
 - Electron packaging: `npm run build:win` on Windows or `npm run build:linux` on Linux.
 - End-to-end UI flows: `npm run test:e2e` after `npm run build-vite`.
 - Browser/export internals: `npm run test:browser` after installing the browser test runtime with `npm run test:browser:install`.
