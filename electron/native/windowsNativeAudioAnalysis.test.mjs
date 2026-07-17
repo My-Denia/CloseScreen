@@ -11,6 +11,7 @@ const TONE_TOLERANCE_HZ = 10;
 const AAC_FRAME_SAMPLES = 1024;
 const MAX_TRAILING_WITHOUT_VALID_TONE_FRAMES =
 	AAC_FRAME_SAMPLES + Math.ceil(SAMPLE_RATE / (TONE_HZ - TONE_TOLERANCE_HZ));
+const PHASES = [0, Math.PI / 7, Math.PI / 2, Math.PI];
 
 function toneWindow({
 	frequency = TONE_HZ,
@@ -96,17 +97,19 @@ describe("Windows native parity audio analysis", () => {
 		const result = analyze(toneWindow({ trailingFrames: 2000, tailSample: 1000 }));
 
 		// Whole-span frequency alone looks valid; the tone-cycle tail gate must reject it.
-		expect(Math.abs(result.frequency - TONE_HZ)).toBeLessThanOrEqual(TONE_TOLERANCE_HZ);
+		expect(result.frequencyMatchesExpected).toBe(true);
 		expect(result.trailingBelowThresholdFrames).toBe(0);
 		expect(result.trailingWithoutValidToneFrames).toBeGreaterThan(
 			MAX_TRAILING_WITHOUT_VALID_TONE_FRAMES,
 		);
 	});
 
-	it("rejects an out-of-band phase-continuous tail longer than one AAC frame", () => {
+	it.each([
+		1600, 2000,
+	])("rejects a %i-frame out-of-band phase-continuous tail", (trailingFrames) => {
 		const result = analyze(
 			toneWindow({
-				trailingFrames: 2000,
+				trailingFrames,
 				tailAmplitude: 8000,
 				tailFrequency: 1008,
 				tailContinuesPhase: true,
@@ -116,6 +119,28 @@ describe("Windows native parity audio analysis", () => {
 		// The whole 250 ms average remains in tolerance, so the local tail gate must reject it.
 		expect(Math.abs(result.frequency - TONE_HZ)).toBeLessThanOrEqual(TONE_TOLERANCE_HZ);
 		expect(result.trailingBelowThresholdFrames).toBe(0);
+		expect(result.trailingWithoutValidToneFrames).toBeGreaterThan(
+			MAX_TRAILING_WITHOUT_VALID_TONE_FRAMES,
+		);
+	});
+
+	it.each(
+		[987, 1007].flatMap((frequency) => PHASES.map((phase) => ({ frequency, phase }))),
+	)("accepts inclusive tone boundary: %o", ({ frequency, phase }) => {
+		const result = analyze(toneWindow({ frequency, phase, trailingFrames: 921 }));
+
+		expect(result.frequencyMatchesExpected).toBe(true);
+		expect(result.trailingWithoutValidToneFrames).toBeLessThanOrEqual(
+			MAX_TRAILING_WITHOUT_VALID_TONE_FRAMES,
+		);
+	});
+
+	it.each(
+		[986.9, 1007.1].flatMap((frequency) => PHASES.map((phase) => ({ frequency, phase }))),
+	)("rejects adjacent out-of-band tone: %o", ({ frequency, phase }) => {
+		const result = analyze(toneWindow({ frequency, phase }));
+
+		expect(result.frequencyMatchesExpected).toBe(false);
 		expect(result.trailingWithoutValidToneFrames).toBeGreaterThan(
 			MAX_TRAILING_WITHOUT_VALID_TONE_FRAMES,
 		);

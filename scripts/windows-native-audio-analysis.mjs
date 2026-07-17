@@ -1,6 +1,8 @@
 const DEFAULT_CHANNELS = 2;
 const DEFAULT_SAMPLE_RATE = 48_000;
 const DEFAULT_THRESHOLD = 200;
+const S16_SPAN_MEASUREMENT_EPSILON_HZ = 0.001;
+const S16_INTERVAL_MEASUREMENT_EPSILON_HZ = 0.03;
 
 function clampFrame(value, frameCount) {
 	return Math.max(0, Math.min(frameCount, Math.floor(value)));
@@ -63,6 +65,7 @@ export function analyzeAudibleSpan(
 			rms: 0,
 			peak: 0,
 			frequency: 0,
+			frequencyMatchesExpected: expectedFrequency === null ? null : false,
 			validCrossings: 0,
 			leadingBelowThresholdFrames: end - start,
 			trailingBelowThresholdFrames: end - start,
@@ -106,13 +109,29 @@ export function analyzeAudibleSpan(
 		validCrossings >= 2 && crossingSpanFrames > 0
 			? ((validCrossings - 1) * sampleRate) / crossingSpanFrames
 			: 0;
+	const frequencyMatchesExpected =
+		expectedFrequency === null
+			? null
+			: Math.abs(frequency - expectedFrequency) <=
+				frequencyTolerance + S16_SPAN_MEASUREMENT_EPSILON_HZ;
 	let lastValidToneCrossingFrame = expectedFrequency === null ? lastCrossingFrame : null;
 	if (expectedFrequency !== null) {
-		for (let index = validationCycles; index < crossingFrames.length; index++) {
-			const spanFrames = crossingFrames[index] - crossingFrames[index - validationCycles];
-			const localFrequency = (validationCycles * sampleRate) / spanFrames;
-			if (Math.abs(localFrequency - expectedFrequency) <= frequencyTolerance) {
-				lastValidToneCrossingFrame = crossingFrames[index];
+		let consecutiveValidToneIntervals = 0;
+		for (let index = 1; index < crossingFrames.length; index++) {
+			const spanFrames = crossingFrames[index] - crossingFrames[index - 1];
+			const intervalFrequency = sampleRate / spanFrames;
+			// Linear interpolation still measures quantized s16 samples. Exact 987/1007 Hz
+			// boundary tones vary by less than 0.03 Hz per interval across capture phases.
+			if (
+				Math.abs(intervalFrequency - expectedFrequency) <=
+				frequencyTolerance + S16_INTERVAL_MEASUREMENT_EPSILON_HZ
+			) {
+				consecutiveValidToneIntervals++;
+				if (consecutiveValidToneIntervals >= validationCycles) {
+					lastValidToneCrossingFrame = crossingFrames[index];
+				}
+			} else {
+				consecutiveValidToneIntervals = 0;
 			}
 		}
 	}
@@ -122,6 +141,7 @@ export function analyzeAudibleSpan(
 		rms: Math.sqrt(sumSquares / samples),
 		peak,
 		frequency,
+		frequencyMatchesExpected,
 		validCrossings,
 		leadingBelowThresholdFrames: firstAudible - start,
 		trailingBelowThresholdFrames: end - lastAudible - 1,

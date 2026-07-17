@@ -319,7 +319,7 @@ function assertAudioEvidence(label, file, expectedDurationSeconds) {
 				`${label}: ${position} 250ms has no retained tone (rms=${analysis.rms.toFixed(1)}, peak=${analysis.peak})`,
 			);
 		}
-		if (Math.abs(tone.frequency - TONE_HZ) > TONE_TOLERANCE_HZ) {
+		if (!tone.frequencyMatchesExpected) {
 			failures.push(
 				`${label}: ${position} 250ms tone frequency ${tone.frequency.toFixed(2)}Hz is not ${TONE_HZ}+/-${TONE_TOLERANCE_HZ}Hz`,
 			);
