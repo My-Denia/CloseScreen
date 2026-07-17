@@ -19,11 +19,12 @@ The current maintainer validation environment is one Windows x64 laptop. Multi-m
 external audio hardware, other GPU/driver combinations, Windows ARM64, macOS, Linux Wayland,
 signing, and notarization are not established by this migration.
 
-The laptop's current webcam path is also not a passed release gate: both transition backends
-exceeded the 9-second post-stop bound, and the Rust diagnostic run exited under a 30-second ceiling
-without producing the webcam sidecar. Because the failure is shared with the legacy backend and no
-device-independent root cause is established, it remains a documented hardware-specific limitation
-rather than a speculative migration patch.
+The Rust-default packaged webcam path passed preview, recording, normal UI stop and finalization,
+editor loading, and exported picture-in-picture validation on the maintainer's laptop. Packaged
+legacy UI behavior was not repeated in this validation round and is `NOT VERIFIED`. Earlier direct
+helper runs for both backends exceeded a fixed 9-second post-stop deadline, but that result did not
+reproduce through the Electron-managed packaged lifecycle. It is a test-contract false negative
+relative to the product path, not a demonstrated product or hardware limitation.
 
 ## Goals
 
