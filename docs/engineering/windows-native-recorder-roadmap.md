@@ -243,11 +243,16 @@ Acceptance:
 - `npm run test:wgc-helper:win`: display-only normal-start/stop gate for both backends, with a hard
   post-stop deadline.
 - `npm run test:wgc-parity:win`: paired lifecycle, pause/resume, error, metadata, and packet-timestamp
-  comparison.
+  comparison. With `CLOSESCREEN_PARITY_AUDIO=1`, it also requires non-zero AAC packets/frames,
+  successful decode, a retained 997 Hz tone, and bounded A/V drift.
 - `npm run test:wgc-fault:win`: deterministic wedged-writer shutdown gate for both backends.
 - `npm run test:cursor-sampler:win`: black-box cursor protocol and GDI regression gate for both
   cursor helpers.
-- `npm run test:wgc-audio:win`: validates AAC track presence and duration.
+- `npm run test:wgc-audio:win`: plays a deterministic loopback tone and requires AAC metadata,
+  48 kHz stereo, non-zero packets/frames, successful decode, the expected 997 Hz signal, and
+  records the actual eConsole render endpoint from both helpers.
+- The Windows Rust suite uses WARP plus synthetic BGRA/PCM to verify that MF finalization flushes a
+  non-AAC-frame-aligned tail into decodable samples and that no-audio mode has no audio stream.
 - `npm run test:wgc-window:win`: captures a fixture window by HWND.
 - `npm run test:wgc-webcam:win`: validates webcam output when a webcam is available, otherwise skips explicitly.
 - Packaging check: confirms exactly four x64 helpers plus attribution under the unpacked app's
