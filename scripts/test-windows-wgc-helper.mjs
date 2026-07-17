@@ -68,6 +68,103 @@ const WITH_WEBCAM =
 const CAPTURE_CURSOR =
 	process.env.CLOSESCREEN_WGC_TEST_CAPTURE_CURSOR === "true" ||
 	process.argv.includes("--capture-cursor");
+const SYSTEM_AUDIO_TONE_HZ = 997;
+const AUDIO_SAMPLE_RATE = 48000;
+const AUDIO_CHANNELS = 2;
+const AUDIO_RMS_MIN = 500;
+const AUDIO_PEAK_MIN = 2000;
+const TONE_TOLERANCE_HZ = 10;
+const KEEP_ARTIFACTS = process.env.CLOSESCREEN_WGC_KEEP_ARTIFACTS === "1";
+
+function defaultRenderEndpointId() {
+	const probe = spawnSync(
+		"powershell.exe",
+		[
+			"-NoLogo",
+			"-NoProfile",
+			"-NonInteractive",
+			"-ExecutionPolicy",
+			"Bypass",
+			"-File",
+			path.join(ROOT, "scripts", "get-windows-default-render-endpoint.ps1"),
+		],
+		{ encoding: "utf8", windowsHide: true },
+	);
+	if (probe.status !== 0 || !probe.stdout.trim()) {
+		throw new Error(
+			`Could not resolve the default eConsole render endpoint: ${probe.stderr || probe.stdout}`,
+		);
+	}
+	return probe.stdout.trim();
+}
+
+async function startLoopbackTone() {
+	const available = spawnSync("ffplay", ["-version"], {
+		encoding: "utf8",
+		windowsHide: true,
+	});
+	if (available.status !== 0) {
+		throw new Error("--system-audio requires ffplay for the deterministic loopback tone.");
+	}
+	const renderEndpointId = defaultRenderEndpointId();
+	const stimulusStartedAt = Date.now();
+	const child = spawn(
+		"ffplay",
+		[
+			"-nodisp",
+			"-autoexit",
+			"-loglevel",
+			"quiet",
+			"-f",
+			"lavfi",
+			"-i",
+			`sine=frequency=${SYSTEM_AUDIO_TONE_HZ}:sample_rate=${AUDIO_SAMPLE_RATE},pan=stereo|c0=c0|c1=c0`,
+		],
+		{ stdio: "ignore", windowsHide: true },
+	);
+	await new Promise((resolve, reject) => {
+		const timer = setTimeout(resolve, 400);
+		child.once("error", (error) => {
+			clearTimeout(timer);
+			reject(error);
+		});
+		child.once("exit", (code) => {
+			if (code !== null && code !== 0) {
+				clearTimeout(timer);
+				reject(new Error(`Loopback tone exited early with code ${code}.`));
+			}
+		});
+	});
+	child.stimulusStartedAt = stimulusStartedAt;
+	child.renderEndpointId = renderEndpointId;
+	return child;
+}
+
+function assertLoopbackToneAlive(child, stage) {
+	if (child.exitCode !== null || child.killed) {
+		throw new Error(
+			`Loopback tone was not alive ${stage} (exitCode=${child.exitCode}, killed=${child.killed}).`,
+		);
+	}
+}
+
+async function stopLoopbackTone(child) {
+	if (child.exitCode !== null) return;
+	await new Promise((resolve, reject) => {
+		const timer = setTimeout(
+			() => reject(new Error("Loopback tone did not exit within 5 seconds.")),
+			5000,
+		);
+		child.once("exit", () => {
+			clearTimeout(timer);
+			resolve();
+		});
+		if (!child.kill()) {
+			clearTimeout(timer);
+			reject(new Error("Failed to terminate the loopback tone process."));
+		}
+	});
+}
 
 function runHelper(config) {
 	return new Promise((resolve, reject) => {
@@ -82,6 +179,7 @@ function runHelper(config) {
 		let postStopTimer = null;
 		let stopTimedOut = false;
 		let stopSentAt = 0;
+		let recordingStartedAt = 0;
 		const scheduleStop = () => {
 			if (stopTimer) {
 				return;
@@ -100,6 +198,7 @@ function runHelper(config) {
 		child.stdout.on("data", (chunk) => {
 			stdout += chunk.toString();
 			if (stdout.includes('"recording-started"') || stdout.includes("Recording started")) {
+				if (recordingStartedAt === 0) recordingStartedAt = Date.now();
 				scheduleStop();
 			}
 		});
@@ -126,6 +225,9 @@ function runHelper(config) {
 				stdout,
 				stderr,
 				postStopMs: stopSentAt > 0 ? Date.now() - stopSentAt : null,
+				stopSentAt,
+				recordingStartedAt,
+				closedAt: Date.now(),
 			});
 		});
 	});
@@ -312,13 +414,68 @@ function resolveDirectShowWebcamClsid(requestedName) {
 function probeStreams(outputPath) {
 	const ffprobe = spawnSync(
 		"ffprobe",
-		["-v", "error", "-show_streams", "-of", "json", outputPath],
+		["-v", "error", "-count_packets", "-count_frames", "-show_streams", "-of", "json", outputPath],
 		{ encoding: "utf8", windowsHide: true },
 	);
 	if (ffprobe.status !== 0) {
 		throw new Error(`ffprobe failed: ${ffprobe.stderr || ffprobe.stdout}`);
 	}
 	return JSON.parse(ffprobe.stdout).streams ?? [];
+}
+
+function decodeAudioEvidence(outputPath) {
+	const ffmpeg = spawnSync(
+		"ffmpeg",
+		[
+			"-v",
+			"error",
+			"-xerror",
+			"-i",
+			outputPath,
+			"-map",
+			"0:a:0",
+			"-ac",
+			String(AUDIO_CHANNELS),
+			"-ar",
+			String(AUDIO_SAMPLE_RATE),
+			"-f",
+			"s16le",
+			"pipe:1",
+		],
+		{ windowsHide: true, maxBuffer: 32 * 1024 * 1024 },
+	);
+	if (ffmpeg.status !== 0 || !ffmpeg.stdout?.length) {
+		throw new Error(
+			`ffmpeg did not decode AAC frames from ${outputPath}: ${ffmpeg.stderr?.toString() ?? ""}`,
+		);
+	}
+	let sumSquares = 0;
+	let peak = 0;
+	let samples = 0;
+	let positiveCrossings = 0;
+	let previous = null;
+	const totalFrames = Math.floor(ffmpeg.stdout.length / (AUDIO_CHANNELS * 2));
+	const edgeFrames = Math.floor(AUDIO_SAMPLE_RATE * 0.25);
+	const frequencyStart = Math.min(edgeFrames, totalFrames);
+	const frequencyEnd = Math.max(frequencyStart, totalFrames - edgeFrames);
+	for (let offset = 0; offset + 3 < ffmpeg.stdout.length; offset += AUDIO_CHANNELS * 2) {
+		const frame = offset / (AUDIO_CHANNELS * 2);
+		const sample = ffmpeg.stdout.readInt16LE(offset);
+		sumSquares += sample * sample;
+		peak = Math.max(peak, Math.abs(sample));
+		samples++;
+		if (frame >= frequencyStart && frame < frequencyEnd) {
+			if (previous !== null && previous < 0 && sample >= 0) positiveCrossings++;
+			previous = sample;
+		}
+	}
+	const frequencyDuration = (frequencyEnd - frequencyStart) / AUDIO_SAMPLE_RATE;
+	return {
+		decodedFrames: samples,
+		rms: samples > 0 ? Math.sqrt(sumSquares / samples) : 0,
+		peak,
+		frequency: frequencyDuration > 0 ? positiveCrossings / frequencyDuration : 0,
+	};
 }
 
 function measureFirstFrameLuma(outputPath) {
@@ -373,6 +530,13 @@ const outputPath = path.join(
 const webcamOutputPath = WITH_WEBCAM ? outputPath.replace(/\.mp4$/i, "-webcam.mp4") : null;
 
 const fixtureWindow = WITH_WINDOW ? await startFixtureWindow() : null;
+let systemAudioStimulus = null;
+try {
+	systemAudioStimulus = WITH_SYSTEM_AUDIO ? await startLoopbackTone() : null;
+} catch (error) {
+	fixtureWindow?.child.kill();
+	throw error;
+}
 
 const config = {
 	schemaVersion: 2,
@@ -412,10 +576,19 @@ const config = {
 
 let result;
 try {
+	if (systemAudioStimulus) {
+		assertLoopbackToneAlive(systemAudioStimulus, "before capture");
+	}
 	result = await runHelper(config);
+	if (systemAudioStimulus) {
+		assertLoopbackToneAlive(systemAudioStimulus, "after capture");
+	}
 } finally {
 	if (fixtureWindow) {
 		fixtureWindow.child.kill();
+	}
+	if (systemAudioStimulus) {
+		await stopLoopbackTone(systemAudioStimulus);
 	}
 }
 if (result.code !== 0) {
@@ -441,7 +614,8 @@ const streams = probeStreams(outputPath);
 const webcamStreams =
 	webcamOutputPath && fs.existsSync(webcamOutputPath) ? probeStreams(webcamOutputPath) : [];
 const hasVideo = streams.some((stream) => stream.codec_type === "video");
-const hasAudio = streams.some((stream) => stream.codec_type === "audio");
+const audioStream = streams.find((stream) => stream.codec_type === "audio");
+const hasAudio = Boolean(audioStream);
 const webcamFormatLine = result.stdout
 	.split(/\r?\n/)
 	.find((line) => line.includes('"event":"webcam-format"'));
@@ -482,6 +656,51 @@ if (
 if ((WITH_SYSTEM_AUDIO || WITH_MICROPHONE) && !hasAudio) {
 	throw new Error(`WGC helper output has no audio stream: ${outputPath}`);
 }
+if (!WITH_SYSTEM_AUDIO && !WITH_MICROPHONE && hasAudio) {
+	throw new Error(
+		`WGC helper no-audio output unexpectedly contains an audio stream: ${outputPath}`,
+	);
+}
+let audioEvidence = null;
+if (audioStream) {
+	const packets = Number(audioStream.nb_read_packets ?? 0);
+	const frames = Number(audioStream.nb_read_frames ?? 0);
+	if (
+		audioStream.codec_name !== "aac" ||
+		!Number.isFinite(packets) ||
+		!Number.isFinite(frames) ||
+		packets <= 0 ||
+		frames <= 0
+	) {
+		throw new Error(
+			`WGC helper did not produce real AAC media: codec=${audioStream.codec_name} packets=${packets} frames=${frames}`,
+		);
+	}
+	if (
+		WITH_SYSTEM_AUDIO &&
+		(Number(audioStream.sample_rate) !== AUDIO_SAMPLE_RATE ||
+			Number(audioStream.channels) !== AUDIO_CHANNELS)
+	) {
+		throw new Error(
+			`WGC helper system audio has unexpected shape: ${audioStream.sample_rate}Hz/${audioStream.channels}ch`,
+		);
+	}
+	audioEvidence = {
+		packets,
+		frames,
+		...decodeAudioEvidence(outputPath),
+	};
+	if (
+		WITH_SYSTEM_AUDIO &&
+		(audioEvidence.rms < AUDIO_RMS_MIN ||
+			audioEvidence.peak < AUDIO_PEAK_MIN ||
+			Math.abs(audioEvidence.frequency - SYSTEM_AUDIO_TONE_HZ) > TONE_TOLERANCE_HZ)
+	) {
+		throw new Error(
+			`Decoded system-audio tone mismatch: rms=${audioEvidence.rms.toFixed(1)} peak=${audioEvidence.peak} frequency=${audioEvidence.frequency.toFixed(2)}Hz`,
+		);
+	}
+}
 const frameLuma = measureFirstFrameLuma(outputPath);
 if (frameLuma.average < 1 && frameLuma.max < 5) {
 	throw new Error(
@@ -496,6 +715,15 @@ console.log(
 			backend: BACKEND,
 			helperPath: HELPER_PATH,
 			postStopMs: result.postStopMs,
+			artifactsRetained: KEEP_ARTIFACTS,
+			renderEndpointId: systemAudioStimulus?.renderEndpointId,
+			toneAliveMs: systemAudioStimulus
+				? result.closedAt - systemAudioStimulus.stimulusStartedAt
+				: undefined,
+			toneCaptureOverlapMs:
+				systemAudioStimulus && result.recordingStartedAt > 0 && result.stopSentAt > 0
+					? result.stopSentAt - result.recordingStartedAt
+					: undefined,
 			outputPath,
 			webcamOutputPath,
 			bytes: fs.statSync(outputPath).size,
@@ -522,9 +750,15 @@ console.log(
 			selectedWebcamDeviceName: webcamFormat?.deviceName,
 			nativeMicrophoneDiagnostics,
 			nativeWebcamDiagnostics,
+			audioEvidence,
 			firstFrameLuma: frameLuma,
 		},
 		null,
 		2,
 	),
 );
+
+if (!KEEP_ARTIFACTS) {
+	fs.rmSync(outputPath, { force: true });
+	if (webcamOutputPath) fs.rmSync(webcamOutputPath, { force: true });
+}

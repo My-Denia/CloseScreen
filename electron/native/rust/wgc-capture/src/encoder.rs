@@ -631,3 +631,344 @@ impl Drop for MfEncoder {
         self.finalize();
     }
 }
+
+#[cfg(all(test, target_os = "windows"))]
+mod tests {
+    use std::path::{Path, PathBuf};
+    use std::sync::Mutex;
+    use std::sync::atomic::{AtomicU64, Ordering};
+
+    use windows::Win32::Foundation::{HMODULE, RPC_E_CHANGED_MODE, S_FALSE, S_OK};
+    use windows::Win32::Graphics::Direct3D::{
+        D3D_DRIVER_TYPE_WARP, D3D_FEATURE_LEVEL, D3D_FEATURE_LEVEL_11_0,
+    };
+    use windows::Win32::Graphics::Direct3D11::{
+        D3D11_CREATE_DEVICE_BGRA_SUPPORT, D3D11_SDK_VERSION, D3D11CreateDevice, ID3D11Device,
+        ID3D11DeviceContext,
+    };
+    use windows::Win32::Media::MediaFoundation::{
+        MF_E_INVALIDSTREAMNUMBER, MF_MT_ALL_SAMPLES_INDEPENDENT, MF_MT_AUDIO_AVG_BYTES_PER_SECOND,
+        MF_MT_AUDIO_BITS_PER_SAMPLE, MF_MT_AUDIO_BLOCK_ALIGNMENT, MF_MT_AUDIO_NUM_CHANNELS,
+        MF_MT_AUDIO_SAMPLES_PER_SECOND, MF_MT_MAJOR_TYPE, MF_MT_SUBTYPE,
+        MF_SOURCE_READER_ALL_STREAMS, MF_SOURCE_READER_FIRST_AUDIO_STREAM,
+        MF_SOURCE_READER_FIRST_VIDEO_STREAM, MF_SOURCE_READERF_ENDOFSTREAM,
+        MF_SOURCE_READERF_ERROR, MF_VERSION, MFAudioFormat_AAC, MFAudioFormat_PCM,
+        MFCreateMediaType, MFCreateSourceReaderFromURL, MFMediaType_Audio, MFMediaType_Video,
+        MFSTARTUP_FULL, MFShutdown, MFStartup,
+    };
+    use windows::Win32::System::Com::{COINIT_MULTITHREADED, CoInitializeEx, CoUninitialize};
+    use windows::core::PCWSTR;
+
+    use super::*;
+    use crate::audio::format::{AudioFormat, AudioSubtype};
+    use crate::pip::BgraFrame;
+
+    const WIDTH: i32 = 64;
+    const HEIGHT: i32 = 64;
+    const FPS: i32 = 30;
+    const SAMPLE_RATE: u64 = 48_000;
+    const AUDIO_FRAMES: u64 = 48_123;
+    const HNS_PER_SECOND: u64 = 10_000_000;
+    static MF_TEST_LOCK: Mutex<()> = Mutex::new(());
+    static NEXT_FILE: AtomicU64 = AtomicU64::new(0);
+
+    struct ComGuard {
+        uninitialize: bool,
+    }
+
+    impl ComGuard {
+        fn initialize() -> Self {
+            // SAFETY: this test owns the matching CoUninitialize only for
+            // S_OK/S_FALSE. RPC_E_CHANGED_MODE means the runner already
+            // initialized the apartment, which remains usable but is not ours.
+            let hr = unsafe { CoInitializeEx(None, COINIT_MULTITHREADED) };
+            assert!(
+                hr == S_OK || hr == S_FALSE || hr == RPC_E_CHANGED_MODE,
+                "CoInitializeEx failed: {hr:?}"
+            );
+            Self {
+                uninitialize: hr == S_OK || hr == S_FALSE,
+            }
+        }
+    }
+
+    impl Drop for ComGuard {
+        fn drop(&mut self) {
+            if self.uninitialize {
+                // SAFETY: paired with this guard's successful CoInitializeEx.
+                unsafe { CoUninitialize() };
+            }
+        }
+    }
+
+    struct MfGuard;
+
+    impl MfGuard {
+        fn initialize() -> Self {
+            // Keep one process-level MF reference alive while individual
+            // encoders pair their own startup/shutdown and SourceReader
+            // validates finalized files.
+            // SAFETY: balanced by MfGuard::drop.
+            unsafe { MFStartup(MF_VERSION, MFSTARTUP_FULL) }
+                .expect("outer MFStartup for encoder regression");
+            Self
+        }
+    }
+
+    impl Drop for MfGuard {
+        fn drop(&mut self) {
+            // SAFETY: paired with MfGuard::initialize.
+            let _ = unsafe { MFShutdown() };
+        }
+    }
+
+    struct TempArtifacts(Vec<PathBuf>);
+
+    impl TempArtifacts {
+        fn new() -> Self {
+            Self(Vec::new())
+        }
+
+        fn path(&mut self, label: &str) -> PathBuf {
+            let id = NEXT_FILE.fetch_add(1, Ordering::Relaxed);
+            let path = std::env::temp_dir().join(format!(
+                "closescreen-mf-encoder-{label}-{}-{id}.mp4",
+                std::process::id()
+            ));
+            self.0.push(path.clone());
+            path
+        }
+    }
+
+    impl Drop for TempArtifacts {
+        fn drop(&mut self) {
+            for path in &self.0 {
+                let _ = std::fs::remove_file(path);
+            }
+        }
+    }
+
+    fn warp_device() -> (ID3D11Device, ID3D11DeviceContext) {
+        let feature_levels = [D3D_FEATURE_LEVEL_11_0];
+        let mut device = None;
+        let mut context = None;
+        let mut selected_level = D3D_FEATURE_LEVEL::default();
+        // SAFETY: standard WARP device creation with initialized out-params.
+        unsafe {
+            D3D11CreateDevice(
+                None,
+                D3D_DRIVER_TYPE_WARP,
+                HMODULE::default(),
+                D3D11_CREATE_DEVICE_BGRA_SUPPORT,
+                Some(&feature_levels),
+                D3D11_SDK_VERSION,
+                Some(&raw mut device),
+                Some(&raw mut selected_level),
+                Some(&raw mut context),
+            )
+        }
+        .expect("D3D11CreateDevice(WARP)");
+        (
+            device.expect("WARP device"),
+            context.expect("WARP device context"),
+        )
+    }
+
+    fn pcm_format() -> AudioFormat {
+        AudioFormat {
+            subtype: AudioSubtype::Pcm,
+            sample_rate: SAMPLE_RATE as u32,
+            channels: 2,
+            bits_per_sample: 16,
+            block_align: 4,
+            avg_bytes_per_sec: SAMPLE_RATE as u32 * 4,
+        }
+    }
+
+    fn write_synthetic_mp4(
+        path: &Path,
+        device: &ID3D11Device,
+        context: &ID3D11DeviceContext,
+        with_audio: bool,
+    ) {
+        let path_string = path.to_string_lossy();
+        let audio_format = pcm_format();
+        let encoder = MfEncoder::initialize(
+            &path_string,
+            WIDTH,
+            HEIGHT,
+            FPS,
+            500_000,
+            device,
+            context,
+            with_audio.then_some(&audio_format),
+        )
+        .expect("initialize synthetic MF encoder");
+
+        let mut pixels = vec![0u8; (WIDTH * HEIGHT * 4) as usize];
+        for pixel in pixels.chunks_exact_mut(4) {
+            pixel.copy_from_slice(&[32, 96, 192, 255]);
+        }
+        let frame = BgraFrame {
+            data: &pixels,
+            width: WIDTH,
+            height: HEIGHT,
+        };
+        for index in 0..31i64 {
+            assert!(
+                encoder.write_bgra_frame(&frame, index * HNS_PER_SECOND as i64 / i64::from(FPS)),
+                "write synthetic video frame {index}"
+            );
+        }
+
+        if with_audio {
+            let mut written_frames = 0u64;
+            while written_frames < AUDIO_FRAMES {
+                let chunk_frames = (AUDIO_FRAMES - written_frames).min(480);
+                let mut pcm = Vec::with_capacity(chunk_frames as usize * 4);
+                for frame_index in written_frames..written_frames + chunk_frames {
+                    let phase =
+                        std::f64::consts::TAU * 997.0 * frame_index as f64 / SAMPLE_RATE as f64;
+                    let sample = (phase.sin() * 10_000.0) as i16;
+                    pcm.extend_from_slice(&sample.to_le_bytes());
+                    pcm.extend_from_slice(&sample.to_le_bytes());
+                }
+                let start_hns = (written_frames * HNS_PER_SECOND / SAMPLE_RATE) as i64;
+                let end_frames = written_frames + chunk_frames;
+                let end_hns = (end_frames * HNS_PER_SECOND / SAMPLE_RATE) as i64;
+                assert!(
+                    encoder.write_audio(&pcm, start_hns, end_hns - start_hns),
+                    "write synthetic audio at frame {written_frames}"
+                );
+                written_frames = end_frames;
+            }
+        }
+
+        assert!(encoder.finalize(), "finalize synthetic MP4");
+        drop(encoder);
+    }
+
+    fn source_reader(path: &Path) -> windows::Win32::Media::MediaFoundation::IMFSourceReader {
+        let wide = to_wide(&path.to_string_lossy());
+        // SAFETY: NUL-terminated path stays alive for the call; no attributes.
+        unsafe { MFCreateSourceReaderFromURL(PCWSTR(wide.as_ptr()), None) }
+            .expect("open finalized MP4 with SourceReader")
+    }
+
+    fn assert_decodable_aac(path: &Path) {
+        let reader = source_reader(path);
+        let audio_stream = MF_SOURCE_READER_FIRST_AUDIO_STREAM.0 as u32;
+        // SAFETY: synchronous SourceReader calls with valid stream constants.
+        unsafe {
+            let native = reader
+                .GetNativeMediaType(audio_stream, 0)
+                .expect("native AAC media type");
+            assert_eq!(
+                native.GetGUID(&MF_MT_MAJOR_TYPE).expect("audio major type"),
+                MFMediaType_Audio
+            );
+            assert_eq!(
+                native.GetGUID(&MF_MT_SUBTYPE).expect("audio subtype"),
+                MFAudioFormat_AAC
+            );
+
+            reader
+                .SetStreamSelection(MF_SOURCE_READER_ALL_STREAMS.0 as u32, false)
+                .expect("deselect source streams");
+            reader
+                .SetStreamSelection(audio_stream, true)
+                .expect("select audio stream");
+
+            let pcm = MFCreateMediaType().expect("PCM decode media type");
+            pcm.SetGUID(&MF_MT_MAJOR_TYPE, &MFMediaType_Audio)
+                .expect("PCM major type");
+            pcm.SetGUID(&MF_MT_SUBTYPE, &MFAudioFormat_PCM)
+                .expect("PCM subtype");
+            pcm.SetUINT32(&MF_MT_AUDIO_NUM_CHANNELS, 2)
+                .expect("PCM channels");
+            pcm.SetUINT32(&MF_MT_AUDIO_SAMPLES_PER_SECOND, SAMPLE_RATE as u32)
+                .expect("PCM sample rate");
+            pcm.SetUINT32(&MF_MT_AUDIO_BITS_PER_SAMPLE, 16)
+                .expect("PCM bits");
+            pcm.SetUINT32(&MF_MT_AUDIO_BLOCK_ALIGNMENT, 4)
+                .expect("PCM block alignment");
+            pcm.SetUINT32(&MF_MT_AUDIO_AVG_BYTES_PER_SECOND, SAMPLE_RATE as u32 * 4)
+                .expect("PCM byte rate");
+            pcm.SetUINT32(&MF_MT_ALL_SAMPLES_INDEPENDENT, 1)
+                .expect("PCM independent samples");
+            reader
+                .SetCurrentMediaType(audio_stream, None, &pcm)
+                .expect("configure AAC decoder");
+
+            let mut decoded_samples = 0usize;
+            let mut decoded_bytes = 0u64;
+            for _ in 0..10_000 {
+                let mut flags = 0u32;
+                let mut sample = None;
+                reader
+                    .ReadSample(
+                        audio_stream,
+                        0,
+                        None,
+                        Some(&raw mut flags),
+                        None,
+                        Some(&raw mut sample),
+                    )
+                    .expect("decode AAC sample");
+                assert_eq!(
+                    flags & MF_SOURCE_READERF_ERROR.0 as u32,
+                    0,
+                    "SourceReader reported an audio decode error"
+                );
+                if let Some(sample) = sample {
+                    decoded_samples += 1;
+                    decoded_bytes += sample.GetTotalLength().expect("decoded PCM length") as u64;
+                }
+                if flags & MF_SOURCE_READERF_ENDOFSTREAM.0 as u32 != 0 {
+                    assert!(decoded_samples > 0, "no decoded AAC samples");
+                    assert!(
+                        decoded_bytes >= AUDIO_FRAMES * 4,
+                        "decoded PCM tail was truncated: {decoded_bytes} bytes"
+                    );
+                    assert_eq!(decoded_bytes % 4, 0, "partial stereo PCM frame");
+                    return;
+                }
+            }
+        }
+        panic!("SourceReader did not reach audio end-of-stream");
+    }
+
+    fn assert_video_only(path: &Path) {
+        let reader = source_reader(path);
+        // SAFETY: native media-type queries do not retain borrowed pointers.
+        unsafe {
+            let video = reader
+                .GetNativeMediaType(MF_SOURCE_READER_FIRST_VIDEO_STREAM.0 as u32, 0)
+                .expect("video-only artifact has a video stream");
+            assert_eq!(
+                video.GetGUID(&MF_MT_MAJOR_TYPE).expect("video major type"),
+                MFMediaType_Video
+            );
+            let error = reader
+                .GetNativeMediaType(MF_SOURCE_READER_FIRST_AUDIO_STREAM.0 as u32, 0)
+                .expect_err("video-only artifact unexpectedly has audio");
+            assert_eq!(error.code(), MF_E_INVALIDSTREAMNUMBER);
+        }
+    }
+
+    #[test]
+    fn finalization_flushes_non_aligned_aac_tail_and_preserves_no_audio_mode() {
+        let _serial = MF_TEST_LOCK.lock().unwrap_or_else(|p| p.into_inner());
+        let _com = ComGuard::initialize();
+        let _mf = MfGuard::initialize();
+        let mut artifacts = TempArtifacts::new();
+        let with_audio = artifacts.path("audio");
+        let video_only = artifacts.path("video-only");
+        let (device, context) = warp_device();
+
+        write_synthetic_mp4(&with_audio, &device, &context, true);
+        write_synthetic_mp4(&video_only, &device, &context, false);
+        assert_decodable_aac(&with_audio);
+        assert_video_only(&video_only);
+    }
+}

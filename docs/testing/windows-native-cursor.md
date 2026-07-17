@@ -122,7 +122,11 @@ npm run test:wgc-webcam:win
 `test:wgc-helper:win`, `test:wgc-fault:win`, and `test:cursor-sampler:win` run the Rust and legacy
 staged executables sequentially by default. Use `-- --backend rust` or `-- --backend legacy` to
 isolate one. `test:wgc-parity:win` always compares both and checks pause/resume lifecycle, packet
-timestamps, output metadata, and error semantics.
+timestamps, output metadata, and error semantics. Set `CLOSESCREEN_PARITY_AUDIO=1` to add the
+deterministic loopback-tone gate for real AAC packets/frames, decode, tail retention, and A/V drift.
+Successful helper/parity runs delete their temporary MP4s. Set
+`CLOSESCREEN_WGC_KEEP_ARTIFACTS=1` or `CLOSESCREEN_PARITY_KEEP_ARTIFACTS=1` only when an
+inspection artifact is needed; failures retain available artifacts automatically.
 
 For packaged rollback, set the paired backend before launching CloseScreen:
 

@@ -28,6 +28,19 @@ const RUST_EXE =
 	path.join(ROOT, "electron", "native", "bin", "win32-x64", "wgc-capture.exe");
 
 const RECORD_MS = 4000;
+const PAUSE_AFTER_MS = 1000;
+const PAUSE_FOR_MS = 1000;
+const EXPECTED_MEDIA_SECONDS = (RECORD_MS - PAUSE_FOR_MS) / 1000;
+const TONE_HZ = 997;
+const AUDIO_SAMPLE_RATE = 48000;
+const AUDIO_CHANNELS = 2;
+const AUDIO_RMS_MIN = 500;
+const AUDIO_PEAK_MIN = 2000;
+const TONE_TOLERANCE_HZ = 10;
+const START_DRIFT_MAX_SECONDS = 0.25;
+const END_DRIFT_MAX_SECONDS = 0.75;
+const DURATION_TOLERANCE_SECONDS = 0.75;
+const KEEP_ARTIFACTS = process.env.CLOSESCREEN_PARITY_KEEP_ARTIFACTS === "1";
 const failures = [];
 
 function assertEqual(label, cpp, rust) {
@@ -52,10 +65,13 @@ function runCapture(
 		let stderr = "";
 		let stopSent = false;
 		let commandsScheduled = false;
+		let recordingStartedAt = 0;
+		let stopSentAt = 0;
 		child.stdout.on("data", (chunk) => {
 			stdout += chunk.toString();
 			if (!commandsScheduled && stdout.includes("Recording started")) {
 				commandsScheduled = true;
+				recordingStartedAt = Date.now();
 				if (pauseAfterStartedMs !== null) {
 					setTimeout(() => child.stdin.write("pause\n"), pauseAfterStartedMs);
 					setTimeout(() => child.stdin.write("resume\n"), pauseAfterStartedMs + pauseForMs);
@@ -63,6 +79,7 @@ function runCapture(
 				setTimeout(() => {
 					if (stopSent || stopAfterStartedMs === null) return;
 					stopSent = true;
+					stopSentAt = Date.now();
 					try {
 						child.stdin.write("stop\n");
 					} catch {
@@ -80,7 +97,14 @@ function runCapture(
 		// captured strings are compared, or trailing lines can go missing.
 		child.once("close", (code) => {
 			clearTimeout(killer);
-			resolve({ code, stdout, stderr });
+			resolve({
+				code,
+				stdout,
+				stderr,
+				recordingStartedAt,
+				stopSentAt,
+				closedAt: Date.now(),
+			});
 		});
 	});
 }
@@ -121,9 +145,200 @@ function assertTimeline(label, timeline) {
 		return;
 	}
 	if (!timeline.monotonic) failures.push(`${label}: packet PTS are not monotonic`);
-	if (timeline.first < -0.05 || timeline.first > 0.25) {
+	if (timeline.first < -0.05 || timeline.first > START_DRIFT_MAX_SECONDS) {
 		failures.push(`${label}: first PTS ${timeline.first}s is not rebased near zero`);
 	}
+}
+
+function probeAudio(file) {
+	const probe = spawnSync(
+		"ffprobe",
+		[
+			"-v",
+			"error",
+			"-select_streams",
+			"a:0",
+			"-count_packets",
+			"-count_frames",
+			"-show_entries",
+			"stream=codec_name,sample_rate,channels,duration,nb_read_packets,nb_read_frames",
+			"-of",
+			"json",
+			file,
+		],
+		{ encoding: "utf8", windowsHide: true },
+	);
+	if (probe.status !== 0) return null;
+	const stream = JSON.parse(probe.stdout).streams?.[0];
+	if (!stream) return null;
+	return {
+		codec: stream.codec_name,
+		sampleRate: Number(stream.sample_rate),
+		channels: Number(stream.channels),
+		duration: Number(stream.duration),
+		packets: Number(stream.nb_read_packets ?? 0),
+		frames: Number(stream.nb_read_frames ?? 0),
+	};
+}
+
+function decodeStereoPcm(file) {
+	const decode = spawnSync(
+		"ffmpeg",
+		[
+			"-v",
+			"error",
+			"-xerror",
+			"-i",
+			file,
+			"-map",
+			"0:a:0",
+			"-ac",
+			String(AUDIO_CHANNELS),
+			"-ar",
+			String(AUDIO_SAMPLE_RATE),
+			"-f",
+			"s16le",
+			"pipe:1",
+		],
+		{ encoding: null, windowsHide: true, maxBuffer: 16 * 1024 * 1024 },
+	);
+	if (decode.status !== 0 || !Buffer.isBuffer(decode.stdout)) {
+		return {
+			ok: false,
+			error: decode.stderr?.toString() || `ffmpeg exited ${decode.status}`,
+		};
+	}
+	return { ok: true, pcm: decode.stdout };
+}
+
+function analyzeLeftChannel(pcm, startFrame = 0, endFrame = Number.POSITIVE_INFINITY) {
+	const frameCount = Math.floor(pcm.length / (AUDIO_CHANNELS * 2));
+	const start = Math.max(0, Math.min(frameCount, Math.floor(startFrame)));
+	const end = Math.max(start, Math.min(frameCount, Math.floor(endFrame)));
+	let sumSquares = 0;
+	let peak = 0;
+	let positiveCrossings = 0;
+	let previous = null;
+	for (let frame = start; frame < end; frame++) {
+		const sample = pcm.readInt16LE(frame * AUDIO_CHANNELS * 2);
+		const absolute = Math.abs(sample);
+		peak = Math.max(peak, absolute);
+		sumSquares += sample * sample;
+		if (previous !== null && previous < 0 && sample >= 0) positiveCrossings++;
+		previous = sample;
+	}
+	const samples = end - start;
+	const duration = samples / AUDIO_SAMPLE_RATE;
+	return {
+		samples,
+		rms: samples > 0 ? Math.sqrt(sumSquares / samples) : 0,
+		peak,
+		frequency: duration > 0 ? positiveCrossings / duration : 0,
+	};
+}
+
+function analyzeAudibleSpan(pcm, startFrame, endFrame) {
+	const frameCount = Math.floor(pcm.length / (AUDIO_CHANNELS * 2));
+	const start = Math.max(0, Math.min(frameCount, Math.floor(startFrame)));
+	const end = Math.max(start, Math.min(frameCount, Math.floor(endFrame)));
+	let firstAudible = null;
+	let lastAudible = null;
+	for (let frame = start; frame < end; frame++) {
+		const sample = pcm.readInt16LE(frame * AUDIO_CHANNELS * 2);
+		if (Math.abs(sample) >= 200) {
+			if (firstAudible === null) firstAudible = frame;
+			lastAudible = frame;
+		}
+	}
+	if (firstAudible === null || lastAudible === null) {
+		return analyzeLeftChannel(pcm, start, start);
+	}
+	return analyzeLeftChannel(pcm, firstAudible, lastAudible + 1);
+}
+
+function assertAudioEvidence(label, file, expectedDurationSeconds) {
+	const audio = probeAudio(file);
+	if (!audio) {
+		failures.push(`${label}: no readable audio stream`);
+		return null;
+	}
+	if (
+		audio.codec !== "aac" ||
+		audio.sampleRate !== AUDIO_SAMPLE_RATE ||
+		audio.channels !== AUDIO_CHANNELS
+	) {
+		failures.push(
+			`${label}: unexpected audio shape ${audio.codec} ${audio.sampleRate}Hz/${audio.channels}ch`,
+		);
+	}
+	if (
+		!Number.isFinite(audio.packets) ||
+		!Number.isFinite(audio.frames) ||
+		audio.packets <= 0 ||
+		audio.frames <= 0
+	) {
+		failures.push(
+			`${label}: AAC track has no media (packets=${audio.packets}, frames=${audio.frames})`,
+		);
+	}
+	if (
+		!Number.isFinite(audio.duration) ||
+		Math.abs(audio.duration - expectedDurationSeconds) > DURATION_TOLERANCE_SECONDS
+	) {
+		failures.push(
+			`${label}: audio duration ${audio.duration}s differs from expected ${expectedDurationSeconds}s`,
+		);
+	}
+
+	const decoded = decodeStereoPcm(file);
+	if (!decoded.ok) {
+		failures.push(`${label}: ffmpeg audio decode failed: ${decoded.error}`);
+		return { ...audio, decodeOk: false };
+	}
+	const whole = analyzeLeftChannel(decoded.pcm);
+	const windowFrames = Math.floor(AUDIO_SAMPLE_RATE * 0.25);
+	const first = analyzeLeftChannel(decoded.pcm, 0, windowFrames);
+	const totalFrames = Math.floor(decoded.pcm.length / (AUDIO_CHANNELS * 2));
+	const last = analyzeLeftChannel(decoded.pcm, totalFrames - windowFrames, totalFrames);
+	const firstTone = analyzeAudibleSpan(decoded.pcm, 0, windowFrames);
+	const lastTone = analyzeAudibleSpan(decoded.pcm, totalFrames - windowFrames, totalFrames);
+	const middle = analyzeLeftChannel(decoded.pcm, windowFrames, totalFrames - windowFrames);
+	if (whole.rms < AUDIO_RMS_MIN || whole.peak < AUDIO_PEAK_MIN) {
+		failures.push(
+			`${label}: decoded tone is silent/too quiet (rms=${whole.rms.toFixed(1)}, peak=${whole.peak})`,
+		);
+	}
+	if (Math.abs(middle.frequency - TONE_HZ) > TONE_TOLERANCE_HZ) {
+		failures.push(
+			`${label}: decoded tone frequency ${middle.frequency.toFixed(2)}Hz is not ${TONE_HZ}+/-${TONE_TOLERANCE_HZ}Hz`,
+		);
+	}
+	for (const [position, analysis, tone] of [
+		["first", first, firstTone],
+		["last", last, lastTone],
+	]) {
+		if (analysis.rms < AUDIO_RMS_MIN || analysis.peak < AUDIO_PEAK_MIN) {
+			failures.push(
+				`${label}: ${position} 250ms has no retained tone (rms=${analysis.rms.toFixed(1)}, peak=${analysis.peak})`,
+			);
+		}
+		if (Math.abs(tone.frequency - TONE_HZ) > TONE_TOLERANCE_HZ) {
+			failures.push(
+				`${label}: ${position} 250ms tone frequency ${tone.frequency.toFixed(2)}Hz is not ${TONE_HZ}+/-${TONE_TOLERANCE_HZ}Hz`,
+			);
+		}
+	}
+	return {
+		...audio,
+		decodeOk: true,
+		rms: whole.rms,
+		peak: whole.peak,
+		frequency: middle.frequency,
+		firstRms: first.rms,
+		lastRms: last.rms,
+		firstFrequency: firstTone.frequency,
+		lastFrequency: lastTone.frequency,
+	};
 }
 
 // Normalizes one stdout line to its comparable shape: JSON lines keep every
@@ -195,16 +410,30 @@ function tempOut(tag) {
 	return path.join(os.tmpdir(), `closescreen-parity-${tag}-${randomUUID()}.mp4`);
 }
 
-async function startSilentLoopbackStimulus() {
+function finishCaseArtifacts(label, files, failureCountAtStart) {
+	const uniqueFiles = [...new Set(files)];
+	if (failures.length === failureCountAtStart && !KEEP_ARTIFACTS) {
+		for (const file of uniqueFiles) fs.rmSync(file, { force: true });
+		return;
+	}
+	const existing = uniqueFiles.filter((file) => fs.existsSync(file));
+	if (existing.length > 0) {
+		console.log(`  ${label}: retained artifacts: ${existing.join(", ")}`);
+	}
+}
+
+async function startLoopbackTone() {
 	const available = spawnSync("ffplay", ["-version"], {
 		encoding: "utf8",
 		windowsHide: true,
 	});
 	if (available.status !== 0) {
 		throw new Error(
-			"CLOSESCREEN_PARITY_AUDIO=1 requires ffplay to keep the loopback endpoint active.",
+			"CLOSESCREEN_PARITY_AUDIO=1 requires ffplay for the deterministic loopback tone.",
 		);
 	}
+	const renderEndpointId = defaultRenderEndpointId();
+	const startedAt = Date.now();
 	const child = spawn(
 		"ffplay",
 		[
@@ -215,9 +444,7 @@ async function startSilentLoopbackStimulus() {
 			"-f",
 			"lavfi",
 			"-i",
-			"anullsrc=r=48000:cl=stereo",
-			"-t",
-			"15",
+			`sine=frequency=${TONE_HZ}:sample_rate=${AUDIO_SAMPLE_RATE},pan=stereo|c0=c0|c1=c0`,
 		],
 		{ stdio: "ignore", windowsHide: true },
 	);
@@ -230,11 +457,61 @@ async function startSilentLoopbackStimulus() {
 		child.once("exit", (code) => {
 			if (code !== null && code !== 0) {
 				clearTimeout(timer);
-				reject(new Error(`Silent loopback stimulus exited early with code ${code}.`));
+				reject(new Error(`Loopback tone exited early with code ${code}.`));
 			}
 		});
 	});
+	child.stimulusStartedAt = startedAt;
+	child.renderEndpointId = renderEndpointId;
 	return child;
+}
+
+function assertLoopbackToneAlive(child, stage) {
+	if (child.exitCode !== null || child.killed) {
+		throw new Error(
+			`Loopback tone was not alive ${stage} (exitCode=${child.exitCode}, killed=${child.killed}).`,
+		);
+	}
+}
+
+async function stopLoopbackTone(child) {
+	if (child.exitCode !== null) return;
+	await new Promise((resolve, reject) => {
+		const timer = setTimeout(
+			() => reject(new Error("Loopback tone did not exit within 5 seconds.")),
+			5000,
+		);
+		child.once("exit", () => {
+			clearTimeout(timer);
+			resolve();
+		});
+		if (!child.kill()) {
+			clearTimeout(timer);
+			reject(new Error("Failed to terminate the loopback tone process."));
+		}
+	});
+}
+
+function defaultRenderEndpointId() {
+	const probe = spawnSync(
+		"powershell.exe",
+		[
+			"-NoLogo",
+			"-NoProfile",
+			"-NonInteractive",
+			"-ExecutionPolicy",
+			"Bypass",
+			"-File",
+			path.join(ROOT, "scripts", "get-windows-default-render-endpoint.ps1"),
+		],
+		{ encoding: "utf8", windowsHide: true },
+	);
+	if (probe.status !== 0 || !probe.stdout.trim()) {
+		throw new Error(
+			`Could not resolve the default eConsole render endpoint: ${probe.stderr || probe.stdout}`,
+		);
+	}
+	return probe.stdout.trim();
 }
 
 if (process.platform !== "win32") {
@@ -255,6 +532,7 @@ console.log(`rust: ${RUST_EXE}`);
 
 // Case 1: display capture happy path.
 {
+	const failureCountAtStart = failures.length;
 	const outs = { cpp: tempOut("cpp"), rust: tempOut("rust") };
 	const results = {};
 	for (const [label, exe] of [
@@ -329,18 +607,30 @@ console.log(`rust: ${RUST_EXE}`);
 			assertTimeline(`display: ${label} video`, packetTimeline(outs[label], "v:0"));
 		}
 	}
+	for (const label of ["cpp", "rust"]) {
+		if (probeAudio(outs[label])) {
+			failures.push(`display: ${label} no-audio capture unexpectedly contains an audio stream`);
+		}
+		if (packetTimeline(outs[label], "a:0")) {
+			failures.push(`display: ${label} no-audio capture unexpectedly contains audio packets`);
+		}
+	}
 	console.log(
 		`  display: cpp ${meta.cpp?.duration}s / rust ${meta.rust?.duration}s @ ${meta.cpp?.width}x${meta.cpp?.height}`,
 	);
-	for (const f of Object.values(outs)) fs.rmSync(f, { force: true });
+	finishCaseArtifacts("display", Object.values(outs), failureCountAtStart);
 }
 
 // Case 1b (opt-in: CLOSESCREEN_PARITY_AUDIO=1 — needs a render endpoint):
-// system-audio capture parity, including the AAC assertion the wgc-helper
-// harness does not make (it only checks codec_type).
+// system-audio capture parity with a real, known-frequency render stimulus.
+// A track header is not enough: this case requires non-zero AAC packets and
+// frames, successful PCM decode, audible signal energy, tone identity, and
+// retained samples at both capture boundaries.
 if (process.env.CLOSESCREEN_PARITY_AUDIO === "1") {
+	const failureCountAtStart = failures.length;
 	const outs = { cpp: tempOut("cpp-audio"), rust: tempOut("rust-audio") };
 	const results = {};
+	const stimulusEvidence = {};
 	for (const [label, exe] of [
 		["cpp", CPP_EXE],
 		["rust", RUST_EXE],
@@ -355,16 +645,40 @@ if (process.env.CLOSESCREEN_PARITY_AUDIO === "1") {
 			captureMic: false,
 			webcamEnabled: false,
 		};
-		const stimulus = await startSilentLoopbackStimulus();
+		const stimulus = await startLoopbackTone();
 		try {
-			results[label] = await runCapture(exe, config, { stopAfterStartedMs: RECORD_MS });
+			assertLoopbackToneAlive(stimulus, `before ${label} capture`);
+			results[label] = await runCapture(exe, config, {
+				stopAfterStartedMs: RECORD_MS,
+				pauseAfterStartedMs: PAUSE_AFTER_MS,
+				pauseForMs: PAUSE_FOR_MS,
+			});
+			assertLoopbackToneAlive(stimulus, `after ${label} capture`);
+			stimulusEvidence[label] = {
+				renderEndpointId: stimulus.renderEndpointId,
+				aliveMs: results[label].closedAt - stimulus.stimulusStartedAt,
+				captureOverlapMs:
+					results[label].recordingStartedAt > 0 && results[label].stopSentAt > 0
+						? results[label].stopSentAt - results[label].recordingStartedAt
+						: 0,
+			};
 		} finally {
-			stimulus.kill();
+			await stopLoopbackTone(stimulus);
 		}
 	}
 	for (const label of ["cpp", "rust"]) {
 		if (results[label].code !== 0) {
 			failures.push(`audio: ${label} exited ${results[label].code} (expected 0)`);
+		}
+		for (const event of ["recording-paused", "recording-resumed"]) {
+			if (!results[label].stdout.includes(`"event":"${event}"`)) {
+				failures.push(`audio: ${label} did not emit ${event}`);
+			}
+		}
+		if (stimulusEvidence[label].captureOverlapMs < RECORD_MS - 100) {
+			failures.push(
+				`audio: ${label} tone overlapped capture for only ${stimulusEvidence[label].captureOverlapMs}ms`,
+			);
 		}
 	}
 	assertEqual(
@@ -377,34 +691,15 @@ if (process.env.CLOSESCREEN_PARITY_AUDIO === "1") {
 		normalizeStderr(results.cpp.stderr),
 		normalizeStderr(results.rust.stderr),
 	);
-	const audioMeta = (file) => {
-		const probe = spawnSync(
-			"ffprobe",
-			[
-				"-v",
-				"error",
-				"-select_streams",
-				"a:0",
-				"-show_entries",
-				"stream=codec_name,channels,sample_rate",
-				"-of",
-				"json",
-				file,
-			],
-			{ encoding: "utf8", windowsHide: true },
-		);
-		if (probe.status !== 0) return null;
-		return JSON.parse(probe.stdout).streams?.[0] ?? null;
+	const evidence = {
+		cpp: assertAudioEvidence("audio: cpp", outs.cpp, EXPECTED_MEDIA_SECONDS),
+		rust: assertAudioEvidence("audio: rust", outs.rust, EXPECTED_MEDIA_SECONDS),
 	};
-	const meta = { cpp: audioMeta(outs.cpp), rust: audioMeta(outs.rust) };
-	for (const label of ["cpp", "rust"]) {
-		if (!meta[label]) {
-			failures.push(`audio: no audio stream in the ${label} output`);
-		} else if (meta[label].codec_name !== "aac") {
-			failures.push(`audio: ${label} codec is ${meta[label].codec_name}, expected aac`);
-		}
-	}
-	assertEqual("audio: stream meta", meta.cpp, meta.rust);
+	assertEqual(
+		"audio: stream shape",
+		[evidence.cpp?.codec, evidence.cpp?.sampleRate, evidence.cpp?.channels],
+		[evidence.rust?.codec, evidence.rust?.sampleRate, evidence.rust?.channels],
+	);
 	for (const label of ["cpp", "rust"]) {
 		const videoTimeline = packetTimeline(outs[label], "v:0");
 		const audioTimeline = packetTimeline(outs[label], "a:0");
@@ -413,8 +708,8 @@ if (process.env.CLOSESCREEN_PARITY_AUDIO === "1") {
 		if (
 			videoTimeline &&
 			audioTimeline &&
-			(Math.abs(videoTimeline.first - audioTimeline.first) > 0.25 ||
-				Math.abs(videoTimeline.end - audioTimeline.end) > 0.75)
+			(Math.abs(videoTimeline.first - audioTimeline.first) > START_DRIFT_MAX_SECONDS ||
+				Math.abs(videoTimeline.end - audioTimeline.end) > END_DRIFT_MAX_SECONDS)
 		) {
 			failures.push(
 				`audio: ${label} A/V timeline drift first=${Math.abs(videoTimeline.first - audioTimeline.first)}s end=${Math.abs(videoTimeline.end - audioTimeline.end)}s`,
@@ -422,9 +717,17 @@ if (process.env.CLOSESCREEN_PARITY_AUDIO === "1") {
 		}
 	}
 	console.log(
-		`  audio: aac ${meta.cpp?.sample_rate}Hz/${meta.cpp?.channels}ch on both (events and packet timelines valid)`,
+		`  audio: real AAC packets/frames cpp=${evidence.cpp?.packets}/${evidence.cpp?.frames} rust=${evidence.rust?.packets}/${evidence.rust?.frames}; decoded ${TONE_HZ}Hz tone retained across pause and stop`,
 	);
-	for (const f of Object.values(outs)) fs.rmSync(f, { force: true });
+	console.log(
+		`  audio stimulus: endpoint=${stimulusEvidence.cpp.renderEndpointId}; cpp alive/overlap=${stimulusEvidence.cpp.aliveMs}/${stimulusEvidence.cpp.captureOverlapMs}ms; rust alive/overlap=${stimulusEvidence.rust.aliveMs}/${stimulusEvidence.rust.captureOverlapMs}ms`,
+	);
+	if (stimulusEvidence.cpp.renderEndpointId !== stimulusEvidence.rust.renderEndpointId) {
+		failures.push(
+			`audio: default render endpoint changed between helpers (${stimulusEvidence.cpp.renderEndpointId} -> ${stimulusEvidence.rust.renderEndpointId})`,
+		);
+	}
+	finishCaseArtifacts("audio", Object.values(outs), failureCountAtStart);
 } else {
 	console.log(
 		"  audio: skipped (set CLOSESCREEN_PARITY_AUDIO=1 on a machine with a render endpoint)",
@@ -437,6 +740,7 @@ if (process.env.CLOSESCREEN_PARITY_AUDIO === "1") {
 // webcam-format payloads, webcamPath in the stopped event, and both webcam
 // mp4s carrying a real video stream.
 if (process.env.CLOSESCREEN_PARITY_WEBCAM === "1") {
+	const failureCountAtStart = failures.length;
 	const outs = { cpp: tempOut("cpp-webcam"), rust: tempOut("rust-webcam") };
 	const webcamOut = (f) => f.replace(/\.mp4$/i, "-webcam.mp4");
 	const results = {};
@@ -511,10 +815,11 @@ if (process.env.CLOSESCREEN_PARITY_WEBCAM === "1") {
 	console.log(
 		`  webcam: ${meta.cpp?.width}x${meta.cpp?.height} h264 on both (cpp ${meta.cpp?.duration}s / rust ${meta.rust?.duration}s)`,
 	);
-	for (const f of Object.values(outs)) {
-		fs.rmSync(f, { force: true });
-		fs.rmSync(webcamOut(f), { force: true });
-	}
+	finishCaseArtifacts(
+		"webcam",
+		Object.values(outs).flatMap((file) => [file, webcamOut(file)]),
+		failureCountAtStart,
+	);
 } else {
 	console.log(
 		"  webcam: skipped (set CLOSESCREEN_PARITY_WEBCAM=1 on a machine with a frame-delivering capture device)",

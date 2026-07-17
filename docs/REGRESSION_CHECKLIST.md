@@ -30,7 +30,8 @@ packaging. Labels mean:
 | Low disk warning threshold logic | automated | `electron/diskSpace.test.ts` |
 | Windows display capture, pause/resume, timestamps, and error parity | automated on available display | `npm run test:wgc-parity:win` compares explicit Rust and legacy helpers |
 | Windows bounded normal/fault shutdown | automated on available display | `npm run test:wgc-helper:win`; `npm run test:wgc-fault:win` runs both backends |
-| Windows audio/mic/webcam devices | manual, environment-dependent | `test:wgc-audio:win`, `test:wgc-mic:win`, `test:wgc-webcam:win`; record actual devices and skipped cases |
+| Windows system-audio packet production | automated on available render endpoint | `test:wgc-audio:win` plays a deterministic tone and requires real AAC packets/frames plus decodable non-silent PCM from both helpers |
+| Windows mic/webcam devices | manual, environment-dependent | `test:wgc-mic:win`, `test:wgc-webcam:win`; record actual devices and skipped cases |
 | Current laptop webcam limitation | not yet covered | Both backends exceeded the 9-second post-stop gate during migration validation; Rust exited under a 30-second diagnostic ceiling without a webcam sidecar. Track as device-specific until reproducible root cause/evidence exists. |
 | Native recording through editor to MP4/GIF export | manual | Packaged Rust recording on the available Windows x64 laptop; do not substitute `windows-native-checklist.spec.ts`, which does not start the helper |
 | Real low-space recording drive behavior | manual | Run the app against a low-space test volume; verify no automatic deletion occurs |

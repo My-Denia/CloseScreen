@@ -360,6 +360,57 @@ mod tests {
     }
 
     #[test]
+    fn stop_waits_for_in_flight_trailing_chunk() {
+        let format = test_format();
+        let (tail_tx, tail_rx) = mpsc::channel();
+        let release = Arc::new((Mutex::new(false), Condvar::new()));
+        let callback_release = Arc::clone(&release);
+        let mixer = Arc::new(AudioMixer::new(
+            format,
+            format,
+            format,
+            true,
+            false,
+            1.0,
+            Box::new(move |data, timestamp, duration| {
+                tail_tx
+                    .send((data.to_vec(), timestamp, duration))
+                    .expect("report in-flight tail");
+                let (lock, cv) = &*callback_release;
+                let released = lock.lock().unwrap_or_else(|p| p.into_inner());
+                let (released, timeout) = cv
+                    .wait_timeout_while(released, Duration::from_secs(2), |released| !*released)
+                    .unwrap_or_else(|p| p.into_inner());
+                !timeout.timed_out() && *released
+            }),
+        ));
+        assert!(mixer.start());
+        mixer.begin_timeline();
+        mixer.push_system(&[3; 20]);
+
+        let tail = tail_rx.recv_timeout(Duration::from_secs(1)).unwrap();
+        assert_eq!((tail.1, tail.2), (0, 100_000));
+        assert_eq!(tail.0, vec![3; 20]);
+
+        // Legacy C++ stops accepting/queuing new data immediately, but joins
+        // an output callback already writing the final chunk. Preserve that
+        // bounded tail contract instead of returning while WriteSample is live.
+        let (stopped_tx, stopped_rx) = mpsc::channel();
+        let stopping_mixer = Arc::clone(&mixer);
+        let stopper = std::thread::spawn(move || {
+            stopping_mixer.stop();
+            stopped_tx.send(()).unwrap();
+        });
+        assert!(stopped_rx.recv_timeout(Duration::from_millis(50)).is_err());
+
+        let (lock, cv) = &*release;
+        *lock.lock().unwrap_or_else(|p| p.into_inner()) = true;
+        cv.notify_all();
+        stopped_rx.recv_timeout(Duration::from_secs(1)).unwrap();
+        stopper.join().unwrap();
+    }
+
+    #[test]
     fn invalid_output_format_does_not_start() {
         let (mut mixer, _rx) = system_mixer();
         mixer.format.sample_rate = 0;
