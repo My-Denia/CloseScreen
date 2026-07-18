@@ -21,7 +21,7 @@ function fixture(files) {
 
 function completeFixture(extra = {}) {
 	return fixture({
-		"windows/CloseScreen Setup.exe": "win",
+		"windows/CloseScreen Setup 1.5.0-fork.4.exe": "win",
 		"windows/windows-build-provenance.json": "{}",
 		"linux/CloseScreen.AppImage": "appimage",
 		"linux/CloseScreen.deb": "deb",
@@ -41,8 +41,8 @@ describe("prepareReleaseAssets", () => {
 		const result = prepareReleaseAssets(artifacts, output);
 
 		expect(result.assets).toEqual([
-			"CloseScreen Setup.exe",
 			"CloseScreen.AppImage",
+			"CloseScreen.Setup.1.5.0-fork.4.exe",
 			"CloseScreen.deb",
 			"CloseScreen.pacman",
 			"linux-build-provenance.json",
@@ -60,7 +60,16 @@ describe("prepareReleaseAssets", () => {
 			"other/CloseScreen.deb": "duplicate",
 		});
 		expect(() => prepareReleaseAssets(artifacts, output)).toThrow(
-			"Duplicate release asset basename: CloseScreen.deb",
+			"Duplicate release asset basename after canonicalization: CloseScreen.deb",
+		);
+	});
+
+	it("rejects collisions introduced by basename canonicalization", () => {
+		const { artifacts, output } = completeFixture({
+			"other/CloseScreen.Setup.1.5.0-fork.4.exe": "duplicate",
+		});
+		expect(() => prepareReleaseAssets(artifacts, output)).toThrow(
+			"Duplicate release asset basename after canonicalization: CloseScreen.Setup.1.5.0-fork.4.exe",
 		);
 	});
 
@@ -75,7 +84,7 @@ describe("prepareReleaseAssets", () => {
 
 	it("rejects an incomplete release set", () => {
 		const { artifacts, output } = fixture({
-			"windows/CloseScreen Setup.exe": "win",
+			"windows/CloseScreen Setup 1.5.0-fork.4.exe": "win",
 			"windows/windows-build-provenance.json": "{}",
 		});
 		expect(() => prepareReleaseAssets(artifacts, output)).toThrow(

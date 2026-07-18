@@ -42,20 +42,28 @@ function requireInputKinds(names) {
 	}
 }
 
+export function canonicalReleaseAssetName(name) {
+	return name.replace(/\s/g, ".");
+}
+
 export function prepareReleaseAssets(artifactsDir, outputDir) {
 	const candidates = filesRecursively(artifactsDir).filter(isReleaseInput);
 	if (candidates.length === 0) throw new Error("No release assets found.");
-	const names = candidates.map((filePath) => path.basename(filePath));
+	const assets = candidates.map((source) => ({
+		source,
+		name: canonicalReleaseAssetName(path.basename(source)),
+	}));
+	const names = assets.map(({ name }) => name);
 	if (new Set(names).size !== names.length) {
 		const duplicate = names.find((name, index) => names.indexOf(name) !== index);
-		throw new Error(`Duplicate release asset basename: ${duplicate}`);
+		throw new Error(`Duplicate release asset basename after canonicalization: ${duplicate}`);
 	}
 	requireInputKinds(names);
 
 	fs.rmSync(outputDir, { recursive: true, force: true });
 	fs.mkdirSync(outputDir, { recursive: true });
-	for (const source of candidates) {
-		fs.copyFileSync(source, path.join(outputDir, path.basename(source)));
+	for (const { source, name } of assets) {
+		fs.copyFileSync(source, path.join(outputDir, name));
 	}
 
 	const staged = fs
